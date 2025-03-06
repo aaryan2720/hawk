@@ -6,8 +6,8 @@ import StatusOverview from '../components/StatusOverview';
 import AlertsList from '../components/AlertsList';
 
 const Index = () => {
-  // Add a slight delay to create a staggered animation effect
   useEffect(() => {
+    document.title = 'HAWK - Security Dashboard';
     document.body.classList.add('bg-gradient-to-br', 'from-gray-50', 'to-blue-50');
     
     return () => {
@@ -20,7 +20,7 @@ const Index = () => {
       <Navbar />
       
       <main className="pt-24 px-4 md:px-8 max-w-7xl mx-auto">
-        <DashboardHeader />
+        <DashboardHeader title="HAWK Security Dashboard" subtitle="Monitor and manage security alerts in real-time" />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
