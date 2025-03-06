@@ -12,9 +12,7 @@ export interface Alert {
   status: 'new' | 'acknowledged' | 'resolved';
   mitigation?: string;
   patchLink?: string;
-  details?: {
-    [key: string]: string | number | boolean;
-  };
+  details?: Record<string, any>;
 }
 
 export interface SystemStatus {
@@ -30,4 +28,13 @@ export interface AlertsStats {
   resolved: number;
   new: number;
   acknowledged: number;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string;
+  organization?: string;
+  role: 'admin' | 'user' | 'guest';
+  created_at: string;
 }
