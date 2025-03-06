@@ -3,14 +3,19 @@ import React from 'react';
 import { AlertTriangle, Check, Clock } from 'lucide-react';
 import { mockAlertsStats } from '../utils/mockData';
 
-const DashboardHeader = () => {
+interface DashboardHeaderProps {
+  title: string;
+  subtitle: string;
+}
+
+const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
   const { total, bySeverity, resolved, new: newAlerts, acknowledged } = mockAlertsStats;
   
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight mb-1">Security Alerts Dashboard</h1>
-        <p className="text-gray-500">Real-time monitoring and alerts for security vulnerabilities</p>
+        <h1 className="text-3xl font-semibold tracking-tight mb-1">{title}</h1>
+        <p className="text-gray-500">{subtitle}</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
