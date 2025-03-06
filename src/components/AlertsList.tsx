@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import AlertCard from './AlertCard';
 import SearchFilters from './SearchFilters';
 import { Alert } from '../types';
 import { mockAlerts } from '../utils/mockData';
+import { AlertCircle, Loader, RefreshCw } from 'lucide-react';
 
 const AlertsList = () => {
   const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>(mockAlerts);
@@ -12,6 +13,7 @@ const AlertsList = () => {
     severity: [],
     status: []
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const filterAlerts = useCallback(() => {
     let result = [...mockAlerts];
@@ -42,16 +44,23 @@ const AlertsList = () => {
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    setFilteredAlerts(filterAlerts());
-  }, [filterAlerts]);
+  }, []);
 
   const handleFilterChange = useCallback((newFilters: { severity: string[]; status: string[] }) => {
     setFilters(newFilters);
-    setFilteredAlerts(filterAlerts());
-  }, [filterAlerts]);
+  }, []);
+
+  const handleRefresh = () => {
+    setIsLoading(true);
+    // Simulate a refresh delay
+    setTimeout(() => {
+      setFilteredAlerts(filterAlerts());
+      setIsLoading(false);
+    }, 1000);
+  };
 
   // Update filtered alerts when dependencies change
-  React.useEffect(() => {
+  useEffect(() => {
     setFilteredAlerts(filterAlerts());
   }, [searchQuery, filters, filterAlerts]);
 
@@ -59,14 +68,28 @@ const AlertsList = () => {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Recent Alerts</h2>
-        <span className="text-sm text-gray-500">{filteredAlerts.length} alerts</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{filteredAlerts.length} alerts</span>
+          <button 
+            onClick={handleRefresh}
+            className={`p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors ${isLoading ? 'animate-spin' : ''}`}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader className="h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
       
       <SearchFilters onSearch={handleSearch} onFilterChange={handleFilterChange} />
       
-      <div className="space-y-4">
-        {filteredAlerts.length > 0 ? (
-          filteredAlerts.map((alert, index) => (
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center p-12 glass-card rounded-lg">
+          <Loader className="h-8 w-8 text-primary animate-spin mb-3" />
+          <p className="text-gray-500">Loading alerts...</p>
+        </div>
+      ) : filteredAlerts.length > 0 ? (
+        <div className="space-y-4">
+          {filteredAlerts.map((alert, index) => (
             <div 
               key={alert.id}
               className="animate-slide-up"
@@ -74,13 +97,24 @@ const AlertsList = () => {
             >
               <AlertCard alert={alert} />
             </div>
-          ))
-        ) : (
-          <div className="glass-card rounded-lg p-8 text-center">
-            <p className="text-gray-500">No alerts matching the current filters</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="glass-card rounded-lg p-8 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+          <p className="text-gray-500 font-medium mb-1">No alerts matching the current filters</p>
+          <p className="text-sm text-gray-400 mb-4">Try changing your search or filter criteria</p>
+          <button 
+            onClick={() => {
+              setSearchQuery('');
+              setFilters({ severity: [], status: [] });
+            }}
+            className="text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, ExternalLink, Shield, Clock } from 'lucide-react';
+import { ChevronDown, ExternalLink, Shield, Clock, CheckCircle, AlertTriangle, XCircle, ThumbsUp } from 'lucide-react';
 import { Alert } from '../types';
 import { formatTimeAgo, getSeverityBgColor, getSeverityTextColor, capitalize } from '../utils/formatters';
 
@@ -10,6 +10,7 @@ interface AlertCardProps {
 
 const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [status, setStatus] = useState(alert.status);
   
   const severityBgColor = getSeverityBgColor(alert.severity);
   const severityTextColor = getSeverityTextColor(alert.severity);
@@ -26,6 +27,25 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+  
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'new':
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
+      case 'acknowledged':
+        return <ThumbsUp className="h-4 w-4 text-amber-600" />;
+      case 'resolved':
+        return <CheckCircle className="h-4 w-4 text-emerald-600" />;
+      default:
+        return null;
+    }
+  };
+  
+  const handleStatusChange = (newStatus: 'new' | 'acknowledged' | 'resolved') => {
+    setStatus(newStatus);
+    // In a real app, we would make an API call here to update the status
+    console.log(`Status changed to ${newStatus} for alert ID: ${alert.id}`);
+  };
 
   return (
     <div className={`glass-card rounded-lg overflow-hidden transition-all duration-300 ${isExpanded ? 'shadow-md' : ''}`}>
@@ -39,8 +59,9 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
             <h3 className="font-medium">{alert.title}</h3>
           </div>
           <div className="flex items-center space-x-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadgeClass(alert.status)}`}>
-              {capitalize(alert.status)}
+            <span className={`text-xs px-2 py-0.5 rounded-full flex items-center ${getStatusBadgeClass(status)}`}>
+              {getStatusIcon(status)}
+              <span className="ml-1">{capitalize(status)}</span>
             </span>
             <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
           </div>
@@ -90,18 +111,45 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
             </div>
           )}
           
-          {alert.patchLink && (
-            <a 
-              href={alert.patchLink} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-sm text-primary hover:text-primary/80 transition-colors duration-200"
-            >
-              <Shield className="h-4 w-4 mr-1" />
-              Download security patch
-              <ExternalLink className="h-3.5 w-3.5 ml-1" />
-            </a>
-          )}
+          <div className="flex flex-wrap gap-2 mt-4 justify-between items-center">
+            <div className="flex space-x-2">
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleStatusChange('acknowledged'); }}
+                className={`text-xs px-3 py-1 rounded-md transition-colors ${status === 'acknowledged' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800'}`}
+              >
+                <ThumbsUp className="h-3 w-3 inline mr-1" />
+                Acknowledge
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleStatusChange('resolved'); }}
+                className={`text-xs px-3 py-1 rounded-md transition-colors ${status === 'resolved' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 hover:bg-emerald-100 text-gray-700 hover:text-emerald-800'}`}
+              >
+                <CheckCircle className="h-3 w-3 inline mr-1" />
+                Resolve
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleStatusChange('new'); }}
+                className={`text-xs px-3 py-1 rounded-md transition-colors ${status === 'new' ? 'bg-red-200 text-red-800' : 'bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-800'}`}
+              >
+                <XCircle className="h-3 w-3 inline mr-1" />
+                Reopen
+              </button>
+            </div>
+            
+            {alert.patchLink && (
+              <a 
+                href={alert.patchLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center text-sm text-primary hover:text-primary/80 transition-colors duration-200"
+              >
+                <Shield className="h-4 w-4 mr-1" />
+                Download security patch
+                <ExternalLink className="h-3.5 w-3.5 ml-1" />
+              </a>
+            )}
+          </div>
         </div>
       )}
     </div>

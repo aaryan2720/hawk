@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Shield, User, Menu, X } from 'lucide-react';
+import { Bell, Search, Shield, User, Menu, X, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { mockAlerts } from '../utils/mockData';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const newAlertsCount = mockAlerts.filter(alert => alert.status === 'new').length;
 
   useEffect(() => {
@@ -16,6 +17,10 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleProfileClick = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
 
   return (
     <nav 
@@ -28,15 +33,15 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Shield className="h-8 w-8 text-primary" />
-          <span className="text-xl font-semibold tracking-tight">SecureAlerts</span>
+          <span className="text-xl font-semibold tracking-tight">HAWK</span>
         </div>
         
         <div className="hidden md:flex items-center space-x-6">
-          <a href="#" className="text-gray-600 hover:text-primary transition-colors duration-200">Dashboard</a>
-          <a href="#" className="text-gray-600 hover:text-primary transition-colors duration-200">Alerts</a>
-          <a href="#" className="text-gray-600 hover:text-primary transition-colors duration-200">Systems</a>
-          <a href="#" className="text-gray-600 hover:text-primary transition-colors duration-200">Reports</a>
-          <a href="#" className="text-gray-600 hover:text-primary transition-colors duration-200">Settings</a>
+          <a href="/" className="text-gray-600 hover:text-primary transition-colors duration-200">Dashboard</a>
+          <a href="#alerts" className="text-gray-600 hover:text-primary transition-colors duration-200">Alerts</a>
+          <a href="#systems" className="text-gray-600 hover:text-primary transition-colors duration-200">Systems</a>
+          <a href="#reports" className="text-gray-600 hover:text-primary transition-colors duration-200">Reports</a>
+          <a href="#settings" className="text-gray-600 hover:text-primary transition-colors duration-200">Settings</a>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -53,9 +58,39 @@ const Navbar = () => {
             )}
           </button>
           
-          <button className="hidden md:block text-gray-600 hover:text-primary transition-colors duration-200">
-            <User className="h-5 w-5" />
-          </button>
+          <div className="relative">
+            <button 
+              className="hidden md:flex items-center space-x-2 text-gray-600 hover:text-primary transition-colors duration-200"
+              onClick={handleProfileClick}
+            >
+              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="h-5 w-5" />
+              </div>
+              <span className="hidden lg:block text-sm">Admin User</span>
+            </button>
+            
+            {isProfileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 animate-fade-in">
+                <a href="#profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </a>
+                <a href="#settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </a>
+                <a href="#help" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Help & Support
+                </a>
+                <div className="border-t border-gray-100 my-1"></div>
+                <a href="#logout" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </a>
+              </div>
+            )}
+          </div>
           
           <button 
             className="md:hidden text-gray-600 hover:text-primary transition-colors duration-200"
@@ -70,12 +105,13 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg animate-slide-down">
           <div className="flex flex-col p-4 space-y-3">
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Dashboard</a>
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Alerts</a>
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Systems</a>
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Reports</a>
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Settings</a>
-            <a href="#" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Profile</a>
+            <a href="/" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Dashboard</a>
+            <a href="#alerts" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Alerts</a>
+            <a href="#systems" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Systems</a>
+            <a href="#reports" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Reports</a>
+            <a href="#settings" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Settings</a>
+            <a href="#profile" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Profile</a>
+            <a href="#logout" className="text-red-600 py-2 px-4 hover:bg-gray-50 rounded-md">Logout</a>
           </div>
         </div>
       )}
