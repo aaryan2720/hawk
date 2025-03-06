@@ -1,18 +1,72 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { supabase } from '../integrations/supabase/client';
+import { format } from 'date-fns';
 
 const TrendChart = () => {
-  // Mock data for the chart
-  const data = [
-    { date: 'Jan', critical: 2, high: 5, medium: 8, low: 4 },
-    { date: 'Feb', critical: 3, high: 7, medium: 10, low: 5 },
-    { date: 'Mar', critical: 5, high: 8, medium: 7, low: 6 },
-    { date: 'Apr', critical: 1, high: 6, medium: 9, low: 7 },
-    { date: 'May', critical: 4, high: 9, medium: 11, low: 8 },
-    { date: 'Jun', critical: 3, high: 5, medium: 12, low: 6 },
-    { date: 'Jul', critical: 6, high: 7, medium: 8, low: 5 },
-  ];
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchVulnerabilityTrends = async () => {
+      try {
+        setIsLoading(true);
+        const { data: trends, error } = await supabase
+          .from('vulnerability_trends')
+          .select('*')
+          .order('date', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Transform the data for the chart
+        const formattedData = trends.map(trend => ({
+          date: format(new Date(trend.date), 'MMM dd'),
+          critical: trend.critical_count,
+          high: trend.high_count,
+          medium: trend.medium_count,
+          low: trend.low_count
+        }));
+        
+        setData(formattedData);
+      } catch (error) {
+        console.error('Error fetching vulnerability trends:', error);
+        setError('Failed to load vulnerability trend data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVulnerabilityTrends();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="glass-card p-4 rounded-lg h-[300px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-2 text-gray-500">Loading trend data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card p-4 rounded-lg h-[300px] flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-2 text-primary hover:text-primary/80 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card p-4 rounded-lg h-[300px]">

@@ -6,9 +6,10 @@ import { formatTimeAgo, getSeverityBgColor, getSeverityTextColor, capitalize } f
 
 interface AlertCardProps {
   alert: Alert;
+  onStatusChange: (newStatus: 'new' | 'acknowledged' | 'resolved') => void;
 }
 
-const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
+const AlertCard: React.FC<AlertCardProps> = ({ alert, onStatusChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [status, setStatus] = useState(alert.status);
   
@@ -43,8 +44,7 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
   
   const handleStatusChange = (newStatus: 'new' | 'acknowledged' | 'resolved') => {
     setStatus(newStatus);
-    // In a real app, we would make an API call here to update the status
-    console.log(`Status changed to ${newStatus} for alert ID: ${alert.id}`);
+    onStatusChange(newStatus);
   };
 
   return (

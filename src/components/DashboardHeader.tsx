@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Check, Clock } from 'lucide-react';
-import { mockAlertsStats } from '../utils/mockData';
+import { supabase } from '../integrations/supabase/client';
+import { AlertsStats } from '../types';
 
 interface DashboardHeaderProps {
   title: string;
@@ -9,7 +10,79 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
-  const { total, bySeverity, resolved, new: newAlerts, acknowledged } = mockAlertsStats;
+  const [stats, setStats] = useState<AlertsStats>({
+    total: 0,
+    bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+    resolved: 0,
+    new: 0,
+    acknowledged: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch all alerts to calculate statistics
+        const { data: alerts, error } = await supabase
+          .from('alerts')
+          .select('severity, status');
+        
+        if (error) throw error;
+        
+        if (alerts) {
+          const total = alerts.length;
+          const critical = alerts.filter(a => a.severity === 'critical').length;
+          const high = alerts.filter(a => a.severity === 'high').length;
+          const medium = alerts.filter(a => a.severity === 'medium').length;
+          const low = alerts.filter(a => a.severity === 'low').length;
+          const resolved = alerts.filter(a => a.status === 'resolved').length;
+          const newAlerts = alerts.filter(a => a.status === 'new').length;
+          const acknowledged = alerts.filter(a => a.status === 'acknowledged').length;
+          
+          setStats({
+            total,
+            bySeverity: { critical, high, medium, low },
+            resolved,
+            new: newAlerts,
+            acknowledged,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching alert statistics:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStats();
+  }, []);
+  
+  if (isLoading) {
+    return (
+      <div className="animate-fade-in mb-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight mb-1">{title}</h1>
+          <p className="text-gray-500">{subtitle}</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="glass-card p-5 rounded-lg animate-pulse">
+              <div className="h-10 bg-gray-200 rounded-md mb-4"></div>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="h-12 bg-gray-200 rounded-md"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  
+  const { total, bySeverity, resolved, new: newAlerts, acknowledged } = stats;
   
   return (
     <div className="animate-fade-in">

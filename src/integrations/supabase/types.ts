@@ -9,7 +9,114 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string | null
+          cve: string | null
+          date: string
+          description: string
+          details: Json | null
+          id: string
+          mitigation: string | null
+          patch_link: string | null
+          severity: string
+          status: string
+          system: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cve?: string | null
+          date?: string
+          description: string
+          details?: Json | null
+          id?: string
+          mitigation?: string | null
+          patch_link?: string | null
+          severity: string
+          status?: string
+          system: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cve?: string | null
+          date?: string
+          description?: string
+          details?: Json | null
+          id?: string
+          mitigation?: string | null
+          patch_link?: string | null
+          severity?: string
+          status?: string
+          system?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      systems: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          last_checked: string | null
+          name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_checked?: string | null
+          name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_checked?: string | null
+          name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      vulnerability_trends: {
+        Row: {
+          created_at: string | null
+          critical_count: number
+          date: string
+          high_count: number
+          id: string
+          low_count: number
+          medium_count: number
+        }
+        Insert: {
+          created_at?: string | null
+          critical_count?: number
+          date: string
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+        }
+        Update: {
+          created_at?: string | null
+          critical_count?: number
+          date?: string
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -3,20 +3,61 @@ import React, { useState, useCallback, useEffect } from 'react';
 import AlertCard from './AlertCard';
 import SearchFilters from './SearchFilters';
 import { Alert } from '../types';
-import { mockAlerts } from '../utils/mockData';
+import { supabase } from '../integrations/supabase/client';
 import { AlertCircle, Loader, RefreshCw } from 'lucide-react';
+import { toast } from "sonner";
 
 const AlertsList = () => {
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>(mockAlerts);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<{ severity: string[]; status: string[] }>({
     severity: [],
     status: []
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchAlerts = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('alerts')
+        .select('*');
+
+      if (error) throw error;
+
+      // Transform data to match our Alert type
+      const formattedAlerts: Alert[] = data.map(alert => ({
+        id: alert.id,
+        title: alert.title,
+        description: alert.description,
+        severity: alert.severity as 'low' | 'medium' | 'high' | 'critical',
+        date: alert.date,
+        system: alert.system,
+        cve: alert.cve || undefined,
+        status: alert.status as 'new' | 'acknowledged' | 'resolved',
+        mitigation: alert.mitigation || undefined,
+        patchLink: alert.patch_link || undefined,
+        details: alert.details || undefined,
+      }));
+
+      setAlerts(formattedAlerts);
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+      toast.error('Failed to load alerts data');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
 
   const filterAlerts = useCallback(() => {
-    let result = [...mockAlerts];
+    let result = [...alerts];
     
     // Apply search query filter
     if (searchQuery) {
@@ -40,7 +81,7 @@ const AlertsList = () => {
     }
     
     return result;
-  }, [searchQuery, filters]);
+  }, [searchQuery, filters, alerts]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -51,18 +92,39 @@ const AlertsList = () => {
   }, []);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    // Simulate a refresh delay
-    setTimeout(() => {
-      setFilteredAlerts(filterAlerts());
-      setIsLoading(false);
-    }, 1000);
+    setIsRefreshing(true);
+    fetchAlerts();
+  };
+
+  const handleStatusChange = async (alertId: string, newStatus: 'new' | 'acknowledged' | 'resolved') => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ status: newStatus })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      // Update the local state
+      setAlerts(prevAlerts => 
+        prevAlerts.map(alert => 
+          alert.id === alertId 
+            ? { ...alert, status: newStatus } 
+            : alert
+        )
+      );
+      
+      toast.success(`Alert status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating alert status:', error);
+      toast.error('Failed to update alert status');
+    }
   };
 
   // Update filtered alerts when dependencies change
   useEffect(() => {
     setFilteredAlerts(filterAlerts());
-  }, [searchQuery, filters, filterAlerts]);
+  }, [searchQuery, filters, filterAlerts, alerts]);
 
   return (
     <div className="animate-fade-in">
@@ -72,10 +134,10 @@ const AlertsList = () => {
           <span className="text-sm text-gray-500">{filteredAlerts.length} alerts</span>
           <button 
             onClick={handleRefresh}
-            className={`p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors ${isLoading ? 'animate-spin' : ''}`}
-            disabled={isLoading}
+            className={`p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors`}
+            disabled={isLoading || isRefreshing}
           >
-            {isLoading ? <Loader className="h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
+            {isRefreshing ? <Loader className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
           </button>
         </div>
       </div>
@@ -95,7 +157,10 @@ const AlertsList = () => {
               className="animate-slide-up"
               style={{ animationDelay: `${0.1 + index * 0.05}s` }}
             >
-              <AlertCard alert={alert} />
+              <AlertCard 
+                alert={alert} 
+                onStatusChange={(newStatus) => handleStatusChange(alert.id, newStatus)}
+              />
             </div>
           ))}
         </div>

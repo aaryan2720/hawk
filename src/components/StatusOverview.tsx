@@ -1,15 +1,73 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, AlertTriangle, XCircle, Clock, Activity, RefreshCw } from 'lucide-react';
-import { mockSystemStatus } from '../utils/mockData';
+import { supabase } from '../integrations/supabase/client';
 import { capitalize } from '../utils/formatters';
+import { SystemStatus } from '../types';
+import { toast } from "sonner";
 
 const StatusOverview = () => {
+  const [systems, setSystems] = useState<SystemStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
   // Get count of systems by status
-  const operationalCount = mockSystemStatus.filter(s => s.status === 'operational').length;
-  const degradedCount = mockSystemStatus.filter(s => s.status === 'degraded').length;
-  const criticalCount = mockSystemStatus.filter(s => s.status === 'critical').length;
-  const maintenanceCount = mockSystemStatus.filter(s => s.status === 'maintenance').length;
+  const operationalCount = systems.filter(s => s.status === 'operational').length;
+  const degradedCount = systems.filter(s => s.status === 'degraded').length;
+  const criticalCount = systems.filter(s => s.status === 'critical').length;
+  const maintenanceCount = systems.filter(s => s.status === 'maintenance').length;
+
+  const fetchSystems = async () => {
+    try {
+      const { data: systemsData, error: systemsError } = await supabase
+        .from('systems')
+        .select('*');
+
+      if (systemsError) throw systemsError;
+
+      // Get alert counts for each system
+      const { data: alertsData, error: alertsError } = await supabase
+        .from('alerts')
+        .select('system, severity, status');
+
+      if (alertsError) throw alertsError;
+
+      // Process the data to match our SystemStatus type
+      const processedSystems: SystemStatus[] = systemsData.map(system => {
+        const systemAlerts = alertsData.filter(alert => alert.system === system.name);
+        const alertsCount = systemAlerts.length;
+        const highSeverityCount = systemAlerts.filter(
+          alert => (alert.severity === 'high' || alert.severity === 'critical') && alert.status !== 'resolved'
+        ).length;
+
+        return {
+          name: system.name,
+          status: system.status as 'operational' | 'degraded' | 'critical' | 'maintenance',
+          alertsCount,
+          highSeverityCount
+        };
+      });
+
+      setSystems(processedSystems);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error fetching systems:', error);
+      toast.error('Failed to load system status data');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystems();
+  }, []);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchSystems();
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -41,13 +99,34 @@ const StatusOverview = () => {
     }
   };
 
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return `${seconds} seconds ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+    return date.toLocaleDateString();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="glass-card rounded-lg p-6 animate-fade-in flex justify-center items-center h-[400px]">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-2 text-gray-500">Loading system status...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card rounded-lg p-6 animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">System Status</h2>
         <div className="flex text-xs text-gray-500 items-center">
           <RefreshCw className="h-3 w-3 mr-1" />
-          Updated 2 min ago
+          Updated {formatTimeAgo(lastUpdated)}
         </div>
       </div>
 
@@ -75,7 +154,7 @@ const StatusOverview = () => {
       </div>
 
       <div className="space-y-4">
-        {mockSystemStatus.map((system, index) => (
+        {systems.map((system, index) => (
           <div 
             key={system.name} 
             className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 animate-slide-up"
@@ -106,9 +185,13 @@ const StatusOverview = () => {
       </div>
       
       <div className="mt-6 flex justify-center">
-        <button className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center">
-          <RefreshCw className="h-3.5 w-3.5 mr-1" />
-          Refresh Status
+        <button 
+          className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh Status'}
         </button>
       </div>
     </div>
