@@ -7,6 +7,9 @@ import StatusOverview from '@/components/StatusOverview';
 import AlertsList from '@/components/AlertsList';
 import Footer from '@/components/Footer';
 import TrendChart from '@/components/TrendChart';
+import VulnerabilityScraper from '@/components/VulnerabilityScraper';
+import RiskAnalyzer from '@/components/RiskAnalyzer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
@@ -45,14 +48,32 @@ const Dashboard = () => {
           <TrendChart />
         </section>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2" id="alerts">
-            <AlertsList />
-          </div>
-          <div id="systems">
-            <StatusOverview />
-          </div>
-        </div>
+        <Tabs defaultValue="alerts" className="mb-8">
+          <TabsList className="mb-4">
+            <TabsTrigger value="alerts">Alerts</TabsTrigger>
+            <TabsTrigger value="scraper">Web Scraping</TabsTrigger>
+            <TabsTrigger value="analyzer">Risk Analysis</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="alerts">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2" id="alerts">
+                <AlertsList />
+              </div>
+              <div id="systems">
+                <StatusOverview />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="scraper">
+            <VulnerabilityScraper />
+          </TabsContent>
+          
+          <TabsContent value="analyzer">
+            <RiskAnalyzer />
+          </TabsContent>
+        </Tabs>
       </main>
       
       <Footer />
