@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import AlertCard from './AlertCard';
 import SearchFilters from './SearchFilters';
-import { Alert } from '../types';
+import { Alert, Json } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { AlertCircle, Loader, RefreshCw } from 'lucide-react';
 import { toast } from "sonner";
@@ -39,7 +39,7 @@ const AlertsList = () => {
         status: alert.status as 'new' | 'acknowledged' | 'resolved',
         mitigation: alert.mitigation || undefined,
         patchLink: alert.patch_link || undefined,
-        details: alert.details || undefined,
+        details: alert.details as Record<string, any> | undefined,
       }));
 
       setAlerts(formattedAlerts);

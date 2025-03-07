@@ -1,6 +1,14 @@
 
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
+export type Json = 
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export interface Alert {
   id: string;
   title: string;
@@ -12,7 +20,7 @@ export interface Alert {
   status: 'new' | 'acknowledged' | 'resolved';
   mitigation?: string;
   patchLink?: string;
-  details?: Record<string, any>;
+  details?: Record<string, any> | Json;
 }
 
 export interface SystemStatus {
