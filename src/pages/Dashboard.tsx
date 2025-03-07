@@ -11,6 +11,9 @@ import VulnerabilityScraper from '@/components/VulnerabilityScraper';
 import RiskAnalyzer from '@/components/RiskAnalyzer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/integrations/supabase/client';
+import { UserCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,10 +41,18 @@ const Dashboard = () => {
       <Navbar />
       
       <main className="pt-24 px-4 md:px-8 max-w-7xl mx-auto">
-        <DashboardHeader 
-          title="Security Dashboard" 
-          subtitle="Monitor and manage security alerts in real-time" 
-        />
+        <div className="flex justify-between items-center mb-6">
+          <DashboardHeader 
+            title="Security Dashboard" 
+            subtitle="Monitor and manage security alerts in real-time" 
+          />
+          <Link to="/profile">
+            <Button variant="outline" className="flex items-center gap-2">
+              <UserCircle className="h-5 w-5" />
+              My Profile
+            </Button>
+          </Link>
+        </div>
         
         <section id="trends" className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Vulnerability Trends</h2>

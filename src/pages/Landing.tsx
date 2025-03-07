@@ -41,9 +41,11 @@ const Landing = () => {
                   Get Started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
-                Request Demo
-              </Button>
+              <a href="mailto:sales@hawksecurity.example.com">
+                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
+                  Request Demo
+                </Button>
+              </a>
             </div>
           </div>
         </div>

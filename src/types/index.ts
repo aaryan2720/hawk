@@ -46,3 +46,33 @@ export interface UserProfile {
   role: 'admin' | 'user' | 'guest';
   created_at: string;
 }
+
+export interface UserSystem {
+  id: string;
+  user_id: string;
+  system_name: string;
+  created_at: string;
+}
+
+export interface OEMSource {
+  id: string;
+  user_id: string;
+  name: string;
+  url: string;
+  system_type: string;
+  is_active: boolean;
+  last_checked: string | null;
+  created_at: string;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  features: string[];
+  max_systems: number;
+  max_oem_sources: number;
+  realtime_alerts: boolean;
+  ai_analysis: boolean;
+  created_at: string;
+}
