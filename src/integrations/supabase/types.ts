@@ -57,6 +57,39 @@ export type Database = {
         }
         Relationships: []
       }
+      oem_sources: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_checked: string | null
+          name: string
+          system_type: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_checked?: string | null
+          name: string
+          system_type: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_checked?: string | null
+          name?: string
+          system_type?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -111,6 +144,27 @@ export type Database = {
           name?: string
           status?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_systems: {
+        Row: {
+          created_at: string
+          id: string
+          system_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          system_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          system_name?: string
+          user_id?: string
         }
         Relationships: []
       }

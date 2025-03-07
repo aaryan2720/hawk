@@ -1,130 +1,185 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserProfile } from '@/types';
-import { Bell, Shield, Settings, Box, Zap } from 'lucide-react';
+import { AlertCircle, Check, Loader, Plus, Save, X } from 'lucide-react';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import OEMMonitorList from '@/components/OEMMonitorList';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
+import { UserProfile, UserSystem } from '@/types';
 
 const Profile = () => {
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [systems, setUserSystems] = useState<string[]>([]);
+  const [systems, setSystems] = useState<string[]>([]);
   const [newSystem, setNewSystem] = useState('');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingSystems, setIsLoadingSystems] = useState(true);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isAddingSystem, setIsAddingSystem] = useState(false);
+  const [editedProfile, setEditedProfile] = useState<{
+    full_name?: string;
+    organization?: string;
+  }>({});
 
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/auth/login');
-        return;
-      }
-      
-      // Fetch user profile
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.session.user.id)
-        .single();
+    if (!user) {
+      navigate('/auth/login');
+      return;
+    }
 
-      if (error) {
+    const fetchProfile = async () => {
+      try {
+        setIsLoadingProfile(true);
+        
+        // Get user profile
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        const userProfile: UserProfile = {
+          id: data.id,
+          email: user.email || '',
+          full_name: data.full_name || '',
+          organization: data.organization || '',
+          role: data.role as 'admin' | 'user' | 'guest',
+          created_at: data.created_at
+        };
+        
+        setProfile(userProfile);
+        setEditedProfile({
+          full_name: userProfile.full_name,
+          organization: userProfile.organization
+        });
+      } catch (error) {
         console.error('Error fetching profile:', error);
         toast.error('Failed to load profile data');
-      } else {
-        setProfile({
-          id: profileData.id,
-          email: data.session.user.email || '',
-          full_name: profileData.full_name,
-          organization: profileData.organization,
-          role: profileData.role,
-          created_at: profileData.created_at
-        });
+      } finally {
+        setIsLoadingProfile(false);
       }
-
-      // Fetch user systems
-      const { data: systemsData, error: systemsError } = await supabase
-        .from('user_systems')
-        .select('system_name')
-        .eq('user_id', data.session.user.id);
-
-      if (!systemsError && systemsData) {
-        setUserSystems(systemsData.map(s => s.system_name));
-      }
-
-      setLoading(false);
     };
 
-    checkAuth();
-    document.title = 'HAWK - User Profile';
-    document.body.classList.add('bg-gradient-to-br', 'from-gray-50', 'to-blue-50');
-    
-    return () => {
-      document.body.classList.remove('bg-gradient-to-br', 'from-gray-50', 'to-blue-50');
-    };
-  }, [navigate]);
+    const fetchSystems = async () => {
+      try {
+        setIsLoadingSystems(true);
+        
+        // Get user systems
+        const { data, error } = await supabase
+          .from('user_systems')
+          .select('system_name')
+          .eq('user_id', user.id);
 
-  const updateProfile = async (field: string, value: string) => {
+        if (error) throw error;
+
+        const systemNames = data.map(item => item.system_name);
+        setSystems(systemNames);
+      } catch (error) {
+        console.error('Error fetching systems:', error);
+        toast.error('Failed to load systems data');
+      } finally {
+        setIsLoadingSystems(false);
+      }
+    };
+
+    fetchProfile();
+    fetchSystems();
+  }, [user, navigate]);
+
+  const handleUpdateProfile = async () => {
     try {
+      if (!user) return;
+      
+      setIsUpdatingProfile(true);
+      
       const { error } = await supabase
         .from('profiles')
-        .update({ [field]: value })
-        .eq('id', profile?.id);
+        .update({
+          full_name: editedProfile.full_name,
+          organization: editedProfile.organization,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
       if (error) throw error;
       
-      setProfile(prev => prev ? { ...prev, [field]: value } : null);
-      toast.success(`Updated ${field} successfully`);
+      if (profile) {
+        setProfile({
+          ...profile,
+          full_name: editedProfile.full_name,
+          organization: editedProfile.organization
+        });
+      }
+      
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
-  const addSystem = async () => {
-    if (!newSystem.trim()) return;
-    
+  const handleAddSystem = async () => {
     try {
+      if (!user || !newSystem.trim()) return;
+      
+      setIsAddingSystem(true);
+      
       const { error } = await supabase
         .from('user_systems')
-        .insert({ 
-          user_id: profile?.id, 
-          system_name: newSystem
+        .insert({
+          user_id: user.id,
+          system_name: newSystem.trim()
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') { // unique violation
+          toast.error('This system is already in your list');
+        } else {
+          throw error;
+        }
+        return;
+      }
       
-      setUserSystems(prev => [...prev, newSystem]);
+      setSystems([...systems, newSystem.trim()]);
       setNewSystem('');
       toast.success('System added successfully');
     } catch (error) {
       console.error('Error adding system:', error);
       toast.error('Failed to add system');
+    } finally {
+      setIsAddingSystem(false);
     }
   };
 
-  const removeSystem = async (system: string) => {
+  const handleRemoveSystem = async (systemName: string) => {
     try {
+      if (!user) return;
+      
       const { error } = await supabase
         .from('user_systems')
         .delete()
-        .eq('user_id', profile?.id)
-        .eq('system_name', system);
+        .eq('user_id', user.id)
+        .eq('system_name', systemName);
 
       if (error) throw error;
       
-      setUserSystems(prev => prev.filter(s => s !== system));
+      setSystems(systems.filter(s => s !== systemName));
       toast.success('System removed successfully');
     } catch (error) {
       console.error('Error removing system:', error);
@@ -132,192 +187,257 @@ const Profile = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   return (
     <div className="min-h-screen pb-12">
       <Navbar />
       
       <main className="pt-24 px-4 md:px-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="md:col-span-1">
-            <Card className="p-6">
-              <div className="flex flex-col items-center mb-6">
-                <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-2xl font-bold text-primary">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0)}
-                  </span>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">My Profile</h1>
+          <p className="text-muted-foreground">Manage your account and monitoring preferences</p>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Profile Sidebar */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col items-center">
+                  <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src="" alt={profile?.full_name || 'User'} />
+                    <AvatarFallback className="text-lg">
+                      {profile?.full_name ? getInitials(profile.full_name) : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <CardTitle className="text-center">{profile?.full_name || 'User'}</CardTitle>
+                  <CardDescription className="text-center">{profile?.email}</CardDescription>
                 </div>
-                <h2 className="text-xl font-semibold">{profile?.full_name}</h2>
-                <p className="text-gray-500">{profile?.email}</p>
-                <div className="mt-2 px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
-                  {profile?.role}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Organization:</span>
+                    <span className="font-medium">{profile?.organization || 'Not set'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Role:</span>
+                    <span className="font-medium capitalize">{profile?.role || 'User'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Member Since:</span>
+                    <span className="font-medium">
+                      {profile?.created_at 
+                        ? new Date(profile.created_at).toLocaleDateString() 
+                        : 'Unknown'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Organization</p>
-                  <p className="font-medium">{profile?.organization || 'Not specified'}</p>
+                <div className="mt-6">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSignOut} 
+                    className="w-full"
+                  >
+                    Sign Out
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Member Since</p>
-                  <p className="font-medium">
-                    {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
-                  </p>
-                </div>
-                <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard')}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Go to Dashboard
-                </Button>
-              </div>
+              </CardContent>
             </Card>
           </div>
           
-          <div className="md:col-span-3">
+          {/* Main Content Area */}
+          <div className="lg:col-span-3">
             <Tabs defaultValue="settings">
-              <TabsList className="mb-4">
-                <TabsTrigger value="settings">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Profile Settings
-                </TabsTrigger>
-                <TabsTrigger value="systems">
-                  <Box className="h-4 w-4 mr-2" />
-                  My Systems
-                </TabsTrigger>
-                <TabsTrigger value="monitoring">
-                  <Bell className="h-4 w-4 mr-2" />
-                  OEM Monitoring
-                </TabsTrigger>
-                <TabsTrigger value="subscription">
-                  <Zap className="h-4 w-4 mr-2" />
-                  Subscription
-                </TabsTrigger>
+              <TabsList className="mb-6">
+                <TabsTrigger value="settings">Account Settings</TabsTrigger>
+                <TabsTrigger value="systems">My Systems</TabsTrigger>
+                <TabsTrigger value="oem">OEM Monitoring</TabsTrigger>
+                <TabsTrigger value="subscription">Subscription</TabsTrigger>
               </TabsList>
               
+              {/* Account Settings Tab */}
               <TabsContent value="settings">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Profile Settings</h3>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <Label htmlFor="fullName">Full Name</Label>
-                        <div className="flex mt-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Account Settings</CardTitle>
+                    <CardDescription>
+                      Update your profile information and preferences
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {isLoadingProfile ? (
+                      <div className="flex justify-center items-center p-8">
+                        <Loader className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input 
+                            id="email" 
+                            value={profile?.email || ''} 
+                            disabled 
+                            className="bg-muted"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Contact support to change your email address
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="fullName">Full Name</Label>
                           <Input 
                             id="fullName" 
-                            defaultValue={profile?.full_name || ''} 
-                            className="rounded-r-none"
+                            value={editedProfile.full_name || ''} 
+                            onChange={(e) => setEditedProfile({...editedProfile, full_name: e.target.value})}
                           />
-                          <Button 
-                            onClick={(e) => {
-                              const input = document.getElementById('fullName') as HTMLInputElement;
-                              updateProfile('full_name', input.value);
-                            }}
-                            className="rounded-l-none"
-                          >
-                            Update
-                          </Button>
                         </div>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="organization">Organization</Label>
-                        <div className="flex mt-1">
+                        <div className="space-y-2">
+                          <Label htmlFor="organization">Organization</Label>
                           <Input 
                             id="organization" 
-                            defaultValue={profile?.organization || ''} 
-                            className="rounded-r-none"
+                            value={editedProfile.organization || ''} 
+                            onChange={(e) => setEditedProfile({...editedProfile, organization: e.target.value})}
+                          />
+                        </div>
+                        <div className="pt-4 flex justify-end">
+                          <Button 
+                            onClick={handleUpdateProfile}
+                            disabled={isUpdatingProfile}
+                          >
+                            {isUpdatingProfile ? (
+                              <Loader className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <Save className="h-4 w-4 mr-2" />
+                            )}
+                            Save Changes
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* My Systems Tab */}
+              <TabsContent value="systems">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>My Systems</CardTitle>
+                    <CardDescription>
+                      Manage the systems you want to receive security alerts for
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingSystems ? (
+                      <div className="flex justify-center items-center p-8">
+                        <Loader className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Add a system (e.g. Windows 11, Ubuntu Server, etc.)" 
+                            value={newSystem}
+                            onChange={(e) => setNewSystem(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newSystem.trim()) {
+                                e.preventDefault();
+                                handleAddSystem();
+                              }
+                            }}
                           />
                           <Button 
-                            onClick={(e) => {
-                              const input = document.getElementById('organization') as HTMLInputElement;
-                              updateProfile('organization', input.value);
-                            }}
-                            className="rounded-l-none"
+                            onClick={handleAddSystem}
+                            disabled={isAddingSystem || !newSystem.trim()}
                           >
-                            Update
+                            {isAddingSystem ? (
+                              <Loader className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
+                        
+                        {systems.length === 0 ? (
+                          <div className="bg-muted/50 rounded-lg p-6 text-center">
+                            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <h3 className="text-lg font-medium mb-2">No Systems Added</h3>
+                            <p className="text-muted-foreground">
+                              Add systems you want to monitor for security vulnerabilities
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="border rounded-md divide-y">
+                            {systems.map((system, index) => (
+                              <div 
+                                key={index} 
+                                className="flex justify-between items-center p-3"
+                              >
+                                <span>{system}</span>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => handleRemoveSystem(system)}
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      
-                      <div>
-                        <Label htmlFor="role">Role</Label>
-                        <Select 
-                          defaultValue={profile?.role || 'user'} 
-                          onValueChange={(value) => updateProfile('role', value)}
-                        >
-                          <SelectTrigger id="role">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Administrator</SelectItem>
-                            <SelectItem value="user">Standard User</SelectItem>
-                            <SelectItem value="guest">Guest</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </CardContent>
                 </Card>
               </TabsContent>
               
-              <TabsContent value="systems">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">My Systems</h3>
-                  <p className="text-gray-500 mb-4">
-                    Add the systems you want to monitor for vulnerabilities. You will receive alerts specific to these systems.
-                  </p>
-                  
-                  <div className="flex gap-2 mb-6">
-                    <Input 
-                      placeholder="Add a system (e.g., Windows 11, Ubuntu 22.04)" 
-                      value={newSystem}
-                      onChange={(e) => setNewSystem(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button onClick={addSystem}>Add</Button>
-                  </div>
-                  
-                  {systems.length > 0 ? (
-                    <div className="space-y-2">
-                      {systems.map((system) => (
-                        <div key={system} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                          <span>{system}</span>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => removeSystem(system)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      No systems added yet. Add systems to receive targeted vulnerability alerts.
-                    </div>
-                  )}
+              {/* OEM Monitoring Tab */}
+              <TabsContent value="oem">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>OEM Website Monitoring</CardTitle>
+                    <CardDescription>
+                      Configure vendor websites to be continuously monitored for security alerts
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <OEMMonitorList />
+                  </CardContent>
                 </Card>
               </TabsContent>
               
-              <TabsContent value="monitoring">
-                <OEMMonitorList userSystems={systems} userId={profile?.id || ''} />
-              </TabsContent>
-              
+              {/* Subscription Tab */}
               <TabsContent value="subscription">
-                <SubscriptionPlans currentUserRole={profile?.role || 'user'} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Subscription Plans</CardTitle>
+                    <CardDescription>
+                      Choose a plan that fits your security monitoring needs
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <SubscriptionPlans />
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
