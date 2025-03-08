@@ -129,7 +129,7 @@ const Landing = () => {
             Join hundreds of organizations that trust HAWK to monitor and protect their critical systems.
           </p>
           <Link to="/auth/signup">
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary shadow-lg transition-all hover:translate-y-[-2px]">
+            <Button size="lg" variant="outline" className="border-white text-blue-900 hover:bg-white hover:text-primary shadow-lg transition-all hover:translate-y-[-2px]">
               Get Started Today
             </Button>
           </Link>
