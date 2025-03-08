@@ -12,6 +12,8 @@ import Profile from "./pages/Profile";
 import Login from "./pages/auth/Login";
 import SignUp from "./pages/auth/SignUp";
 import NotFound from "./pages/NotFound";
+import VulnerabilityDetails from "./pages/VulnerabilityDetails";
+import ScanHistory from "./pages/ScanHistory";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/vulnerability/:id" element={<VulnerabilityDetails />} />
+            <Route path="/scan-history" element={<ScanHistory />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<SignUp />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
