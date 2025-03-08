@@ -1,130 +1,97 @@
-
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { Loader, RefreshCw, AlertTriangle, Shield, Calendar } from 'lucide-react';
-import { AlertSeverity } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Loader, RefreshCw, AlertTriangle, Lock, Unlock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner";
 
-interface ScanResult {
-  cve: string;
-  source: string;
-  severity: AlertSeverity;
+interface RealTimeScannerProps {
+  onScanComplete?: () => void;
 }
 
-const RealTimeScanner = () => {
+const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => {
   const [isScanning, setIsScanning] = useState(false);
-  const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
-  const [results, setResults] = useState<ScanResult[]>([]);
-  const [scannedCount, setScannedCount] = useState(0);
+  const [results, setResults] = useState<any[]>([]);
+  const [source, setSource] = useState<string>('');
 
   const handleScan = async () => {
     try {
       setIsScanning(true);
-      toast.info("Starting real-time vulnerability scan...");
-      
-      const response = await supabase.functions.invoke('real-time-scraper', {
-        body: { limit: 10 }
+      setResults([]);
+
+      const { data, error } = await supabase.functions.invoke('real-time-scraper', {
+        body: { source: source || undefined, limit: 10 }
       });
+
+      if (error) throw error;
+
+      setResults(data.results || []);
       
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (data.count > 0) {
+        toast.success(`${data.count} new vulnerabilities discovered`);
+      } else {
+        toast.info('No new vulnerabilities found');
       }
       
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Scan failed');
+      if (onScanComplete) {
+        onScanComplete();
       }
-      
-      setResults(response.data.results || []);
-      setScannedCount(response.data.count || 0);
-      setLastScanTime(new Date());
-      
-      toast.success(`Scan complete! Found ${response.data.count} new vulnerabilities.`);
     } catch (error) {
-      console.error('Error during real-time scan:', error);
-      toast.error(`Scan failed: ${error.message}`);
+      console.error('Real-time scan error:', error);
+      toast.error('Failed to complete real-time scan');
     } finally {
       setIsScanning(false);
     }
   };
 
-  const getSeverityColor = (severity: AlertSeverity) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
-    <Card className="p-6 relative">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-xl font-semibold">Real-Time Vulnerability Scanner</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Scan multiple security feeds for the latest vulnerabilities
-          </p>
-        </div>
-        <Button 
-          onClick={handleScan} 
-          disabled={isScanning}
-          className="flex gap-2 items-center"
-        >
+    <Card className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold tracking-tight">Real-Time Scanner</h3>
+        <div className="text-sm text-gray-500">
           {isScanning ? (
-            <>
-              <Loader className="h-4 w-4 animate-spin" />
-              Scanning...
-            </>
+            <div className="flex items-center gap-2">
+              <Loader className="h-4 w-4 animate-spin" /> Scanning...
+            </div>
           ) : (
             <>
-              <RefreshCw className="h-4 w-4" />
-              Start Scan
+              <Lock className="h-4 w-4 text-gray-400 mr-1 inline" />
+              Real-time protection
             </>
           )}
+        </div>
+      </div>
+      
+      <p className="text-sm text-gray-500">
+        Detect potential vulnerabilities in real-time across various security sources.
+      </p>
+      
+      <div className="flex items-center space-x-3">
+        <input
+          type="text"
+          placeholder="Enter source URL (optional)"
+          className="flex-1 px-3 py-2 border rounded-md focus:ring-0 focus:outline-none focus:border-primary text-sm"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          disabled={isScanning}
+        />
+        <Button onClick={handleScan} disabled={isScanning}>
+          {isScanning ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          Start Scan
         </Button>
       </div>
       
-      {lastScanTime && (
-        <div className="flex items-center text-sm text-gray-500 mb-4">
-          <Calendar className="h-4 w-4 mr-1" />
-          Last scan: {lastScanTime.toLocaleString()}
-          {scannedCount > 0 && (
-            <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs">
-              {scannedCount} vulnerabilities found
-            </span>
-          )}
-        </div>
-      )}
-      
-      {results.length > 0 ? (
-        <div className="space-y-3 mt-4">
-          <h3 className="font-medium">Recently Discovered Vulnerabilities</h3>
-          {results.map((result, index) => (
-            <div key={index} className="p-3 bg-gray-50 rounded-md flex justify-between items-center">
-              <div>
-                <div className="font-mono text-sm">{result.cve}</div>
-                <div className="text-xs text-gray-500">Source: {result.source}</div>
-              </div>
-              <div className={`px-2 py-0.5 text-xs font-medium rounded-full ${getSeverityColor(result.severity)}`}>
-                {result.severity}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : isScanning ? (
-        <div className="text-center py-10">
-          <Loader className="h-10 w-10 mx-auto text-gray-300 animate-spin" />
-          <p className="mt-4 text-gray-500">Scanning security feeds...</p>
-        </div>
-      ) : (
-        <div className="text-center py-10 border border-dashed rounded-md border-gray-200">
-          <Shield className="h-10 w-10 mx-auto text-gray-300" />
-          <p className="mt-4 text-gray-500">
-            Run a scan to discover the latest vulnerabilities
-          </p>
+      {results.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-sm font-medium mb-2">Scan Results</h4>
+          <ul className="space-y-2">
+            {results.map((result, index) => (
+              <li key={index} className="flex items-center gap-2 text-sm">
+                <AlertTriangle className="h-4 w-4 text-alert-high" />
+                <span>{result.cve} from {result.source} (Severity: {result.severity})</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </Card>
