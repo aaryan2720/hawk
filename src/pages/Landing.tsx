@@ -20,7 +20,7 @@ const Landing = () => {
                 Log in
               </Link>
               <Link to="/auth/signup">
-                <Button variant="outline" className="border-white text-white hover:bg-white/10">
+                <Button variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900 transition-colors">
                   Sign up
                 </Button>
               </Link>
@@ -37,12 +37,12 @@ const Landing = () => {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth/signup">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 shadow-md transition-all">
                   Get Started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <a href="mailto:sales@hawksecurity.example.com">
-                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-900 w-full sm:w-auto shadow-md transition-all">
                   Request Demo
                 </Button>
               </a>
@@ -129,7 +129,7 @@ const Landing = () => {
             Join hundreds of organizations that trust HAWK to monitor and protect their critical systems.
           </p>
           <Link to="/auth/signup">
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary shadow-md transition-all">
               Get Started Today
             </Button>
           </Link>
