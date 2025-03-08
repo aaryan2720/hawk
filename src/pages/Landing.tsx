@@ -20,7 +20,7 @@ const Landing = () => {
                 Log in
               </Link>
               <Link to="/auth/signup">
-                <Button variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900 transition-colors shadow-md">
+                <Button variant="outline" className="border-white text-blue-900 hover:bg-white hover:text-blue-900 transition-colors shadow-md">
                   Sign up
                 </Button>
               </Link>
@@ -42,7 +42,7 @@ const Landing = () => {
                 </Button>
               </Link>
               <a href="mailto:sales@hawksecurity.example.com">
-                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-900 w-full sm:w-auto shadow-lg transition-all hover:translate-y-[-2px]">
+                <Button variant="outline" size="lg" className="border-white text-blue-900 hover:bg-white hover:text-blue-900 w-full sm:w-auto shadow-lg transition-all hover:translate-y-[-2px]">
                   Request Demo
                 </Button>
               </a>
