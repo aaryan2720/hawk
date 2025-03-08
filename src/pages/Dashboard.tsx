@@ -10,12 +10,12 @@ import RealTimeScanner from '@/components/RealTimeScanner';
 import RiskAnalyzer from '@/components/RiskAnalyzer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { mockAlertsData, mockSystemsStatusData, mockAlertsStats } from '@/utils/mockData';
+import { mockAlerts, mockSystemStatus, mockAlertsStats } from '@/utils/mockData';
 import { Alert } from '@/types';
 
 const Dashboard: React.FC = () => {
-  const [alertsData, setAlertsData] = useState<Alert[]>(mockAlertsData);
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>(mockAlertsData);
+  const [alertsData, setAlertsData] = useState<Alert[]>(mockAlerts);
+  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>(mockAlerts);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -53,32 +53,20 @@ const Dashboard: React.FC = () => {
     setSearchTerm(term);
   };
 
-  const handleFilterChange = (
-    type: 'severity' | 'status' | 'system',
-    values: string[]
-  ) => {
-    switch (type) {
-      case 'severity':
-        setSelectedSeverities(values);
-        break;
-      case 'status':
-        setSelectedStatuses(values);
-        break;
-      case 'system':
-        setSelectedSystems(values);
-        break;
-    }
+  const handleFilterChange = (filters: { severity: string[]; status: string[] }) => {
+    setSelectedSeverities(filters.severity);
+    setSelectedStatuses(filters.status);
   };
   
   const uniqueSystems = Array.from(new Set(alertsData.map(alert => alert.system)));
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <DashboardHeader stats={mockAlertsStats} />
+      <DashboardHeader title="Security Dashboard" subtitle="Monitor and manage security alerts" />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatusOverview systems={mockSystemsStatusData} className="lg:col-span-2" />
-        <RiskAnalyzer alerts={alertsData} />
+        <StatusOverview />
+        <RiskAnalyzer />
       </div>
       
       <Tabs defaultValue="alerts" className="space-y-4">
@@ -92,11 +80,10 @@ const Dashboard: React.FC = () => {
             <SearchFilters 
               onSearch={handleSearch}
               onFilterChange={handleFilterChange}
-              systems={uniqueSystems}
             />
           </Card>
           
-          <AlertsList alerts={filteredAlerts} />
+          <AlertsList />
         </TabsContent>
         
         <TabsContent value="tools" className="space-y-6">
