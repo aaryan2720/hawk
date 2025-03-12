@@ -1,6 +1,6 @@
-
 import React, { useEffect, useState } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
+import DashboardNav from '@/components/DashboardNav';
 import StatusOverview from '@/components/StatusOverview';
 import AlertsList from '@/components/AlertsList';
 import TrendChart from '@/components/TrendChart';
@@ -31,7 +31,6 @@ const Dashboard: React.FC = () => {
     acknowledged: 0,
   });
 
-  // Fetch alerts data from Supabase
   const fetchAlertsData = async () => {
     try {
       setIsLoading(true);
@@ -41,7 +40,6 @@ const Dashboard: React.FC = () => {
 
       if (error) throw error;
 
-      // Transform data to match our Alert type
       const formattedAlerts: Alert[] = data.map(alert => ({
         id: alert.id,
         title: alert.title,
@@ -58,7 +56,6 @@ const Dashboard: React.FC = () => {
 
       setAlertsData(formattedAlerts);
       
-      // Calculate alert stats
       const total = formattedAlerts.length;
       const critical = formattedAlerts.filter(a => a.severity === 'critical').length;
       const high = formattedAlerts.filter(a => a.severity === 'high').length;
@@ -76,7 +73,6 @@ const Dashboard: React.FC = () => {
         acknowledged,
       });
 
-      // Fetch systems and aggregate status
       const systems = Array.from(new Set(formattedAlerts.map(alert => alert.system)));
       const systemStatusData: SystemStatus[] = systems.map(system => {
         const systemAlerts = formattedAlerts.filter(alert => alert.system === system);
@@ -113,7 +109,6 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Filter alerts based on search and filter selections
     let filtered = [...alertsData];
     
     if (searchTerm) {
@@ -155,46 +150,49 @@ const Dashboard: React.FC = () => {
   };
   
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <DashboardHeader title="Security Dashboard" subtitle="Monitor and manage security alerts" />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatusOverview />
-        <RiskAnalyzer />
-      </div>
-      
-      <Tabs defaultValue="alerts" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="alerts">Alerts</TabsTrigger>
-          <TabsTrigger value="tools">Scanner Tools</TabsTrigger>
-        </TabsList>
+    <>
+      <DashboardNav />
+      <div className="p-4 sm:p-6 space-y-6">
+        <DashboardHeader title="Security Dashboard" subtitle="Monitor and manage security alerts" />
         
-        <TabsContent value="alerts" className="space-y-4">
-          <Card className="p-4">
-            <SearchFilters 
-              onSearch={handleSearch}
-              onFilterChange={handleFilterChange}
-            />
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <StatusOverview />
+          <RiskAnalyzer />
+        </div>
+        
+        <Tabs defaultValue="alerts" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="alerts">Alerts</TabsTrigger>
+            <TabsTrigger value="tools">Scanner Tools</TabsTrigger>
+          </TabsList>
           
-          <AlertsList />
-        </TabsContent>
+          <TabsContent value="alerts" className="space-y-4">
+            <Card className="p-4">
+              <SearchFilters 
+                onSearch={handleSearch}
+                onFilterChange={handleFilterChange}
+              />
+            </Card>
+            
+            <AlertsList />
+          </TabsContent>
+          
+          <TabsContent value="tools" className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <RealTimeScanner onScanComplete={handleRefresh} />
+              <VulnerabilityScraper onScanComplete={handleRefresh} />
+            </div>
+          </TabsContent>
+        </Tabs>
         
-        <TabsContent value="tools" className="space-y-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <RealTimeScanner onScanComplete={handleRefresh} />
-            <VulnerabilityScraper onScanComplete={handleRefresh} />
-          </div>
-        </TabsContent>
-      </Tabs>
-      
-      <div className="mt-6">
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Vulnerability Trends</h2>
-          <TrendChart />
-        </Card>
+        <div className="mt-6">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Vulnerability Trends</h2>
+            <TrendChart />
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
