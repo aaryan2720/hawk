@@ -27,7 +27,7 @@ const DashboardNav = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Shield className="h-6 w-6 text-blue-600" />
-            <span className="text-xl font-bold">SecureScanner</span>
+            <span className="text-xl font-bold">HAWK</span>
           </div>
           
           <nav className="hidden md:flex items-center space-x-4">
