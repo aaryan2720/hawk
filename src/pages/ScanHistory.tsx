@@ -1,11 +1,12 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, Database, Download, Search, Shield } from 'lucide-react';
+import { Calendar, Clock, Database, Download, Search, Shield, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import DashboardNav from '@/components/DashboardNav';
+import { Link } from 'react-router-dom';
 
 interface ScanRecord {
   id: string;
@@ -121,81 +122,92 @@ const ScanHistory = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">Scan History</h1>
-          <p className="text-gray-500">View past scans and their results</p>
-        </div>
-        <Button onClick={exportToCSV} variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export to CSV
-        </Button>
-      </div>
-
-      <Card className="p-6 shadow-md">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-pulse flex flex-col items-center">
-              <div className="h-10 w-10 bg-gray-200 rounded-full mb-4"></div>
-              <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
-              <div className="h-3 w-24 bg-gray-200 rounded"></div>
+    <>
+      <DashboardNav />
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" asChild className="mr-2">
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to Dashboard
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold mb-1">Scan History</h1>
+              <p className="text-gray-500">View past scans and their results</p>
             </div>
           </div>
-        ) : scanRecords.length > 0 ? (
-          <div className="space-y-4">
-            {scanRecords.map((record) => (
-              <div key={record.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                  <div className="flex items-center mb-2 sm:mb-0">
-                    <div className="mr-3">
-                      {getSourceIcon(record.source)}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{record.source} Scan</h3>
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
-                        <Calendar className="h-3.5 w-3.5 mr-1" />
-                        <span>{formatDate(record.date)}</span>
+          <Button onClick={exportToCSV} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export to CSV
+          </Button>
+        </div>
+
+        <Card className="p-6 shadow-md">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-pulse flex flex-col items-center">
+                <div className="h-10 w-10 bg-gray-200 rounded-full mb-4"></div>
+                <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 w-24 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ) : scanRecords.length > 0 ? (
+            <div className="space-y-4">
+              {scanRecords.map((record) => (
+                <div key={record.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div className="flex items-center mb-2 sm:mb-0">
+                      <div className="mr-3">
+                        {getSourceIcon(record.source)}
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{record.source} Scan</h3>
+                        <div className="flex items-center text-sm text-gray-500 mt-1">
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          <span>{formatDate(record.date)}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className={getScanStatusColor(record.status)}>
+                        {record.status}
+                      </Badge>
+                      <Badge variant="secondary">
+                        {record.vulnsFound} vulnerabilities
+                      </Badge>
+                      <Badge variant="outline" className="bg-gray-50">
+                        {record.duration}s
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className={getScanStatusColor(record.status)}>
-                      {record.status}
-                    </Badge>
-                    <Badge variant="secondary">
-                      {record.vulnsFound} vulnerabilities
-                    </Badge>
-                    <Badge variant="outline" className="bg-gray-50">
-                      {record.duration}s
-                    </Badge>
+                  
+                  <div className="mt-4 pt-2 border-t flex justify-end">
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={`/dashboard?source=${record.source}`}>
+                        View Results
+                      </a>
+                    </Button>
                   </div>
                 </div>
-                
-                <div className="mt-4 pt-2 border-t flex justify-end">
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={`/dashboard?source=${record.source}`}>
-                      View Results
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Search className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-1">No scan history found</h3>
-            <p className="text-gray-500 mb-4">
-              You haven't run any vulnerability scans yet.
-            </p>
-            <Button asChild>
-              <a href="/dashboard">Run a Scan</a>
-            </Button>
-          </div>
-        )}
-      </Card>
-    </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Search className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-1">No scan history found</h3>
+              <p className="text-gray-500 mb-4">
+                You haven't run any vulnerability scans yet.
+              </p>
+              <Button asChild>
+                <a href="/dashboard">Run a Scan</a>
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
+    </>
   );
 };
 

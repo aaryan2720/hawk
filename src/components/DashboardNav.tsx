@@ -3,10 +3,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, History, User, Home } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const DashboardNav = () => {
   const { user } = useAuth();
+  const location = useLocation();
   
   // Get user initials for avatar fallback
   const getUserInitials = () => {
@@ -15,8 +16,13 @@ const DashboardNav = () => {
     return email.substring(0, 2).toUpperCase();
   };
 
+  // Check if current path is active
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
   return (
-    <div className="bg-white shadow-sm border-b">
+    <div className="bg-white shadow-sm border-b sticky top-0 z-10">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -25,19 +31,19 @@ const DashboardNav = () => {
           </div>
           
           <nav className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" asChild>
+            <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} asChild>
               <Link to="/dashboard" className="flex items-center space-x-1">
                 <Home className="h-4 w-4" />
                 <span>Dashboard</span>
               </Link>
             </Button>
-            <Button variant="ghost" asChild>
+            <Button variant={isActive('/scan-history') ? 'default' : 'ghost'} asChild>
               <Link to="/scan-history" className="flex items-center space-x-1">
                 <History className="h-4 w-4" />
                 <span>Scan History</span>
               </Link>
             </Button>
-            <Button variant="ghost" asChild>
+            <Button variant={isActive('/profile') ? 'default' : 'ghost'} asChild>
               <Link to="/profile" className="flex items-center space-x-1">
                 <User className="h-4 w-4" />
                 <span>Profile</span>
