@@ -8,6 +8,7 @@ import SearchFilters from '@/components/SearchFilters';
 import VulnerabilityScraper from '@/components/VulnerabilityScraper';
 import RealTimeScanner from '@/components/RealTimeScanner';
 import RiskAnalyzer from '@/components/RiskAnalyzer';
+import GeminiChatbot from '@/components/GeminiChatbot';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertsStats, SystemStatus } from '@/types';
@@ -192,6 +193,8 @@ const Dashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+      
+      <GeminiChatbot />
     </>
   );
 };

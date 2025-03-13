@@ -42,7 +42,7 @@ serve(async (req: Request) => {
     console.log(`Fetching vulnerabilities from ${pubStartDate} to ${pubEndDate}, limit: ${limit}`);
     
     // Construct URL with query parameters
-    let apiUrl = `${NVD_API_URL}?pubStartDate=${pubStartDate}&pubEndDate=${pubEndDate}`;
+    let apiUrl = `${NVD_API_URL}?pubStartDate=${pubStartDate}T00:00:00.000&pubEndDate=${pubEndDate}T23:59:59.999`;
     
     // Add CVSS severity filter if provided in the source parameter
     if (source === "critical") {
@@ -74,6 +74,9 @@ serve(async (req: Request) => {
     const response = await fetch(apiUrl, { headers });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to fetch from NVD API: ${response.status} ${response.statusText}`);
+      console.error(`Error details: ${errorText}`);
       throw new Error(`Failed to fetch from NVD API: ${response.statusText}`);
     }
     
