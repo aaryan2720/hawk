@@ -22,6 +22,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
   const [isScanning, setIsScanning] = useState(false);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
+  
+  // Get the results limit from environment variables or default to 18
+  const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '18');
 
   const severityOptions = [
     { id: 'all', name: 'All Severities' },
@@ -41,7 +44,10 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       });
 
       const { data, error } = await supabase.functions.invoke('real-time-scraper', {
-        body: { source: selectedSeverity === 'all' ? undefined : selectedSeverity, limit: 10 }
+        body: { 
+          source: selectedSeverity === 'all' ? undefined : selectedSeverity, 
+          limit: resultsLimit 
+        }
       });
 
       if (error) throw error;
@@ -116,7 +122,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
         </div>
         
         <div className="text-xs text-gray-500">
-          Scans for vulnerabilities published in the last 7 days from the official NVD database
+          Scans for up to {resultsLimit} vulnerabilities published in the last 7 days from the official NVD database
         </div>
       </div>
       

@@ -27,7 +27,7 @@ serve(async (req: Request) => {
     );
 
     // Get request data
-    const { source, limit = 10 } = await req.json().catch(() => ({}));
+    const { source, limit = 18 } = await req.json().catch(() => ({}));
     
     // Create a new Date object for the current date
     const currentDate = new Date();
@@ -39,7 +39,7 @@ serve(async (req: Request) => {
     const pubStartDate = sevenDaysAgo.toISOString().split('T')[0];
     const pubEndDate = currentDate.toISOString().split('T')[0];
     
-    console.log(`Fetching vulnerabilities from ${pubStartDate} to ${pubEndDate}`);
+    console.log(`Fetching vulnerabilities from ${pubStartDate} to ${pubEndDate}, limit: ${limit}`);
     
     // Construct URL with query parameters
     let apiUrl = `${NVD_API_URL}?pubStartDate=${pubStartDate}&pubEndDate=${pubEndDate}`;
@@ -60,8 +60,18 @@ serve(async (req: Request) => {
     
     console.log(`Requesting data from: ${apiUrl}`);
     
+    // Prepare headers for NVD API request
+    const headers: HeadersInit = {};
+    
+    // Add API key if available from environment
+    const nvdApiKey = Deno.env.get("NVD_API_KEY");
+    if (nvdApiKey) {
+      console.log("Using NVD API key from environment");
+      headers["apiKey"] = nvdApiKey;
+    }
+    
     // Fetch data from NVD API
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, { headers });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch from NVD API: ${response.statusText}`);
