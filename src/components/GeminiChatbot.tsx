@@ -2,9 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Bot, Send, Loader, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bot, Send, Loader, X, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +19,8 @@ const GeminiChatbot: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [apiConversation, setApiConversation] = useState<any[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isMinimized, setIsMinimized] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const scrollToBottom = () => {
@@ -33,14 +33,16 @@ const GeminiChatbot: React.FC = () => {
   
   useEffect(() => {
     // Add a welcome message when the component mounts
-    setMessages([
-      {
-        role: 'assistant',
-        content: 'Hello! I\'m your security assistant. How can I help you today?',
-        timestamp: new Date()
-      }
-    ]);
-  }, []);
+    if (!isMinimized && messages.length === 0) {
+      setMessages([
+        {
+          role: 'assistant',
+          content: 'Hello! I\'m your security assistant. How can I help you today?',
+          timestamp: new Date()
+        }
+      ]);
+    }
+  }, [isMinimized]);
   
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -66,6 +68,10 @@ const GeminiChatbot: React.FC = () => {
       });
       
       if (error) throw error;
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to get a response");
+      }
       
       // Store the conversation for the next request
       if (data.conversation) {
@@ -106,6 +112,13 @@ const GeminiChatbot: React.FC = () => {
     setIsCollapsed(!isCollapsed);
   };
   
+  const toggleMinimize = () => {
+    setIsMinimized(!isMinimized);
+    if (isMinimized) {
+      setIsCollapsed(false);
+    }
+  };
+  
   const clearChat = () => {
     setMessages([{
       role: 'assistant',
@@ -115,8 +128,19 @@ const GeminiChatbot: React.FC = () => {
     setApiConversation([]);
   };
   
+  if (isMinimized) {
+    return (
+      <Button 
+        onClick={toggleMinimize}
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all duration-300 z-50"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+    );
+  }
+  
   return (
-    <Card className={`fixed bottom-4 right-4 w-80 md:w-96 shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${isCollapsed ? 'h-14' : 'h-[500px]'}`}>
+    <Card className={`fixed bottom-4 right-4 w-80 md:w-96 shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${isCollapsed ? 'h-14' : 'h-[500px]'} z-50`}>
       <div className="bg-primary text-primary-foreground p-3 flex items-center justify-between cursor-pointer" onClick={toggleCollapse}>
         <div className="flex items-center">
           <Bot className="h-5 w-5 mr-2" />
@@ -124,7 +148,7 @@ const GeminiChatbot: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {!isCollapsed && <X className="h-4 w-4 cursor-pointer hover:text-gray-200" onClick={(e) => { e.stopPropagation(); clearChat(); }} />}
-          {isCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          <X className="h-5 w-5 cursor-pointer hover:text-gray-200" onClick={(e) => { e.stopPropagation(); toggleMinimize(); }} />
         </div>
       </div>
       
