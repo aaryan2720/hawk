@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
 
 // CORS headers
 const corsHeaders = {
@@ -9,16 +8,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// URLs for scraping
-const SECURITY_SOURCES = {
-  nvd: "https://nvd.nist.gov/vuln/data-feeds",
-  cveDetails: "https://www.cvedetails.com/vulnerability-list/",
-  cisaKev: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
-  securityWeek: "https://www.securityweek.com/category/vulnerabilities/",
-};
-
-// Severity levels definition
-const SEVERITY_LEVELS = ["low", "medium", "high", "critical"];
+// NVD API endpoint
+const NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -27,7 +18,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log("Starting real-time vulnerability scraping...");
+    console.log("Starting real-time vulnerability fetching from NVD API...");
     
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -35,101 +26,170 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     );
 
-    // Determine which source to scrape (from request or random)
+    // Get request data
     const { source, limit = 10 } = await req.json().catch(() => ({}));
     
-    const sourcesToScrape = source 
-      ? [source] 
-      : Object.keys(SECURITY_SOURCES);
+    // Create a new Date object for the current date
+    const currentDate = new Date();
+    // Create a new Date object for 7 days ago
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
+    // Format dates for the NVD API (YYYY-MM-DD)
+    const pubStartDate = sevenDaysAgo.toISOString().split('T')[0];
+    const pubEndDate = currentDate.toISOString().split('T')[0];
+    
+    console.log(`Fetching vulnerabilities from ${pubStartDate} to ${pubEndDate}`);
+    
+    // Construct URL with query parameters
+    let apiUrl = `${NVD_API_URL}?pubStartDate=${pubStartDate}&pubEndDate=${pubEndDate}`;
+    
+    // Add CVSS severity filter if provided in the source parameter
+    if (source === "critical") {
+      apiUrl += "&cvssV3Severity=CRITICAL";
+    } else if (source === "high") {
+      apiUrl += "&cvssV3Severity=HIGH";
+    } else if (source === "medium") {
+      apiUrl += "&cvssV3Severity=MEDIUM";
+    } else if (source === "low") {
+      apiUrl += "&cvssV3Severity=LOW";
+    }
+    
+    // Limit results
+    apiUrl += `&resultsPerPage=${limit}`;
+    
+    console.log(`Requesting data from: ${apiUrl}`);
+    
+    // Fetch data from NVD API
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from NVD API: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log(`Received ${data.vulnerabilities?.length || 0} vulnerabilities from NVD API`);
+    
+    // Process vulnerabilities from the NVD API response
     const results = [];
     
-    // Scrape each source
-    for (const currentSource of sourcesToScrape) {
-      if (!SECURITY_SOURCES[currentSource]) {
-        console.warn(`Unknown source: ${currentSource}`);
-        continue;
-      }
+    for (const item of data.vulnerabilities || []) {
+      const cve = item.cve;
       
-      const url = SECURITY_SOURCES[currentSource];
-      console.log(`Scraping vulnerabilities from ${currentSource}: ${url}`);
-
-      // Fetch and parse the web page
-      const response = await fetch(url);
+      if (!cve) continue;
       
-      if (!response.ok) {
-        console.error(`Failed to fetch ${url}: ${response.statusText}`);
-        continue;
-      }
+      // Extract CVE ID
+      const cveId = cve.id;
       
-      const html = await response.text();
-      const parser = new DOMParser();
-      const document = parser.parseFromString(html, "text/html");
-      
-      if (!document) {
-        console.error(`Failed to parse HTML from ${url}`);
-        continue;
-      }
-      
-      // Extract CVE IDs
-      const cveRegex = /CVE-\d{4}-\d{4,7}/g;
-      const matches = html.match(cveRegex) || [];
-      const uniqueCVEs = [...new Set(matches)].slice(0, limit);
-      
-      console.log(`Found ${uniqueCVEs.length} unique CVEs from ${currentSource}`);
-      
-      // Process each CVE
-      for (const cve of uniqueCVEs) {
-        // Check if this CVE already exists in our database
-        const { data: existing } = await supabaseClient
-          .from("alerts")
-          .select("id")
-          .eq("cve", cve)
-          .maybeSingle();
-          
-        if (existing) {
-          console.log(`CVE ${cve} already exists in database, skipping`);
-          continue;
+      // Extract description
+      let description = "No description available";
+      if (cve.descriptions && cve.descriptions.length > 0) {
+        // Find English description
+        const englishDesc = cve.descriptions.find(d => d.lang === 'en');
+        if (englishDesc) {
+          description = englishDesc.value;
         }
-        
-        // Generate vulnerability details based on the CVE ID
-        const title = `Security Vulnerability ${cve}`;
-        const description = `A potential security vulnerability identified as ${cve} was discovered in the ${currentSource} feed.`;
-        const severity = SEVERITY_LEVELS[Math.floor(Math.random() * SEVERITY_LEVELS.length)];
-        const system = `${currentSource} Security Feed`;
-        
-        // Insert into database
-        const { error } = await supabaseClient.from("alerts").insert([
-          {
-            title,
-            description,
-            system,
-            severity,
-            cve,
-            date: new Date().toISOString(),
-            status: "new",
-            mitigation: "Please check vendor website for patches and workarounds.",
-            details: {
-              source: currentSource,
-              discoveryDate: new Date().toISOString(),
-              additionalInfo: `Discovered during real-time scan of ${currentSource}`
+      }
+      
+      // Extract CVSS data for severity
+      let severity = "medium";
+      let cvssScore = 0;
+      
+      if (cve.metrics) {
+        // Prefer CVSS 3.x over 2.0
+        if (cve.metrics.cvssMetricV31) {
+          const cvssData = cve.metrics.cvssMetricV31[0];
+          severity = cvssData.cvssData.baseSeverity.toLowerCase();
+          cvssScore = cvssData.cvssData.baseScore;
+        } else if (cve.metrics.cvssMetricV30) {
+          const cvssData = cve.metrics.cvssMetricV30[0];
+          severity = cvssData.cvssData.baseSeverity.toLowerCase();
+          cvssScore = cvssData.cvssData.baseScore;
+        } else if (cve.metrics.cvssMetricV2) {
+          const cvssData = cve.metrics.cvssMetricV2[0];
+          cvssScore = cvssData.cvssData.baseScore;
+          // Convert CVSS 2.0 score to severity
+          if (cvssScore >= 7.0) severity = "high";
+          else if (cvssScore >= 4.0) severity = "medium";
+          else severity = "low";
+        }
+      }
+      
+      // Extract affected systems
+      let systems = "Unknown System";
+      if (cve.configurations && cve.configurations.length > 0) {
+        const nodes = cve.configurations[0].nodes;
+        if (nodes && nodes.length > 0) {
+          const cpeMatches = nodes[0].cpeMatch;
+          if (cpeMatches && cpeMatches.length > 0) {
+            // Extract vendor and product info from CPE
+            const cpe = cpeMatches[0].criteria;
+            if (cpe) {
+              const parts = cpe.split(':');
+              if (parts.length >= 5) {
+                systems = `${parts[3]} ${parts[4]}`;
+              }
             }
           }
-        ]);
-
-        if (error) {
-          console.error(`Error storing CVE ${cve}:`, error);
-        } else {
-          console.log(`Successfully stored CVE ${cve} from ${currentSource}`);
-          results.push({ cve, source: currentSource, severity });
         }
+      }
+      
+      // Format date
+      const publishedDate = cve.published ? new Date(cve.published).toISOString() : new Date().toISOString();
+      
+      // Check if this CVE already exists in our database
+      const { data: existing } = await supabaseClient
+        .from("alerts")
+        .select("id")
+        .eq("cve", cveId)
+        .maybeSingle();
+        
+      if (existing) {
+        console.log(`CVE ${cveId} already exists in database, skipping`);
+        continue;
+      }
+      
+      // Create the vulnerability object
+      const vulnerability = {
+        cve: cveId,
+        title: `${cveId} - ${systems} Vulnerability`,
+        description: description,
+        severity: severity as 'low' | 'medium' | 'high' | 'critical',
+        system: systems,
+        date: publishedDate,
+        status: "new",
+        mitigation: "Check vendor website for patches and mitigation strategies.",
+        details: {
+          source: "NVD API",
+          cvssScore: cvssScore,
+          publishedDate: publishedDate,
+          discoveryDate: publishedDate,
+          additionalInfo: `Retrieved from NVD API during real-time scan`
+        }
+      };
+      
+      // Insert into database
+      const { error } = await supabaseClient
+        .from("alerts")
+        .insert([vulnerability]);
+
+      if (error) {
+        console.error(`Error storing CVE ${cveId}:`, error);
+      } else {
+        console.log(`Successfully stored CVE ${cveId} from NVD API`);
+        results.push({ 
+          cve: cveId, 
+          source: "NVD API", 
+          severity: severity,
+          description: description.length > 60 ? description.substring(0, 60) + '...' : description
+        });
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Real-time vulnerability scraping completed",
+        message: "Real-time vulnerability fetching completed",
         count: results.length,
         results 
       }),
