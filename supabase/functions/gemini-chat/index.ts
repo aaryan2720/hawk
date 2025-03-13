@@ -19,10 +19,21 @@ serve(async (req: Request) => {
     const { message, conversation = [] } = await req.json();
     
     // Get Gemini API key from environment variables
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("GEMINI_API_KEY") || (process.env && process.env.GEMINI_API_KEY);
+    
     if (!apiKey) {
       console.error("GEMINI_API_KEY not found in environment variables");
-      throw new Error("GEMINI_API_KEY not found in environment variables");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "API key not configured. Please add GEMINI_API_KEY to Edge Function secrets.",
+          errorType: "missing_api_key"
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
     
     console.log("Processing request for Gemini chatbot...");
@@ -81,7 +92,8 @@ serve(async (req: Request) => {
           JSON.stringify({ 
             success: false, 
             error: `Gemini API error: ${response.status} ${response.statusText}`,
-            details: errorData 
+            details: errorData,
+            errorType: "api_error"
           }),
           {
             status: 200, // Return 200 to client even though API failed
@@ -124,7 +136,8 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to communicate with Gemini API: ${apiError.message}` 
+          error: `Failed to communicate with Gemini API: ${apiError.message}`,
+          errorType: "api_request_error"
         }),
         {
           status: 200, // Return 200 to client even though there was an error
@@ -135,7 +148,11 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error("Error in Gemini chat function:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        errorType: "general_error"
+      }),
       {
         status: 200, // Return 200 to client
         headers: { ...corsHeaders, "Content-Type": "application/json" },

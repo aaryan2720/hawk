@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bot, Send, Loader, X, MessageCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'; 
+import { Bot, Send, Loader, X, MessageCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,6 +22,7 @@ const GeminiChatbot: React.FC = () => {
   const [apiConversation, setApiConversation] = useState<any[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isMinimized, setIsMinimized] = useState(true);
+  const [apiKeyError, setApiKeyError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const scrollToBottom = () => {
@@ -47,6 +49,9 @@ const GeminiChatbot: React.FC = () => {
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
     
+    // Reset any previous API key error
+    setApiKeyError(false);
+    
     // Add user message to the chat
     const userMessage: ChatMessage = {
       role: 'user',
@@ -70,7 +75,12 @@ const GeminiChatbot: React.FC = () => {
       if (error) throw error;
       
       if (!data.success) {
-        throw new Error(data.error || "Failed to get a response");
+        if (data.errorType === 'missing_api_key') {
+          setApiKeyError(true);
+          throw new Error('Gemini API key is not configured. Please add it to Supabase Edge Function secrets.');
+        } else {
+          throw new Error(data.error || "Failed to get a response");
+        }
       }
       
       // Store the conversation for the next request
@@ -88,12 +98,17 @@ const GeminiChatbot: React.FC = () => {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Chatbot error:', error);
-      toast.error('Failed to get a response from the AI assistant');
+      
+      const errorMessage = error.message.includes('API key') 
+        ? 'The Gemini API key is not configured. Please add it to Supabase Edge Function secrets.'
+        : 'Failed to get a response from the AI assistant. Please try again later.';
+      
+      toast.error(errorMessage);
       
       // Add error message
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again later.',
+        content: errorMessage,
         timestamp: new Date()
       }]);
     } finally {
@@ -126,6 +141,7 @@ const GeminiChatbot: React.FC = () => {
       timestamp: new Date()
     }]);
     setApiConversation([]);
+    setApiKeyError(false);
   };
   
   if (isMinimized) {
@@ -154,6 +170,16 @@ const GeminiChatbot: React.FC = () => {
       
       {!isCollapsed && (
         <>
+          {apiKeyError && (
+            <Alert variant="destructive" className="m-3 mb-0">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Configuration Error</AlertTitle>
+              <AlertDescription>
+                Gemini API key is not configured. Please add GEMINI_API_KEY to Supabase Edge Function secrets.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <ScrollArea className="flex-1 p-4 h-[400px]">
             <div className="space-y-4">
               {messages.map((msg, index) => (
