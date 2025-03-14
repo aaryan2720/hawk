@@ -14,6 +14,9 @@ import SignUp from "./pages/auth/SignUp";
 import NotFound from "./pages/NotFound";
 import VulnerabilityDetails from "./pages/VulnerabilityDetails";
 import ScanHistory from "./pages/ScanHistory";
+import Alerts from "./pages/Alerts";
+import SystemMonitor from "./pages/SystemMonitor";
+import ChatBot from "./pages/ChatBot";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +33,9 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/vulnerability/:id" element={<VulnerabilityDetails />} />
             <Route path="/scan-history" element={<ScanHistory />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/system-monitor" element={<SystemMonitor />} />
+            <Route path="/chatbot" element={<ChatBot />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<SignUp />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

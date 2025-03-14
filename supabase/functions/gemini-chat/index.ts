@@ -26,7 +26,7 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "API key not configured. Please add GEMINI_API_KEY to Edge Function secrets.",
+          error: "API key not configured. Please add GEMINI_API_KEY to Supabase Edge Function secrets.",
           errorType: "missing_api_key"
         }),
         {

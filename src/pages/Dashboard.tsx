@@ -1,201 +1,226 @@
-import React, { useEffect, useState } from 'react';
-import DashboardHeader from '@/components/DashboardHeader';
+
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import DashboardNav from '@/components/DashboardNav';
 import StatusOverview from '@/components/StatusOverview';
-import AlertsList from '@/components/AlertsList';
-import TrendChart from '@/components/TrendChart';
-import SearchFilters from '@/components/SearchFilters';
-import VulnerabilityScraper from '@/components/VulnerabilityScraper';
-import RealTimeScanner from '@/components/RealTimeScanner';
-import RiskAnalyzer from '@/components/RiskAnalyzer';
-import GeminiChatbot from '@/components/GeminiChatbot';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/card';
-import { Alert, AlertsStats, SystemStatus } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { AlertTriangle, History, Database, Shield, ArrowUpRight, Scan, BarChart } from 'lucide-react';
+import TrendChart from '@/components/TrendChart';
+import RiskAnalyzer from '@/components/RiskAnalyzer';
 
-const Dashboard: React.FC = () => {
-  const [alertsData, setAlertsData] = useState<Alert[]>([]);
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
-  const [systemStatus, setSystemStatus] = useState<SystemStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<AlertsStats>({
-    total: 0,
-    bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-    resolved: 0,
-    new: 0,
-    acknowledged: 0,
-  });
+const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const fetchAlertsData = async () => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*');
+  if (!user) {
+    navigate('/auth/login');
+    return null;
+  }
 
-      if (error) throw error;
-
-      const formattedAlerts: Alert[] = data.map(alert => ({
-        id: alert.id,
-        title: alert.title,
-        description: alert.description,
-        severity: alert.severity as 'low' | 'medium' | 'high' | 'critical',
-        date: alert.date,
-        system: alert.system,
-        cve: alert.cve || undefined,
-        status: alert.status as 'new' | 'acknowledged' | 'resolved',
-        mitigation: alert.mitigation || undefined,
-        patchLink: alert.patch_link || undefined,
-        details: alert.details as Record<string, any> | undefined,
-      }));
-
-      setAlertsData(formattedAlerts);
-      
-      const total = formattedAlerts.length;
-      const critical = formattedAlerts.filter(a => a.severity === 'critical').length;
-      const high = formattedAlerts.filter(a => a.severity === 'high').length;
-      const medium = formattedAlerts.filter(a => a.severity === 'medium').length;
-      const low = formattedAlerts.filter(a => a.severity === 'low').length;
-      const resolved = formattedAlerts.filter(a => a.status === 'resolved').length;
-      const newAlerts = formattedAlerts.filter(a => a.status === 'new').length;
-      const acknowledged = formattedAlerts.filter(a => a.status === 'acknowledged').length;
-      
-      setStats({
-        total,
-        bySeverity: { critical, high, medium, low },
-        resolved,
-        new: newAlerts,
-        acknowledged,
-      });
-
-      const systems = Array.from(new Set(formattedAlerts.map(alert => alert.system)));
-      const systemStatusData: SystemStatus[] = systems.map(system => {
-        const systemAlerts = formattedAlerts.filter(alert => alert.system === system);
-        const highSeverityCount = systemAlerts.filter(alert => 
-          alert.severity === 'high' || alert.severity === 'critical'
-        ).length;
-        
-        let status: 'operational' | 'degraded' | 'critical' | 'maintenance' = 'operational';
-        if (highSeverityCount > 5) {
-          status = 'critical';
-        } else if (highSeverityCount > 0) {
-          status = 'degraded';
-        }
-        
-        return {
-          name: system,
-          status,
-          alertsCount: systemAlerts.length,
-          highSeverityCount
-        };
-      });
-      
-      setSystemStatus(systemStatusData);
-    } catch (error) {
-      console.error('Error fetching alerts data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAlertsData();
-  }, []);
-
-  useEffect(() => {
-    let filtered = [...alertsData];
-    
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(alert => 
-        alert.title.toLowerCase().includes(term) || 
-        alert.description.toLowerCase().includes(term) ||
-        (alert.cve?.toLowerCase().includes(term) || false)
-      );
-    }
-    
-    if (selectedSeverities.length > 0) {
-      filtered = filtered.filter(alert => selectedSeverities.includes(alert.severity));
-    }
-    
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter(alert => selectedStatuses.includes(alert.status));
-    }
-    
-    if (selectedSystems.length > 0) {
-      filtered = filtered.filter(alert => selectedSystems.includes(alert.system));
-    }
-    
-    setFilteredAlerts(filtered);
-  }, [alertsData, searchTerm, selectedSeverities, selectedStatuses, selectedSystems]);
-
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-  };
-
-  const handleFilterChange = (filters: { severity: string[]; status: string[] }) => {
-    setSelectedSeverities(filters.severity);
-    setSelectedStatuses(filters.status);
-  };
-
-  const handleRefresh = async () => {
-    await fetchAlertsData();
-    toast.success('Dashboard data refreshed');
-  };
-  
   return (
-    <>
+    <div className="min-h-screen bg-background">
       <DashboardNav />
-      <div className="p-4 sm:p-6 space-y-6">
-        <DashboardHeader title="Security Dashboard" subtitle="Monitor and manage security alerts" />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <StatusOverview />
-          <RiskAnalyzer />
+      
+      <main className="container mx-auto py-8 px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Security Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Overview of your security posture and recent activity
+          </p>
         </div>
         
-        <Tabs defaultValue="alerts" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="alerts">Alerts</TabsTrigger>
-            <TabsTrigger value="tools">Scanner Tools</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="alerts" className="space-y-4">
-            <Card className="p-4">
-              <SearchFilters 
-                onSearch={handleSearch}
-                onFilterChange={handleFilterChange}
-              />
-            </Card>
-            
-            <AlertsList />
-          </TabsContent>
-          
-          <TabsContent value="tools" className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <RealTimeScanner onScanComplete={handleRefresh} />
-              <VulnerabilityScraper onScanComplete={handleRefresh} />
-            </div>
-          </TabsContent>
-        </Tabs>
+        <div className="mb-8">
+          <StatusOverview />
+        </div>
         
-        <div className="mt-6">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Vulnerability Trends</h2>
-            <TrendChart />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
+                Alerts Center
+              </CardTitle>
+              <CardDescription>Monitor and respond to security alerts</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <p className="text-2xl font-semibold">12</p>
+              <p className="text-sm text-muted-foreground">Active alerts requiring attention</p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/alerts')}>
+                <span>View Alerts</span>
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <Scan className="h-5 w-5 mr-2 text-blue-500" />
+                Vulnerability Scans
+              </CardTitle>
+              <CardDescription>Recent system vulnerability scans</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <p className="text-2xl font-semibold">8</p>
+              <p className="text-sm text-muted-foreground">Scans completed in the last 7 days</p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/scan-history')}>
+                <span>View Scan History</span>
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <Database className="h-5 w-5 mr-2 text-purple-500" />
+                System Monitoring
+              </CardTitle>
+              <CardDescription>OEM and component monitoring</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <p className="text-2xl font-semibold">5</p>
+              <p className="text-sm text-muted-foreground">Systems being actively monitored</p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/system-monitor')}>
+                <span>Manage Systems</span>
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
           </Card>
         </div>
+        
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BarChart className="h-5 w-5 mr-2 text-blue-500" />
+                Security Trends
+              </CardTitle>
+              <CardDescription>
+                Vulnerability trends over the past 30 days
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrendChart />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2 text-green-500" />
+                Risk Analysis
+              </CardTitle>
+              <CardDescription>
+                Current security risk assessment
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RiskAnalyzer />
+            </CardContent>
+          </Card>
+        </div>
+        
+        <Tabs defaultValue="recent">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Recent Activity</h2>
+            <TabsList>
+              <TabsTrigger value="recent">Recent</TabsTrigger>
+              <TabsTrigger value="alerts">Alerts</TabsTrigger>
+              <TabsTrigger value="scans">Scans</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value="recent" className="space-y-4">
+            <ActivityItem 
+              title="Critical Vulnerability CVE-2023-45678" 
+              description="New critical vulnerability detected in system XYZ."
+              time="2 hours ago"
+              icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
+            />
+            <ActivityItem 
+              title="System Scan Completed" 
+              description="Routine scan completed with 3 medium vulnerabilities detected."
+              time="Yesterday"
+              icon={<Scan className="h-5 w-5 text-blue-500" />}
+            />
+            <ActivityItem 
+              title="OEM Update Available" 
+              description="New firmware update available for Router-X."
+              time="2 days ago"
+              icon={<Database className="h-5 w-5 text-purple-500" />}
+            />
+          </TabsContent>
+          
+          <TabsContent value="alerts" className="space-y-4">
+            <ActivityItem 
+              title="Critical Vulnerability CVE-2023-45678" 
+              description="New critical vulnerability detected in system XYZ."
+              time="2 hours ago"
+              icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
+            />
+            <ActivityItem 
+              title="Medium Severity Alert" 
+              description="Unusual network activity detected on port 8080."
+              time="1 day ago"
+              icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
+            />
+          </TabsContent>
+          
+          <TabsContent value="scans" className="space-y-4">
+            <ActivityItem 
+              title="System Scan Completed" 
+              description="Routine scan completed with 3 medium vulnerabilities detected."
+              time="Yesterday"
+              icon={<Scan className="h-5 w-5 text-blue-500" />}
+            />
+            <ActivityItem 
+              title="Manual Scan Initiated" 
+              description="User initiated manual scan of Server-01."
+              time="3 days ago"
+              icon={<Scan className="h-5 w-5 text-blue-500" />}
+            />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+};
+
+// Activity Item component for the dashboard
+const ActivityItem = ({ 
+  title, 
+  description, 
+  time, 
+  icon 
+}: { 
+  title: string; 
+  description: string; 
+  time: string; 
+  icon: React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-start p-4 rounded-lg border hover:bg-slate-50 transition-colors">
+      <div className="flex-shrink-0 mr-4">
+        {icon}
       </div>
-      
-      <GeminiChatbot />
-    </>
+      <div className="flex-1">
+        <h3 className="font-medium">{title}</h3>
+        <p className="text-sm text-gray-600">{description}</p>
+      </div>
+      <div className="text-xs text-gray-500 whitespace-nowrap ml-4">
+        {time}
+      </div>
+    </div>
   );
 };
 
