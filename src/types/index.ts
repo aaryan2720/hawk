@@ -1,4 +1,3 @@
-
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export type Json = 
@@ -52,6 +51,12 @@ export interface UserSystem {
   user_id: string;
   system_name: string;
   created_at: string;
+  monitoring_settings?: {
+    autoScanEnabled: boolean;
+    scanInterval: number;
+    criticalOnly: boolean;
+    lastScanTime: string | null;
+  };
 }
 
 export interface OEMSource {

@@ -9,6 +9,7 @@ import { Loader, RefreshCw, Clock, AlertTriangle, Settings } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { UserSystem } from '@/types';
 
 interface MonitoringSettings {
   autoScanEnabled: boolean;
