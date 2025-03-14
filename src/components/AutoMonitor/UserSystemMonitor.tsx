@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader, RefreshCw, Clock, AlertTriangle, Settings } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSystem } from '@/types';
@@ -29,10 +28,26 @@ const UserSystemMonitor: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [nextScanTime, setNextScanTime] = useState<Date | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Check Supabase connection
+  useEffect(() => {
+    const verifyConnection = async () => {
+      const { success, error } = await checkSupabaseConnection();
+      if (!success) {
+        setConnectionError(error || 'Failed to connect to database');
+        toast.error('Database connection error. Please try again later.');
+      } else {
+        setConnectionError(null);
+      }
+    };
+    
+    verifyConnection();
+  }, []);
 
   // Load user's monitoring settings
   useEffect(() => {
-    if (!user) return;
+    if (!user || connectionError) return;
     
     const loadSettings = async () => {
       setIsLoading(true);
@@ -75,7 +90,7 @@ const UserSystemMonitor: React.FC = () => {
     };
     
     loadSettings();
-  }, [user]);
+  }, [user, connectionError]);
 
   // Save user's monitoring settings
   const saveSettings = async () => {
@@ -205,6 +220,33 @@ const UserSystemMonitor: React.FC = () => {
       scanInterval: hours
     }));
   };
+
+  if (connectionError) {
+    return (
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Automatic Vulnerability Monitoring</CardTitle>
+          <CardDescription>Database connection issue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-medium mb-2">Database Connection Error</h3>
+            <p className="text-muted-foreground mb-4">
+              Unable to connect to the database. Please try again later.
+            </p>
+            <Button 
+              variant="outline"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Connection
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-md">
