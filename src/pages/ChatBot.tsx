@@ -33,15 +33,17 @@ const ChatBot = () => {
         </div>
         
         <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Gemini AI Assistant</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle>Security Assistant</CardTitle>
             <CardDescription>
               Ask questions about cybersecurity, get vulnerability assessments, or analyze potential threats
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[600px]">
-              <GeminiChatbot startExpanded={true} />
+          <CardContent className="pt-0">
+            <div className="h-[600px] flex items-center justify-center">
+              <div className="w-full max-w-3xl">
+                <GeminiChatbot startExpanded={true} />
+              </div>
             </div>
           </CardContent>
         </Card>

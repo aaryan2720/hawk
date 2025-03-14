@@ -1,9 +1,9 @@
-
 import React from 'react';
 import DashboardNav from '@/components/DashboardNav';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import OEMMonitorList from '@/components/OEMMonitor/OEMMonitorList';
+import UserSystemMonitor from '@/components/AutoMonitor/UserSystemMonitor';
 
 const SystemMonitor = () => {
   const { user, loading } = useAuth();
@@ -31,8 +31,12 @@ const SystemMonitor = () => {
           </p>
         </div>
         
-        <div className="bg-white shadow-sm rounded-lg p-6 mb-8">
-          <OEMMonitorList />
+        <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-1">
+          <UserSystemMonitor />
+          
+          <div className="bg-white shadow-sm rounded-lg p-6">
+            <OEMMonitorList />
+          </div>
         </div>
       </main>
     </div>

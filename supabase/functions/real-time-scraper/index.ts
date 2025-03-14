@@ -27,7 +27,9 @@ serve(async (req: Request) => {
     );
 
     // Get request data
-    const { source, limit = 18 } = await req.json().catch(() => ({}));
+    const { source, limit = 18, userId } = await req.json().catch(() => ({}));
+    
+    console.log(`Processing request for source: ${source}, limit: ${limit}, userId: ${userId || 'not specified'}`);
     
     // Create a new Date object for the current date
     const currentDate = new Date();
@@ -177,7 +179,8 @@ serve(async (req: Request) => {
           cvssScore: cvssScore,
           publishedDate: publishedDate,
           discoveryDate: publishedDate,
-          additionalInfo: `Retrieved from NVD API during real-time scan`
+          additionalInfo: `Retrieved from NVD API during real-time scan`,
+          userId: userId || null // Store user ID if provided
         }
       };
       
@@ -196,6 +199,49 @@ serve(async (req: Request) => {
           severity: severity,
           description: description.length > 60 ? description.substring(0, 60) + '...' : description
         });
+      }
+    }
+
+    // If userId is provided, update user's last scan time
+    if (userId) {
+      console.log(`Updating last scan time for user ${userId}`);
+      
+      // Get user's monitoring settings
+      const { data: userData } = await supabaseClient
+        .from('user_systems')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (userData) {
+        // Update existing record
+        const monitoringSettings = userData.monitoring_settings || {};
+        monitoringSettings.lastScanTime = new Date().toISOString();
+        
+        await supabaseClient
+          .from('user_systems')
+          .update({ 
+            monitoring_settings: monitoringSettings
+          })
+          .eq('id', userData.id);
+          
+        console.log(`Updated monitoring settings for user ${userId}`);
+      } else {
+        // Create new record
+        await supabaseClient
+          .from('user_systems')
+          .insert([{ 
+            user_id: userId, 
+            system_name: 'Auto Monitor',
+            monitoring_settings: {
+              lastScanTime: new Date().toISOString(),
+              autoScanEnabled: false,
+              scanInterval: 24,
+              criticalOnly: false
+            }
+          }]);
+          
+        console.log(`Created new monitoring settings for user ${userId}`);
       }
     }
 
