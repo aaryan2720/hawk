@@ -151,18 +151,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          monitoring_settings: Json | null
           system_name: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          monitoring_settings?: Json | null
           system_name: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          monitoring_settings?: Json | null
           system_name?: string
           user_id?: string
         }
