@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,13 +14,17 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const GeminiChatbot: React.FC = () => {
+interface GeminiChatbotProps {
+  startExpanded?: boolean;
+}
+
+const GeminiChatbot: React.FC<GeminiChatbotProps> = ({ startExpanded = false }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [apiConversation, setApiConversation] = useState<any[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isMinimized, setIsMinimized] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(!startExpanded);
+  const [isMinimized, setIsMinimized] = useState(!startExpanded);
   const [apiKeyError, setApiKeyError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -34,7 +37,6 @@ const GeminiChatbot: React.FC = () => {
   }, [messages]);
   
   useEffect(() => {
-    // Add a welcome message when the component mounts
     if (!isMinimized && messages.length === 0) {
       setMessages([
         {
@@ -49,10 +51,8 @@ const GeminiChatbot: React.FC = () => {
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
     
-    // Reset any previous API key error
     setApiKeyError(false);
     
-    // Add user message to the chat
     const userMessage: ChatMessage = {
       role: 'user',
       content: inputMessage,
@@ -64,7 +64,6 @@ const GeminiChatbot: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('gemini-chat', {
         body: { 
           message: inputMessage,
@@ -83,12 +82,10 @@ const GeminiChatbot: React.FC = () => {
         }
       }
       
-      // Store the conversation for the next request
       if (data.conversation) {
         setApiConversation(data.conversation);
       }
       
-      // Add assistant message to the chat
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.message || "I'm having trouble understanding that. Could you try rephrasing?",
@@ -105,7 +102,6 @@ const GeminiChatbot: React.FC = () => {
       
       toast.error(errorMessage);
       
-      // Add error message
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: errorMessage,
