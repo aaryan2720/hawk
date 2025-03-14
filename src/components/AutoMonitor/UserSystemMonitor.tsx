@@ -9,7 +9,7 @@ import { Loader, RefreshCw, Clock, AlertTriangle, Settings } from 'lucide-react'
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { UserSystem } from '@/types';
+import { UserSystem, Json } from '@/types';
 
 interface MonitoringSettings {
   autoScanEnabled: boolean;
@@ -66,11 +66,12 @@ const UserSystemMonitor: React.FC = () => {
         
         if (data) {
           // User has settings, parse the data
-          const monitorSettings = data.monitoring_settings || {};
+          const monitorSettings = data.monitoring_settings as Record<string, any> | null || {};
+          
           setSettings({
-            autoScanEnabled: monitorSettings.autoScanEnabled || false,
-            scanInterval: monitorSettings.scanInterval || 24,
-            criticalOnly: monitorSettings.criticalOnly || false,
+            autoScanEnabled: Boolean(monitorSettings.autoScanEnabled),
+            scanInterval: typeof monitorSettings.scanInterval === 'number' ? monitorSettings.scanInterval : 24,
+            criticalOnly: Boolean(monitorSettings.criticalOnly),
             lastScanTime: monitorSettings.lastScanTime ? new Date(monitorSettings.lastScanTime) : null
           });
           
@@ -78,7 +79,7 @@ const UserSystemMonitor: React.FC = () => {
           if (monitorSettings.autoScanEnabled && monitorSettings.lastScanTime) {
             const lastScan = new Date(monitorSettings.lastScanTime);
             const nextScan = new Date(lastScan);
-            nextScan.setHours(nextScan.getHours() + (monitorSettings.scanInterval || 24));
+            nextScan.setHours(nextScan.getHours() + (typeof monitorSettings.scanInterval === 'number' ? monitorSettings.scanInterval : 24));
             setNextScanTime(nextScan);
           }
         }
