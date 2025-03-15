@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Loader } from 'lucide-react';
+import { Loader, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { OEMSource } from '@/types';
 import { 
@@ -14,6 +14,10 @@ import AddSourceDialog from './AddSourceDialog';
 import SourceCard from './SourceCard';
 import EditSourceForm from './EditSourceForm';
 import EmptyState from './EmptyState';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { FirecrawlService } from '@/utils/FirecrawlService';
 
 const OEMMonitorList: React.FC = () => {
   const { user } = useAuth();
@@ -23,6 +27,8 @@ const OEMMonitorList: React.FC = () => {
   const [isAddingSource, setIsAddingSource] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<OEMSource | null>(null);
+  const [isDetectingOEMs, setIsDetectingOEMs] = useState(false);
+  const [suggestedOEMs, setSuggestedOEMs] = useState<Array<{name: string, url: string, systemType: string}>>([]);
 
   const loadSources = async () => {
     if (!user) return;
@@ -100,15 +106,105 @@ const OEMMonitorList: React.FC = () => {
     setIsTestingSource(null);
   };
 
+  const handleDetectOEMs = async () => {
+    try {
+      setIsDetectingOEMs(true);
+      setSuggestedOEMs([]);
+      
+      // Get unique system types from existing sources
+      const systemTypes = [...new Set(sources.map(source => source.system_type))];
+      
+      // If no existing sources, use some common categories
+      const typesToDetect = systemTypes.length > 0 
+        ? systemTypes 
+        : ['network', 'server', 'storage', 'security', 'firmware'];
+      
+      let allSuggestions: any[] = [];
+      
+      // Detect OEMs for each system type
+      for (const systemType of typesToDetect) {
+        const result = await FirecrawlService.detectOEMWebsites(systemType);
+        
+        if (result.success && result.data.suggestions) {
+          // Filter out suggestions that match existing sources
+          const newSuggestions = result.data.suggestions.filter(
+            (suggestion: any) => !sources.some(source => 
+              source.url.includes(suggestion.url) || 
+              source.name.toLowerCase() === suggestion.name.toLowerCase()
+            )
+          );
+          
+          allSuggestions = [...allSuggestions, ...newSuggestions];
+        }
+      }
+      
+      // Limit to 5 suggestions
+      setSuggestedOEMs(allSuggestions.slice(0, 5));
+      
+      if (allSuggestions.length === 0) {
+        toast.info('No new OEM sources detected');
+      }
+    } catch (error) {
+      console.error('Error detecting OEMs:', error);
+      toast.error('Failed to detect OEM sources');
+    } finally {
+      setIsDetectingOEMs(false);
+    }
+  };
+
+  const handleAddSuggestedOEM = async (suggestion: {name: string, url: string, systemType: string}) => {
+    await handleAddSource(suggestion.name, suggestion.url, suggestion.systemType);
+    // Remove from suggestions after adding
+    setSuggestedOEMs(prev => prev.filter(s => s.url !== suggestion.url));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">OEM Websites Monitoring</h3>
-        <AddSourceDialog 
-          isAddingSource={isAddingSource}
-          onAddSource={handleAddSource}
-        />
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+            onClick={handleDetectOEMs} 
+            disabled={isDetectingOEMs}
+          >
+            {isDetectingOEMs ? (
+              <Loader className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            Auto-Detect OEMs
+          </Button>
+          <AddSourceDialog 
+            isAddingSource={isAddingSource}
+            onAddSource={handleAddSource}
+          />
+        </div>
       </div>
+
+      {suggestedOEMs.length > 0 && (
+        <Card className="p-4 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+          <h4 className="text-sm font-medium mb-2">Suggested OEM Sources</h4>
+          <div className="grid gap-2">
+            {suggestedOEMs.map((suggestion, index) => (
+              <div key={index} className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded-md shadow-sm">
+                <div>
+                  <p className="text-sm font-medium">{suggestion.name}</p>
+                  <p className="text-xs text-gray-500">{suggestion.url}</p>
+                </div>
+                <Button 
+                  size="sm"
+                  onClick={() => handleAddSuggestedOEM(suggestion)}
+                >
+                  Add
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center items-center p-8">

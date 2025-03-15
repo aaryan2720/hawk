@@ -6,6 +6,8 @@ import { Loader, RefreshCw, AlertTriangle, Shield, Database } from 'lucide-react
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RealTimeScannerProps {
   onScanComplete?: () => void;
@@ -13,18 +15,21 @@ interface RealTimeScannerProps {
 
 interface ScanResult {
   cve: string;
-  source: string;
+  title: string;
   severity: string;
   description?: string;
+  system?: string;
+  date?: string;
 }
 
 const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => {
+  const { user } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   
-  // Get the results limit from environment variables or default to 18
-  const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '18');
+  // Get the results limit from environment variables or default to 10
+  const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '10');
 
   const severityOptions = [
     { id: 'all', name: 'All Severities' },
@@ -46,18 +51,23 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       const { data, error } = await supabase.functions.invoke('real-time-scraper', {
         body: { 
           source: selectedSeverity === 'all' ? undefined : selectedSeverity, 
-          limit: resultsLimit 
+          limit: resultsLimit,
+          userId: user?.id
         }
       });
 
       if (error) throw error;
 
-      setResults(data.results || []);
-      
-      if (data.count > 0) {
-        toast.success(`${data.count} new vulnerabilities discovered from NVD`);
+      if (data.results && Array.isArray(data.results)) {
+        setResults(data.results);
+        
+        if (data.results.length > 0) {
+          toast.success(`${data.results.length} new vulnerabilities discovered from NVD`);
+        } else {
+          toast.info('No new vulnerabilities found in the NVD database');
+        }
       } else {
-        toast.info('No new vulnerabilities found in the NVD database');
+        toast.info('No vulnerabilities found in the response');
       }
       
       if (onScanComplete) {
@@ -135,17 +145,29 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
                 key={index} 
                 className="flex items-start gap-2 p-3 rounded-md bg-gray-50 border border-gray-200 mb-2"
               >
-                <AlertTriangle className={`h-4 w-4 text-alert-${result.severity} flex-shrink-0 mt-0.5`} />
+                <AlertTriangle className={`h-4 w-4 ${
+                  result.severity === 'critical' ? 'text-red-600' :
+                  result.severity === 'high' ? 'text-orange-500' :
+                  result.severity === 'medium' ? 'text-amber-500' :
+                  'text-blue-500'
+                } flex-shrink-0 mt-0.5`} />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{result.cve}</span>
+                  <span className="text-sm font-medium">{result.title || result.cve}</span>
                   {result.description && (
-                    <span className="text-xs text-gray-500">{result.description}</span>
+                    <span className="text-xs text-gray-500">{result.description.substring(0, 150)}{result.description.length > 150 ? '...' : ''}</span>
                   )}
                   <div className="flex items-center mt-1 text-xs text-gray-500">
-                    <span className={`inline-block w-2 h-2 rounded-full bg-alert-${result.severity} mr-1`}></span>
-                    <span className="capitalize">{result.severity}</span>
-                    <span className="mx-1">•</span>
-                    <span>{result.source}</span>
+                    <Badge variant="outline" className={`
+                      ${result.severity === 'critical' ? 'bg-red-100 text-red-800 border-red-200' :
+                        result.severity === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                        result.severity === 'medium' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                        'bg-blue-100 text-blue-800 border-blue-200'}
+                      mr-2 px-1 py-0 text-[10px]
+                    `}>
+                      {result.severity}
+                    </Badge>
+                    {result.system && <span className="mr-2">{result.system}</span>}
+                    {result.date && <span>{new Date(result.date).toLocaleDateString()}</span>}
                   </div>
                 </div>
               </div>

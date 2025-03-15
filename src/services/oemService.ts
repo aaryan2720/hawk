@@ -27,13 +27,16 @@ export const addOEMSource = async (
   url: string,
   systemType: string
 ): Promise<OEMSource | null> => {
-  try {    
+  try {
+    // Ensure URL has http:// or https:// prefix
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`; 
+    
     const { data, error } = await supabase
       .from('oem_sources')
       .insert({
         user_id: userId,
         name: name,
-        url: url,
+        url: normalizedUrl,
         system_type: systemType,
         is_active: true
       })
@@ -56,6 +59,11 @@ export const updateOEMSource = async (
   updates: Partial<OEMSource>
 ): Promise<boolean> => {
   try {
+    // If url is being updated, ensure it has http:// or https:// prefix
+    if (updates.url && !updates.url.startsWith('http')) {
+      updates.url = `https://${updates.url}`;
+    }
+    
     const { error } = await supabase
       .from('oem_sources')
       .update(updates)
@@ -93,36 +101,48 @@ export const deleteOEMSource = async (sourceId: string): Promise<boolean> => {
 export const testOEMSource = async (source: OEMSource): Promise<boolean> => {
   try {
     // Call Edge Function to test the OEM source
-    const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/test-oem-scraper', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('test-oem-scraper', {
+      body: {
         url: source.url,
         name: source.name,
         system_type: source.system_type
-      })
+      }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to test source');
-    }
+    if (error) throw error;
     
-    const result = await response.json();
-    
-    if (result.success) {
-      toast.success(`Test successful: Found ${result.vulnerabilitiesCount || 0} potential vulnerabilities`);
+    if (data.success) {
+      toast.success(`Test successful: Found ${data.vulnerabilitiesCount || 0} potential vulnerabilities`);
       return true;
     } else {
-      toast.error(`Test failed: ${result.error || 'Unknown error'}`);
+      toast.error(`Test failed: ${data.error || 'Unknown error'}`);
       return false;
     }
   } catch (error) {
     console.error('Error testing OEM source:', error);
     toast.error(`Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return false;
+  }
+};
+
+// New function to search for OEM vulnerabilities
+export const searchOEMVulnerabilities = async (oemName: string): Promise<any[]> => {
+  try {
+    // This would typically query a real vulnerability database
+    // For now, we'll simulate results with the real-time-scraper
+    const { data, error } = await supabase.functions.invoke('real-time-scraper', {
+      body: { 
+        query: oemName,
+        limit: 5 
+      }
+    });
+    
+    if (error) throw error;
+    
+    return data.results || [];
+  } catch (error) {
+    console.error('Error searching OEM vulnerabilities:', error);
+    toast.error('Failed to search for vulnerabilities');
+    return [];
   }
 };
