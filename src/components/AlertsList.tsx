@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import AlertCard from './AlertCard';
 import SearchFilters from './SearchFilters';
-import { Alert, Json } from '../types';
+import { Alert } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { AlertCircle, Loader, RefreshCw } from 'lucide-react';
 import { toast } from "sonner";
@@ -23,7 +22,8 @@ const AlertsList = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('alerts')
-        .select('*');
+        .select('*')
+        .order('date', { ascending: false });
 
       if (error) throw error;
 
@@ -43,6 +43,7 @@ const AlertsList = () => {
       }));
 
       setAlerts(formattedAlerts);
+      console.log(`Fetched ${formattedAlerts.length} real alerts from database`);
     } catch (error) {
       console.error('Error fetching alerts:', error);
       toast.error('Failed to load alerts data');
@@ -51,10 +52,6 @@ const AlertsList = () => {
       setIsRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    fetchAlerts();
-  }, []);
 
   const filterAlerts = useCallback(() => {
     let result = [...alerts];
@@ -125,6 +122,28 @@ const AlertsList = () => {
   useEffect(() => {
     setFilteredAlerts(filterAlerts());
   }, [searchQuery, filters, filterAlerts, alerts]);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchAlerts();
+    
+    // Set up real-time subscription for new alerts
+    const channel = supabase
+      .channel('public:alerts')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'alerts' 
+      }, (payload) => {
+        console.log('Real-time alert update:', payload);
+        fetchAlerts(); // Refresh all alerts when changes occur
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <div className="animate-fade-in">

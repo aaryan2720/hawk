@@ -52,34 +52,21 @@ export class FirecrawlService {
    */
   static async detectOEMWebsites(systemType: string): Promise<CrawlResponse> {
     try {
-      // This is a simplified implementation - in a real application, 
-      // we would use a more sophisticated approach to detect OEM websites
+      // Call the detect-oem-websites edge function
+      const response = await supabase.functions.invoke('real-time-scraper', {
+        body: { 
+          action: 'detect_oems',
+          systemType 
+        }
+      });
       
-      // Common OEM domains based on system type
-      const oemPatterns: Record<string, string[]> = {
-        'network': ['cisco.com', 'juniper.net', 'netgear.com'],
-        'storage': ['emc.com', 'netapp.com', 'seagate.com'],
-        'server': ['dell.com/servers', 'hpe.com/servers', 'lenovo.com/servers'],
-        'desktop': ['dell.com/desktops', 'hp.com', 'lenovo.com'],
-        'security': ['mcafee.com', 'symantec.com', 'kaspersky.com'],
-        'firmware': ['intel.com/firmware', 'amd.com', 'nvidia.com'],
-        'database': ['oracle.com', 'microsoft.com/sql', 'mongodb.com']
-      };
-      
-      const defaultOEMs = ['microsoft.com', 'ibm.com', 'oracle.com', 'intel.com', 'amd.com'];
-      const oemDomains = oemPatterns[systemType.toLowerCase()] || defaultOEMs;
-      
-      const suggestedOEMs = oemDomains.map(domain => ({
-        name: domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
-        url: `https://${domain}`,
-        systemType
-      }));
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to detect OEM websites');
+      }
       
       return {
         success: true,
-        data: {
-          suggestions: suggestedOEMs
-        }
+        data: response.data
       };
     } catch (error) {
       console.error('Error detecting OEM websites:', error);

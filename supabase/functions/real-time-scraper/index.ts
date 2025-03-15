@@ -19,7 +19,14 @@ serve(async (req: Request) => {
 
   try {
     // Get request data
-    const { source, userId, limit = 5 } = await req.json();
+    const requestData = await req.json();
+    const { source, userId, limit = 5, action } = requestData;
+    
+    // Handle different action types
+    if (action === 'detect_oems') {
+      return await handleOEMDetection(requestData);
+    }
+    
     console.log(`Real-time scanning for user ${userId} with source ${source || 'all'}`);
 
     // Create Supabase client
@@ -140,19 +147,7 @@ serve(async (req: Request) => {
       }
     } catch (apiError) {
       console.error("Error fetching from NVD API:", apiError);
-      
-      // Generate some sample data if the API call fails
-      // This is a fallback to ensure the function returns something usable
-      vulnerabilities = Array.from({ length: 3 }).map((_, i) => ({
-        id: `sample-${i}`,
-        title: `Sample Vulnerability ${i+1}`,
-        description: "This is a sample vulnerability generated when the NVD API call failed",
-        severity: source === "critical" ? "critical" : ["high", "medium", "low"][i % 3],
-        system: "Sample System",
-        cve: `CVE-2023-${1000 + i}`,
-        date: new Date().toISOString()
-      }));
-      count = vulnerabilities.length;
+      throw apiError;
     }
 
     // Update user's last scan time if userId is provided
@@ -201,3 +196,97 @@ serve(async (req: Request) => {
     );
   }
 });
+
+// Handle OEM detection
+async function handleOEMDetection(requestData: any) {
+  const { systemType } = requestData;
+  
+  try {
+    console.log(`Detecting OEMs for system type: ${systemType}`);
+    
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+    );
+    
+    // Real OEM patterns based on system type
+    const oemPatterns: Record<string, string[]> = {
+      'network': ['cisco.com', 'juniper.net', 'netgear.com', 'fortinet.com', 'paloaltonetworks.com'],
+      'storage': ['emc.com', 'netapp.com', 'seagate.com', 'westerndigital.com', 'purestorage.com'],
+      'server': ['dell.com/servers', 'hpe.com/servers', 'lenovo.com/servers', 'ibm.com/servers', 'supermicro.com'],
+      'desktop': ['dell.com/desktops', 'hp.com', 'lenovo.com', 'apple.com', 'microsoft.com/surface'],
+      'security': ['mcafee.com', 'symantec.com', 'kaspersky.com', 'crowdstrike.com', 'checkpoint.com'],
+      'firmware': ['intel.com/firmware', 'amd.com', 'nvidia.com', 'qualcomm.com', 'broadcom.com'],
+      'database': ['oracle.com', 'microsoft.com/sql', 'mongodb.com', 'postgresql.org', 'mysql.com']
+    };
+    
+    const defaultOEMs = ['microsoft.com', 'ibm.com', 'oracle.com', 'intel.com', 'amd.com'];
+    const oemDomains = oemPatterns[systemType.toLowerCase()] || defaultOEMs;
+    
+    // Search for recent vulnerabilities for these OEM sources
+    const searchPromises = oemDomains.map(async (domain) => {
+      try {
+        // Search NVD for the OEM name
+        const oemName = domain.split('.')[0];
+        const searchParams = new URLSearchParams({
+          keywordSearch: oemName,
+          resultsPerPage: '5'
+        });
+        
+        const apiUrl = `${NVD_API_URL}?${searchParams.toString()}`;
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          return null;
+        }
+        
+        const data = await response.json();
+        const vulnCount = data.vulnerabilities?.length || 0;
+        
+        return {
+          name: oemName.charAt(0).toUpperCase() + oemName.slice(1),
+          url: `https://${domain}`,
+          systemType,
+          recentVulnerabilities: vulnCount
+        };
+      } catch (error) {
+        console.error(`Error searching ${domain}:`, error);
+        return null;
+      }
+    });
+    
+    // Wait for all searches to complete
+    const searchResults = await Promise.all(searchPromises);
+    const validSuggestions = searchResults.filter(Boolean);
+    
+    // Sort by vulnerabilities count
+    validSuggestions.sort((a, b) => 
+      (b?.recentVulnerabilities || 0) - (a?.recentVulnerabilities || 0));
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        data: {
+          suggestions: validSuggestions
+        }
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Error in OEM detection:", error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+}
