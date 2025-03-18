@@ -18,6 +18,8 @@ import Alerts from "./pages/Alerts";
 import SystemMonitor from "./pages/SystemMonitor";
 import ChatBot from "./pages/ChatBot";
 
+
+
 const queryClient = new QueryClient();
 
 const App = () => (
