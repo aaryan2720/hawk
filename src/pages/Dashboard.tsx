@@ -9,12 +9,13 @@ import RiskAnalyzer from '@/components/RiskAnalyzer';
 import TrendChart from '@/components/TrendChart';
 import VulnerabilityDistribution from '@/components/VulnerabilityDistribution';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Shield, Clock } from 'lucide-react';
+import { AlertTriangle, Shield, Clock, Bell } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { MonitoringSettings } from '@/types';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -26,6 +27,7 @@ const Dashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [lastScanTime, setLastScanTime] = useState<string | null>(null);
+  const [showNotification, setShowNotification] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -73,6 +75,32 @@ const Dashboard = () => {
     fetchAlertCounts();
   }, [user]);
 
+  const handleDismissNotification = () => {
+    setShowNotification(false);
+  };
+
+  const handleManualScan = async () => {
+    if (!user) return;
+    
+    toast.info("Starting manual vulnerability scan...");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('real-time-scraper', {
+        body: { 
+          user_id: user.id,
+          source: 'all'
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Scan completed successfully");
+    } catch (error) {
+      console.error('Error during manual scan:', error);
+      toast.error("Scan failed. Please try again later.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -90,21 +118,40 @@ const Dashboard = () => {
       <DashboardNav />
       <main className="container mx-auto py-8 px-4">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Security Dashboard</h1>
+          <h1 className="text-3xl font-bold">HAWK Security Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             Monitor all your systems security in real-time
           </p>
         </div>
         
+        {showNotification && severityCounts.critical > 0 && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Critical Vulnerabilities Detected</AlertTitle>
+            <AlertDescription className="flex justify-between items-center">
+              <span>There are {severityCounts.critical} critical vulnerabilities requiring immediate attention.</span>
+              <div className="flex gap-2">
+                <Link to="/alerts">
+                  <Button variant="destructive" size="sm">View Alerts</Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={handleDismissNotification}>Dismiss</Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {lastScanTime && (
           <Alert className="mb-6" variant="warning">
             <Clock className="h-4 w-4" />
             <AlertTitle>Last Scan: {new Date(lastScanTime).toLocaleString()}</AlertTitle>
             <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
               <span>Automatic scans are configured to run hourly.</span>
-              <Link to="/system-monitor">
-                <Button variant="outline" size="sm">Configure Monitoring</Button>
-              </Link>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleManualScan}>Run Manual Scan</Button>
+                <Link to="/system-monitor">
+                  <Button variant="outline" size="sm">Configure Monitoring</Button>
+                </Link>
+              </div>
             </AlertDescription>
           </Alert>
         )}
@@ -154,7 +201,14 @@ const Dashboard = () => {
                 </div>
               </div>
               
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  {severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low === 0 
+                    ? "No active alerts. System is secure." 
+                    : `Total ${severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low} alerts requiring attention.`
+                  }
+                </div>
+                
                 <Link to="/alerts">
                   <Button variant="outline" size="sm">
                     View All Alerts
@@ -179,6 +233,15 @@ const Dashboard = () => {
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <RiskAnalyzer />
           <RealTimeScanner />
+        </div>
+
+        <div className="mb-6">
+          <Link to="/settings">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Configure Notification Settings
+            </Button>
+          </Link>
         </div>
       </main>
     </div>

@@ -39,7 +39,7 @@ const DashboardNav = () => {
               <div className="flex h-16 items-center border-b">
                 <Link to="/" className="flex items-center gap-2 font-semibold">
                   <Shield className="h-5 w-5 text-primary" />
-                  <span>FireCrawl</span>
+                  <span>HAWK</span>
                 </Link>
               </div>
               <nav className="flex flex-col gap-4 py-4">
@@ -61,7 +61,7 @@ const DashboardNav = () => {
           </Sheet>
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <Shield className="h-5 w-5 text-primary" />
-            <span className="hidden md:inline-block">FireCrawl</span>
+            <span className="hidden md:inline-block">HAWK</span>
           </Link>
           <nav className="hidden lg:flex items-center gap-6 ml-6">
             {navigationItems.map((item) => (
