@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Shield } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -11,20 +10,24 @@ interface AuthLayoutProps {
 
 const AuthLayout = ({ title, description, children }: AuthLayoutProps) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-blue-900 p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-950 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center">
-            <Shield className="h-12 w-12 text-primary" />
-            <span className="ml-2 text-3xl font-bold text-white">HAWK</span>
+          <div className="inline-flex items-center justify-center p-2 bg-white/5 rounded-full backdrop-blur-md">
+            <Shield className="h-14 w-14 text-primary" />
+            <span className="ml-3 text-4xl font-bold text-white tracking-tight">HAWK</span>
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-white">{title}</h1>
-          <p className="mt-2 text-gray-300">{description}</p>
+          <h1 className="mt-6 text-3xl font-bold text-white tracking-tight">{title}</h1>
+          <p className="mt-3 text-gray-300 text-lg max-w-lg mx-auto">{description}</p>
         </div>
 
-        <Card className="p-6 shadow-xl backdrop-blur-sm bg-white/10 border-white/20">
+        <Card className="p-8 shadow-2xl backdrop-blur-md bg-white/10 border-white/20 rounded-xl">
           {children}
         </Card>
+        
+        <div className="mt-8 text-center text-gray-400 text-sm">
+          <p>Secure authentication powered by HAWK</p>
+        </div>
       </div>
     </div>
   );
