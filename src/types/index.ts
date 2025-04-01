@@ -46,17 +46,19 @@ export interface UserProfile {
   created_at: string;
 }
 
+export interface MonitoringSettings {
+  autoScanEnabled?: boolean;
+  scanInterval?: number; 
+  criticalOnly?: boolean;
+  lastScanTime?: string | null;
+}
+
 export interface UserSystem {
   id: string;
   user_id: string;
   system_name: string;
   created_at: string;
-  monitoring_settings?: {
-    autoScanEnabled: boolean;
-    scanInterval: number;
-    criticalOnly: boolean;
-    lastScanTime: string | null;
-  };
+  monitoring_settings: MonitoringSettings | null;
 }
 
 export interface OEMSource {

@@ -9,14 +9,7 @@ import { Loader, RefreshCw, Clock, AlertTriangle, Settings } from 'lucide-react'
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { UserSystem, Json } from '@/types';
-
-interface MonitoringSettings {
-  autoScanEnabled: boolean;
-  scanInterval: number; // in hours
-  criticalOnly: boolean;
-  lastScanTime: Date | null;
-}
+import { UserSystem, MonitoringSettings } from '@/types';
 
 const UserSystemMonitor: React.FC = () => {
   const { user } = useAuth();
@@ -66,13 +59,14 @@ const UserSystemMonitor: React.FC = () => {
         
         if (data) {
           // User has settings, parse the data
-          const monitorSettings = data.monitoring_settings as Record<string, any> | null || {};
+          const userSystem = data as UserSystem;
+          const monitorSettings = userSystem.monitoring_settings || {};
           
           setSettings({
             autoScanEnabled: Boolean(monitorSettings.autoScanEnabled),
             scanInterval: typeof monitorSettings.scanInterval === 'number' ? monitorSettings.scanInterval : 24,
             criticalOnly: Boolean(monitorSettings.criticalOnly),
-            lastScanTime: monitorSettings.lastScanTime ? new Date(monitorSettings.lastScanTime) : null
+            lastScanTime: monitorSettings.lastScanTime || null
           });
           
           // Calculate next scan time if auto-scan is enabled
@@ -100,11 +94,11 @@ const UserSystemMonitor: React.FC = () => {
     
     setIsSaving(true);
     try {
-      const monitoringSettings = {
+      const monitoringSettings: MonitoringSettings = {
         autoScanEnabled: settings.autoScanEnabled,
         scanInterval: settings.scanInterval,
         criticalOnly: settings.criticalOnly,
-        lastScanTime: settings.lastScanTime ? settings.lastScanTime.toISOString() : null
+        lastScanTime: settings.lastScanTime
       };
       
       // Check if user already has a record
@@ -142,7 +136,7 @@ const UserSystemMonitor: React.FC = () => {
       if (settings.autoScanEnabled) {
         const now = new Date();
         const nextScan = new Date(now);
-        nextScan.setHours(nextScan.getHours() + settings.scanInterval);
+        nextScan.setHours(nextScan.getHours() + settings.scanInterval!);
         setNextScanTime(nextScan);
       } else {
         setNextScanTime(null);
@@ -177,13 +171,13 @@ const UserSystemMonitor: React.FC = () => {
       const now = new Date();
       setSettings(prev => ({
         ...prev,
-        lastScanTime: now
+        lastScanTime: now.toISOString()
       }));
       
       // Update next scan time if auto-scan is enabled
       if (settings.autoScanEnabled) {
         const nextScan = new Date(now);
-        nextScan.setHours(nextScan.getHours() + settings.scanInterval);
+        nextScan.setHours(nextScan.getHours() + (settings.scanInterval || 24));
         setNextScanTime(nextScan);
       }
       
@@ -364,7 +358,7 @@ const UserSystemMonitor: React.FC = () => {
               <div className="pt-4 border-t">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Clock className="h-4 w-4 mr-2" />
-                  Last scan: {settings.lastScanTime.toLocaleString()}
+                  Last scan: {new Date(settings.lastScanTime).toLocaleString()}
                 </div>
               </div>
             )}
