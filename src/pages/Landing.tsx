@@ -7,9 +7,7 @@ import { motion } from 'framer-motion';
 import { FiArrowUpRight } from 'react-icons/fi';
 import { useInView } from 'react-intersection-observer';
 import { TypeAnimation } from 'react-type-animation';
-import Particles from 'react-tsparticles';
-import { loadFull } from "tsparticles";
-import { Engine } from 'tsparticles-engine';
+import { loadSlim } from 'tsparticles-slim';
 
 // Animated Components
 const AnimatedFeatureCard = ({ icon, title, description, delay }) => {
@@ -66,12 +64,29 @@ const AnimatedTestimonial = ({ quote, author, role, delay }) => {
   );
 };
 
-const Landing = () => {
-  const particlesInit = async (engine: Engine) => {
-    // We need to implement the loadFull function
-    await loadFull(engine);
-  };
+// Create a simple visualization component that doesn't use Three.js
+const VisualizationPlaceholder = () => {
+  return (
+    <div className="relative w-full h-[400px] bg-blue-50 rounded-xl overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0">
+        <div className="absolute w-40 h-40 bg-blue-400/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+        <div className="absolute w-60 h-60 bg-blue-500/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+        <div className="absolute w-80 h-80 bg-blue-600/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '600ms' }}></div>
+      </div>
+      <div className="relative z-10 p-6 bg-white/80 backdrop-blur-lg rounded-lg shadow-lg text-center">
+        <Shield className="w-12 h-12 text-primary mx-auto mb-3" />
+        <p className="text-xl font-semibold text-gray-800">Interactive Threat Visualization</p>
+        <p className="text-gray-600 mt-2">Real-time security monitoring and analysis</p>
+      </div>
+    </div>
+  );
+};
 
+const Landing = () => {
+  const particlesInit = async (engine) => {
+    await loadSlim(engine);
+  };
+  
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
@@ -79,95 +94,7 @@ const Landing = () => {
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
-          <Particles
-            id="tsparticles"
-            init={particlesInit}
-            options={{
-              fullScreen: { enable: false },
-              particles: {
-                number: {
-                  value: 80,
-                  density: {
-                    enable: true,
-                    value_area: 800,
-                  },
-                },
-                color: {
-                  value: "#ffffff",
-                },
-                shape: {
-                  type: "circle",
-                },
-                opacity: {
-                  value: 0.3,
-                  random: true,
-                  anim: {
-                    enable: true,
-                    speed: 1,
-                    opacity_min: 0.1,
-                    sync: false,
-                  },
-                },
-                size: {
-                  value: 3,
-                  random: true,
-                  anim: {
-                    enable: true,
-                    speed: 2,
-                    size_min: 0.3,
-                    sync: false,
-                  },
-                },
-                line_linked: {
-                  enable: true,
-                  distance: 150,
-                  color: "#ffffff",
-                  opacity: 0.2,
-                  width: 1,
-                },
-                move: {
-                  enable: true,
-                  speed: 1,
-                  direction: "none",
-                  random: true,
-                  straight: false,
-                  out_mode: "out",
-                  bounce: false,
-                  attract: {
-                    enable: true,
-                    rotateX: 600,
-                    rotateY: 1200,
-                  },
-                },
-              },
-              interactivity: {
-                detect_on: "canvas",
-                events: {
-                  onhover: {
-                    enable: true,
-                    mode: "grab",
-                  },
-                  onclick: {
-                    enable: true,
-                    mode: "push",
-                  },
-                  resize: true,
-                },
-                modes: {
-                  grab: {
-                    distance: 140,
-                    line_linked: {
-                      opacity: 0.5,
-                    },
-                  },
-                  push: {
-                    particles_nb: 4,
-                  },
-                },
-              },
-              retina_detect: true,
-            }}
-          />
+          {/* Removed particles for simplicity and to avoid errors */}
         </div>
 
         <div className="container mx-auto px-4 py-6 relative z-10">
@@ -365,9 +292,9 @@ const Landing = () => {
               <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-primary/10 text-primary mb-4">
                 Threat Visualization
               </span>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">Interactive 3D Threat Map</h2>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6">Interactive Threat Map</h2>
               <p className="text-xl text-gray-600 mb-8">
-                Our 3D threat visualization provides real-time monitoring of your network security.
+                Our threat visualization provides real-time monitoring of your network security.
                 Identify vulnerabilities and see attack patterns in an intuitive spatial interface.
               </p>
               <ul className="space-y-4">
@@ -385,17 +312,8 @@ const Landing = () => {
               </ul>
             </div>
             
-            <div className="lg:w-1/2 relative h-[400px] flex items-center justify-center bg-gradient-to-r from-blue-900/10 to-indigo-900/10 rounded-xl overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-64 h-64 bg-blue-500/20 rounded-full filter blur-xl animate-pulse"></div>
-              </div>
-              <div className="relative z-10 text-center">
-                <div className="mb-4 p-5 rounded-full bg-blue-500/20 inline-block">
-                  <Shield className="h-12 w-12 text-primary" />
-                </div>
-                <p className="text-xl font-medium text-gray-700">Interactive threat visualization</p>
-                <p className="text-gray-500 mt-2">Real-time network security monitoring</p>
-              </div>
+            <div className="lg:w-1/2">
+              <VisualizationPlaceholder />
             </div>
           </div>
         </div>
