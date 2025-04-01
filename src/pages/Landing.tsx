@@ -1,16 +1,16 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, CheckCircle, Lock, BarChart2, AlertTriangle, ArrowRight, Zap, Globe, Server, Users, Code, ShieldCheck } from 'lucide-react';
+import { Shield, CheckCircle, Lock, BarChart2, AlertTriangle, ArrowRight, Globe, Server, Users, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { FiArrowUpRight } from 'react-icons/fi';
 import { useInView } from 'react-intersection-observer';
 import { TypeAnimation } from 'react-type-animation';
 import Particles from 'react-tsparticles';
-import {  Engine } from 'tsparticles-engine';
+import { loadFull } from "tsparticles";
+import { Engine } from 'tsparticles-engine';
 
-import { Suspense } from 'react'
-import { Activity, ShieldAlert, Network, BarChart4 } from 'lucide-react';
 // Animated Components
 const AnimatedFeatureCard = ({ icon, title, description, delay }) => {
   const [ref, inView] = useInView({
@@ -66,29 +66,12 @@ const AnimatedTestimonial = ({ quote, author, role, delay }) => {
   );
 };
 
-// 3D Blob Component
-const Blob = () => {
-  return (
-    <Canvas className="absolute w-full h-full inset-0 -z-10">
-      <OrbitControls enableZoom={false} />
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[3, 2, 1]} />
-      <Sphere args={[1, 100, 200]} scale={1.8}>
-        <MeshDistortMaterial
-          color="#3b82f6"
-          attach="material"
-          distort={0.5}
-          speed={2}
-        />
-      </Sphere>
-    </Canvas>
-  );
-};
-
 const Landing = () => {
   const particlesInit = async (engine: Engine) => {
+    // We need to implement the loadFull function
     await loadFull(engine);
-  }
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
@@ -375,38 +358,48 @@ const Landing = () => {
       </section>
 
       {/* 3D Visualization Section */}
-      
       <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
-  <div className="container mx-auto px-4">
-    <div className="flex flex-col lg:flex-row items-center gap-12">
-      <div className="lg:w-1/2">
-        <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-primary/10 text-primary mb-4">
-          Threat Visualization
-        </span>
-        <h2 className="text-4xl font-bold text-gray-900 mb-6">Interactive 3D Threat Map</h2>
-        <p className="text-xl text-gray-600 mb-8">
-          Our 3D threat visualization provides real-time monitoring of your network security.
-          Identify vulnerabilities and see attack patterns in an intuitive spatial interface.
-        </p>
-        <ul className="space-y-4">
-          {[
-            "Real-time threat monitoring",
-            "Visual risk assessment",
-            "Attack path visualization",
-            "Interactive node inspection"
-          ].map((item, index) => (
-            <li key={index} className="flex items-start">
-              <CheckCircle className="h-6 w-6 text-primary mt-0.5 mr-3 flex-shrink-0" />
-              <span className="text-gray-700">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      
-      
-    </div>
-  </div>
-</section>
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            <div className="lg:w-1/2">
+              <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-primary/10 text-primary mb-4">
+                Threat Visualization
+              </span>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6">Interactive 3D Threat Map</h2>
+              <p className="text-xl text-gray-600 mb-8">
+                Our 3D threat visualization provides real-time monitoring of your network security.
+                Identify vulnerabilities and see attack patterns in an intuitive spatial interface.
+              </p>
+              <ul className="space-y-4">
+                {[
+                  "Real-time threat monitoring",
+                  "Visual risk assessment",
+                  "Attack path visualization",
+                  "Interactive node inspection"
+                ].map((item, index) => (
+                  <li key={index} className="flex items-start">
+                    <CheckCircle className="h-6 w-6 text-primary mt-0.5 mr-3 flex-shrink-0" />
+                    <span className="text-gray-700">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="lg:w-1/2 relative h-[400px] flex items-center justify-center bg-gradient-to-r from-blue-900/10 to-indigo-900/10 rounded-xl overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-64 h-64 bg-blue-500/20 rounded-full filter blur-xl animate-pulse"></div>
+              </div>
+              <div className="relative z-10 text-center">
+                <div className="mb-4 p-5 rounded-full bg-blue-500/20 inline-block">
+                  <Shield className="h-12 w-12 text-primary" />
+                </div>
+                <p className="text-xl font-medium text-gray-700">Interactive threat visualization</p>
+                <p className="text-gray-500 mt-2">Real-time network security monitoring</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Stats Section */}
       <section className="py-20 bg-gradient-to-r from-gray-900 to-blue-900 text-white">
@@ -767,4 +760,60 @@ const Landing = () => {
                     { name: "About", href: "#" },
                     { name: "Careers", href: "#" },
                     { name: "Blog", href: "#" },
-                    { name: "
+                    { name: "Press", href: "#" },
+                    { name: "Contact", href: "#" }
+                  ].map((item) => (
+                    <li key={item.name}>
+                      <a 
+                        href={item.href} 
+                        className="text-gray-400 hover:text-white transition-colors hover:underline underline-offset-4"
+                      >
+                        {item.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-lg mb-4">Resources</h3>
+                <ul className="space-y-3">
+                  {[
+                    { name: "Documentation", href: "#" },
+                    { name: "API Reference", href: "#" },
+                    { name: "Community", href: "#" },
+                    { name: "Security", href: "#" },
+                    { name: "Status", href: "#" }
+                  ].map((item) => (
+                    <li key={item.name}>
+                      <a 
+                        href={item.href} 
+                        className="text-gray-400 hover:text-white transition-colors hover:underline underline-offset-4"
+                      >
+                        {item.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-500 mb-4 md:mb-0">
+              © {new Date().getFullYear()} HAWK Security. All rights reserved.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Cookie Policy</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">GDPR</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Landing;
