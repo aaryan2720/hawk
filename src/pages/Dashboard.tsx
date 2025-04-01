@@ -14,6 +14,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { MonitoringSettings } from '@/types';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -56,8 +57,11 @@ const Dashboard = () => {
           .eq('user_id', user.id)
           .single();
           
-        if (userSystem?.monitoring_settings?.lastScanTime) {
-          setLastScanTime(userSystem.monitoring_settings.lastScanTime);
+        if (userSystem) {
+          const monitoringSettings = userSystem.monitoring_settings as MonitoringSettings;
+          if (monitoringSettings && monitoringSettings.lastScanTime) {
+            setLastScanTime(monitoringSettings.lastScanTime);
+          }
         }
       } catch (error) {
         console.error('Error fetching alert counts:', error);
