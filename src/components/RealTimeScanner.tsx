@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader, RefreshCw, AlertTriangle, Shield, Database } from 'lucide-react';
+import { Loader, RefreshCw, AlertTriangle, Shield, Database, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { Alert } from '@/components/ui/alert';
 
 interface RealTimeScannerProps {
   onScanComplete?: () => void;
@@ -27,6 +28,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
   const [isScanning, setIsScanning] = useState(false);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
+  const [usedMockData, setUsedMockData] = useState(false);
   
   // Get the results limit from environment variables or default to 10
   const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '10');
@@ -43,8 +45,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
     try {
       setIsScanning(true);
       setResults([]);
+      setUsedMockData(false);
 
-      toast.info('Fetching real-time vulnerability data from NVD database...', {
+      toast.info('Fetching real-time vulnerability data...', {
         duration: 3000,
       });
 
@@ -60,11 +63,16 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
 
       if (data.results && Array.isArray(data.results)) {
         setResults(data.results);
+        setUsedMockData(data.usedMockData || false);
         
         if (data.results.length > 0) {
-          toast.success(`${data.results.length} new vulnerabilities discovered from NVD`);
+          if (data.usedMockData) {
+            toast.info(`${data.results.length} demonstration vulnerabilities loaded (NVD API unavailable)`);
+          } else {
+            toast.success(`${data.results.length} new vulnerabilities discovered from NVD`);
+          }
         } else {
-          toast.info('No new vulnerabilities found in the NVD database');
+          toast.info('No new vulnerabilities found');
         }
       } else {
         toast.info('No vulnerabilities found in the response');
@@ -75,7 +83,16 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       }
     } catch (error) {
       console.error('Real-time scan error:', error);
-      toast.error('Failed to complete real-time scan with NVD API');
+      toast.error('Failed to complete real-time scan');
+      
+      // Show user-friendly error toast with more details
+      if (error instanceof Error) {
+        if (error.message.includes('FunctionsHttpError')) {
+          toast.error('The vulnerability database is currently unavailable. Please try again later.');
+        } else {
+          toast.error(`Scan error: ${error.message}`);
+        }
+      }
     } finally {
       setIsScanning(false);
     }
@@ -85,9 +102,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
     <Card className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight">NVD Vulnerability Scanner</h3>
+          <h3 className="text-xl font-semibold tracking-tight">Vulnerability Scanner</h3>
           <p className="text-sm text-gray-500">
-            Scans the National Vulnerability Database for the latest security vulnerabilities
+            Scans for the latest security vulnerabilities affecting your systems
           </p>
         </div>
         <div className="text-sm text-gray-500">
@@ -98,7 +115,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           ) : (
             <div className="flex items-center">
               <Database className="h-4 w-4 text-primary mr-1 inline" />
-              NVD API
+              Real-time Scanning
             </div>
           )}
         </div>
@@ -127,14 +144,23 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           
           <Button onClick={handleScan} disabled={isScanning} className="whitespace-nowrap">
             {isScanning ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Scan NVD
+            Scan Now
           </Button>
         </div>
         
         <div className="text-xs text-gray-500">
-          Scans for up to {resultsLimit} vulnerabilities published in the last 7 days from the official NVD database
+          Scans for up to {resultsLimit} vulnerabilities published in the last 7 days
         </div>
       </div>
+      
+      {usedMockData && results.length > 0 && (
+        <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
+          <Info className="h-4 w-4" />
+          <span className="ml-2 text-xs">
+            Using demonstration data as the vulnerability database could not be reached
+          </span>
+        </Alert>
+      )}
       
       {results.length > 0 && (
         <div className="mt-4">

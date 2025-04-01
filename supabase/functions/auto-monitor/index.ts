@@ -8,9 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// NVD API endpoint
-const NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
-
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -72,30 +69,48 @@ serve(async (req: Request) => {
       
       console.log(`Running scan for user ${user.user_id}`);
       
-      // Set up request for real-time-scraper edge function
-      const scanRequest = {
-        source: settings.criticalOnly ? 'critical' : 'all',
-        userId: user.user_id
-      };
-      
-      // Call the real-time-scraper
-      const { data, error } = await supabaseClient.functions.invoke('real-time-scraper', {
-        body: scanRequest
-      });
-      
-      if (error) {
-        console.error(`Error running scan for user ${user.user_id}:`, error);
-        continue;
+      try {
+        // Set up request for real-time-scraper edge function
+        const scanRequest = {
+          source: settings.criticalOnly ? 'critical' : 'all',
+          userId: user.user_id
+        };
+        
+        // Call the real-time-scraper
+        const { data, error } = await supabaseClient.functions.invoke('real-time-scraper', {
+          body: scanRequest
+        });
+        
+        if (error) {
+          console.error(`Error running scan for user ${user.user_id}:`, error);
+          results.push({
+            userId: user.user_id,
+            scanTime: now.toISOString(),
+            status: 'error',
+            error: error.message
+          });
+          continue;
+        }
+        
+        console.log(`Scan completed for user ${user.user_id}: ${data.count} vulnerabilities found`);
+        
+        // Update results
+        results.push({
+          userId: user.user_id,
+          scanTime: now.toISOString(),
+          status: 'success',
+          vulnerabilitiesFound: data.count,
+          usedMockData: data.usedMockData || false
+        });
+      } catch (scanError) {
+        console.error(`Exception during scan for user ${user.user_id}:`, scanError);
+        results.push({
+          userId: user.user_id,
+          scanTime: now.toISOString(),
+          status: 'error',
+          error: scanError instanceof Error ? scanError.message : String(scanError)
+        });
       }
-      
-      console.log(`Scan completed for user ${user.user_id}: ${data.count} vulnerabilities found`);
-      
-      // Update results
-      results.push({
-        userId: user.user_id,
-        scanTime: now.toISOString(),
-        vulnerabilitiesFound: data.count
-      });
     }
 
     return new Response(
