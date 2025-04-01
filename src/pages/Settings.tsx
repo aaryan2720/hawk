@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell, Shield, User, Lock, Server } from 'lucide-react';
 import NotificationSystem from '@/components/NotificationSystem';
+import NotificationCenter from '@/components/NotificationCenter';
 
 const Settings = () => {
   const { user, loading } = useAuth();
@@ -63,8 +64,23 @@ const Settings = () => {
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="notifications" className="mt-4">
+          <TabsContent value="notifications" className="mt-4 space-y-6">
             <NotificationSystem />
+            
+            <div className="mt-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    <CardTitle>Recent Notifications</CardTitle>
+                  </div>
+                  <CardDescription>View your recent security alerts and notifications</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <NotificationCenter />
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           
           <TabsContent value="security" className="mt-4">

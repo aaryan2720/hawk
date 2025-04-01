@@ -29,6 +29,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
   const [results, setResults] = useState<ScanResult[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [usedMockData, setUsedMockData] = useState(false);
+  const [scanInProgress, setScanInProgress] = useState(false);
   
   // Get the results limit from environment variables or default to 10
   const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '10');
@@ -41,9 +42,36 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
     { id: 'low', name: 'Low Only' }
   ];
 
+  const sendNotification = async (results: ScanResult[]) => {
+    try {
+      // Check if there are any critical or high severity vulnerabilities
+      const criticalResults = results.filter(
+        r => r.severity === 'critical' || r.severity === 'high'
+      );
+      
+      if (criticalResults.length > 0) {
+        // Call notification edge function to send external notifications
+        await supabase.functions.invoke('send-notifications', {
+          body: { 
+            userId: user?.id,
+            scanResults: criticalResults,
+            scanType: 'real-time',
+            severity: selectedSeverity
+          }
+        });
+        
+        // Show toast indicating notifications were sent
+        toast.info(`Notifications sent for ${criticalResults.length} high priority vulnerabilities`);
+      }
+    } catch (error) {
+      console.error('Failed to send notifications:', error);
+    }
+  };
+
   const handleScan = async () => {
     try {
       setIsScanning(true);
+      setScanInProgress(true);
       setResults([]);
       setUsedMockData(false);
 
@@ -71,6 +99,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           } else {
             toast.success(`${data.results.length} new vulnerabilities discovered from NVD`);
           }
+          
+          // Send notifications for any critical/high results
+          await sendNotification(data.results);
         } else {
           toast.info('No new vulnerabilities found');
         }
@@ -95,6 +126,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       }
     } finally {
       setIsScanning(false);
+      setScanInProgress(false);
     }
   };
 
@@ -142,7 +174,11 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
             </SelectContent>
           </Select>
           
-          <Button onClick={handleScan} disabled={isScanning} className="whitespace-nowrap">
+          <Button 
+            onClick={handleScan} 
+            disabled={isScanning} 
+            className="whitespace-nowrap"
+          >
             {isScanning ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             Scan Now
           </Button>
@@ -152,6 +188,17 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           Scans for up to {resultsLimit} vulnerabilities published in the last 7 days
         </div>
       </div>
+      
+      {scanInProgress && (
+        <div className="mt-2">
+          <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+            <Info className="h-4 w-4" />
+            <span className="ml-2 text-xs">
+              Scan in progress. You'll receive notifications for critical vulnerabilities.
+            </span>
+          </Alert>
+        </div>
+      )}
       
       {usedMockData && results.length > 0 && (
         <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
