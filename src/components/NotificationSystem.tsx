@@ -1,0 +1,256 @@
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Bell, Mail, MessageSquare, Clock, AlertTriangle, Save } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface NotificationSettings {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  emailAddress: string;
+  phoneNumber: string;
+  alertLevel: string;
+  frequency: string;
+  timeframe: string;
+}
+
+const NotificationSystem: React.FC = () => {
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<NotificationSettings>({
+    emailEnabled: true,
+    smsEnabled: false,
+    emailAddress: user?.email || '',
+    phoneNumber: '',
+    alertLevel: 'critical',
+    frequency: 'immediate',
+    timeframe: 'any'
+  });
+
+  const handleToggleEmail = () => {
+    setSettings(prev => ({
+      ...prev,
+      emailEnabled: !prev.emailEnabled
+    }));
+  };
+
+  const handleToggleSMS = () => {
+    setSettings(prev => ({
+      ...prev,
+      smsEnabled: !prev.smsEnabled
+    }));
+  };
+
+  const handleChange = (field: keyof NotificationSettings, value: string | boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // This would connect to a notification settings table in a real implementation
+      // For now we'll mock the save operation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast.success('Notification settings saved successfully');
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+      toast.error('Failed to save notification settings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // In a real implementation, this would call an edge function to send a test notification
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      toast.success('Test notification sent successfully');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      toast.error('Failed to send test notification');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card className="shadow-md">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" />
+          <CardTitle>Notification Settings</CardTitle>
+        </div>
+        <CardDescription>Configure how and when you receive vulnerability alerts</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="email-notifications">Email Notifications</Label>
+              </div>
+              <p className="text-sm text-muted-foreground ml-6">
+                Receive alerts via email
+              </p>
+            </div>
+            <Switch
+              id="email-notifications"
+              checked={settings.emailEnabled}
+              onCheckedChange={handleToggleEmail}
+            />
+          </div>
+          
+          {settings.emailEnabled && (
+            <div className="ml-6 pl-2 border-l-2 border-muted">
+              <Label htmlFor="email-address" className="text-sm">Email Address</Label>
+              <Input
+                id="email-address"
+                type="email"
+                placeholder="your@email.com"
+                value={settings.emailAddress}
+                onChange={(e) => handleChange('emailAddress', e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          )}
+          
+          <div className="flex items-center justify-between pt-2">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="sms-notifications">SMS Notifications</Label>
+              </div>
+              <p className="text-sm text-muted-foreground ml-6">
+                Receive alerts via text message
+              </p>
+            </div>
+            <Switch
+              id="sms-notifications"
+              checked={settings.smsEnabled}
+              onCheckedChange={handleToggleSMS}
+            />
+          </div>
+          
+          {settings.smsEnabled && (
+            <div className="ml-6 pl-2 border-l-2 border-muted">
+              <Label htmlFor="phone-number" className="text-sm">Phone Number</Label>
+              <Input
+                id="phone-number"
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                value={settings.phoneNumber}
+                onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          )}
+        </div>
+        
+        <div className="space-y-4 pt-2">
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Alert Preferences
+          </h3>
+          
+          <div>
+            <Label htmlFor="alert-level" className="text-sm">Alert Level</Label>
+            <RadioGroup 
+              defaultValue={settings.alertLevel}
+              onValueChange={(value) => handleChange('alertLevel', value)}
+              className="flex flex-col space-y-1 mt-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="critical" id="alert-critical" />
+                <Label htmlFor="alert-critical" className="text-sm font-normal">Critical vulnerabilities only</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="high" id="alert-high" />
+                <Label htmlFor="alert-high" className="text-sm font-normal">High and critical vulnerabilities</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="all" id="alert-all" />
+                <Label htmlFor="alert-all" className="text-sm font-normal">All vulnerabilities</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="alert-frequency" className="text-sm">Notification Frequency</Label>
+              <Select 
+                defaultValue={settings.frequency} 
+                onValueChange={(value) => handleChange('frequency', value)}
+              >
+                <SelectTrigger id="alert-frequency" className="mt-1">
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="immediate">Immediate</SelectItem>
+                  <SelectItem value="hourly">Hourly digest</SelectItem>
+                  <SelectItem value="daily">Daily digest</SelectItem>
+                  <SelectItem value="weekly">Weekly digest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="alert-timeframe" className="text-sm">Notification Timeframe</Label>
+              <Select 
+                defaultValue={settings.timeframe}
+                onValueChange={(value) => handleChange('timeframe', value)}
+              >
+                <SelectTrigger id="alert-timeframe" className="mt-1">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any time</SelectItem>
+                  <SelectItem value="business">Business hours only (9AM-5PM)</SelectItem>
+                  <SelectItem value="custom">Custom schedule</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-between pt-4">
+          <Button 
+            variant="outline" 
+            onClick={handleTestNotification}
+            disabled={isLoading}
+          >
+            Send Test Notification
+          </Button>
+          
+          <Button 
+            onClick={handleSaveSettings}
+            disabled={isLoading}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            Save Settings
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default NotificationSystem;

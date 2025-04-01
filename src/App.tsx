@@ -17,8 +17,8 @@ import ScanHistory from "./pages/ScanHistory";
 import Alerts from "./pages/Alerts";
 import SystemMonitor from "./pages/SystemMonitor";
 import ChatBot from "./pages/ChatBot";
-
-
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +38,8 @@ const App = () => (
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/system-monitor" element={<SystemMonitor />} />
             <Route path="/chatbot" element={<ChatBot />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<SignUp />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
