@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import { Loader, RefreshCw, Clock, AlertTriangle, Settings } from 'lucide-react'
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { UserSystem, MonitoringSettings } from '@/types';
+import { UserSystem, MonitoringSettings, Json } from '@/types';
 
 const UserSystemMonitor: React.FC = () => {
   const { user } = useAuth();
@@ -24,7 +23,6 @@ const UserSystemMonitor: React.FC = () => {
   const [nextScanTime, setNextScanTime] = useState<Date | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Check Supabase connection
   useEffect(() => {
     const verifyConnection = async () => {
       const { success, error } = await checkSupabaseConnection();
@@ -39,14 +37,12 @@ const UserSystemMonitor: React.FC = () => {
     verifyConnection();
   }, []);
 
-  // Load user's monitoring settings
   useEffect(() => {
     if (!user || connectionError) return;
     
     const loadSettings = async () => {
       setIsLoading(true);
       try {
-        // Check if user has configured monitoring settings
         const { data, error } = await supabase
           .from('user_systems')
           .select('*')
@@ -58,7 +54,6 @@ const UserSystemMonitor: React.FC = () => {
         }
         
         if (data) {
-          // User has settings, parse the data
           const userSystem = data as UserSystem;
           const monitorSettings = userSystem.monitoring_settings || {};
           
@@ -69,7 +64,6 @@ const UserSystemMonitor: React.FC = () => {
             lastScanTime: monitorSettings.lastScanTime || null
           });
           
-          // Calculate next scan time if auto-scan is enabled
           if (monitorSettings.autoScanEnabled && monitorSettings.lastScanTime) {
             const lastScan = new Date(monitorSettings.lastScanTime);
             const nextScan = new Date(lastScan);
@@ -88,7 +82,6 @@ const UserSystemMonitor: React.FC = () => {
     loadSettings();
   }, [user, connectionError]);
 
-  // Save user's monitoring settings
   const saveSettings = async () => {
     if (!user) return;
     
@@ -101,7 +94,6 @@ const UserSystemMonitor: React.FC = () => {
         lastScanTime: settings.lastScanTime
       };
       
-      // Check if user already has a record
       const { data, error } = await supabase
         .from('user_systems')
         .select('id')
@@ -113,16 +105,14 @@ const UserSystemMonitor: React.FC = () => {
       }
       
       if (data) {
-        // Update existing record
         await supabase
           .from('user_systems')
           .update({ 
             monitoring_settings: monitoringSettings,
-            system_name: 'Auto Monitor' // Default name if needed
+            system_name: 'Auto Monitor'
           })
           .eq('id', data.id);
       } else {
-        // Create new record
         await supabase
           .from('user_systems')
           .insert([{ 
@@ -132,7 +122,6 @@ const UserSystemMonitor: React.FC = () => {
           }]);
       }
       
-      // Update next scan time if auto-scan is enabled
       if (settings.autoScanEnabled) {
         const now = new Date();
         const nextScan = new Date(now);
@@ -151,37 +140,32 @@ const UserSystemMonitor: React.FC = () => {
     }
   };
 
-  // Trigger a manual scan
   const triggerManualScan = async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      // Call the real-time-scraper edge function
       const { data, error } = await supabase.functions.invoke('real-time-scraper', {
         body: { 
           source: settings.criticalOnly ? 'critical' : 'all',
-          userId: user.id // Pass user ID to associate results with this user
+          userId: user.id
         }
       });
 
       if (error) throw error;
       
-      // Update last scan time
       const now = new Date();
       setSettings(prev => ({
         ...prev,
         lastScanTime: now.toISOString()
       }));
       
-      // Update next scan time if auto-scan is enabled
       if (settings.autoScanEnabled) {
         const nextScan = new Date(now);
         nextScan.setHours(nextScan.getHours() + (settings.scanInterval || 24));
         setNextScanTime(nextScan);
       }
       
-      // Save the updated last scan time
       saveSettings();
       
       toast.success(`Scan completed: ${data.count} vulnerabilities found`);
@@ -193,7 +177,6 @@ const UserSystemMonitor: React.FC = () => {
     }
   };
 
-  // Toggle auto-scan setting
   const toggleAutoScan = () => {
     setSettings(prev => ({
       ...prev,
@@ -201,7 +184,6 @@ const UserSystemMonitor: React.FC = () => {
     }));
   };
 
-  // Toggle critical only setting
   const toggleCriticalOnly = () => {
     setSettings(prev => ({
       ...prev,
@@ -209,7 +191,6 @@ const UserSystemMonitor: React.FC = () => {
     }));
   };
 
-  // Update scan interval
   const updateScanInterval = (hours: number) => {
     setSettings(prev => ({
       ...prev,

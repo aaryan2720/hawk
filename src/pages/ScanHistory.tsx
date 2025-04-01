@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -10,19 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-
-interface ScanHistoryItem {
-  id: string;
-  user_id: string;
-  system_name: string;
-  created_at: string;
-  monitoring_settings: {
-    lastScanTime?: string;
-    scanInterval?: number;
-    criticalOnly?: boolean;
-    autoScanEnabled?: boolean;
-  } | null;
-}
+import { ScanHistoryItem, Json } from '@/types';
 
 const ScanHistory = () => {
   const { user, loading } = useAuth();
@@ -46,7 +33,16 @@ const ScanHistory = () => {
           
         if (error) throw error;
         
-        setHistory(data);
+        // Convert the data to ScanHistoryItem type
+        const formattedData: ScanHistoryItem[] = data.map(item => ({
+          id: item.id,
+          user_id: item.user_id,
+          system_name: item.system_name,
+          created_at: item.created_at,
+          monitoring_settings: item.monitoring_settings as ScanHistoryItem['monitoring_settings']
+        }));
+        
+        setHistory(formattedData);
       } catch (error) {
         console.error('Error fetching scan history:', error);
         toast.error('Failed to fetch scan history');
