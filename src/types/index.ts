@@ -35,7 +35,7 @@ export interface Alert {
   cve?: string;
   mitigation?: string;
   patchLink?: string;
-  details?: Record<string, any>;
+  details?: Json | Record<string, any>; // Allow both Json and Record types
 }
 
 export interface AlertsStats {

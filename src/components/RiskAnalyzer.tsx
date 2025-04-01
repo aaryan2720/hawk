@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader, Shield, AlertTriangle, CircleCheck, PieChart } from 'lucide-react';
-import { Alert } from '@/types';
+import { Alert, Json } from '@/types';
 
 const RiskAnalyzer = () => {
   const [loading, setLoading] = useState(false);
