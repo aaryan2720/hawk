@@ -23,3 +23,44 @@ export const checkSupabaseConnection = async () => {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 };
+
+// Helper function to create the notifications table if it doesn't exist
+export const ensureNotificationsTable = async () => {
+  try {
+    // Try to call the create_notifications_table RPC function
+    const { error } = await supabase.rpc('create_notifications_table');
+    
+    if (error) {
+      console.error('Error creating notifications table:', error);
+      // Call the edge function as a fallback
+      try {
+        await supabase.functions.invoke('database-functions');
+      } catch (fnError) {
+        console.error('Error calling database-functions edge function:', fnError);
+      }
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Error ensuring notifications table exists:', err);
+    
+    // Call the edge function as a fallback
+    try {
+      await supabase.functions.invoke('database-functions');
+    } catch (fnError) {
+      console.error('Error calling database-functions edge function:', fnError);
+    }
+    
+    return false;
+  }
+};
+
+// Initialize the notifications table when the client is loaded
+ensureNotificationsTable().then(success => {
+  if (success) {
+    console.log('Notifications table is ready');
+  }
+}).catch(err => {
+  console.error('Error initializing notifications:', err);
+});

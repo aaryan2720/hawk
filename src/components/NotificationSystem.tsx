@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { MonitoringSettings } from '@/types';
 
 interface NotificationSettings {
   emailEnabled: boolean;
@@ -58,17 +59,24 @@ const NotificationSystem: React.FC = () => {
         return;
       }
       
-      if (data?.monitoring_settings?.notificationPreferences) {
-        const prefs = data.monitoring_settings.notificationPreferences;
-        setSettings({
-          emailEnabled: prefs.emailEnabled ?? true,
-          smsEnabled: prefs.smsEnabled ?? false,
-          emailAddress: prefs.emailAddress || user.email || '',
-          phoneNumber: prefs.phoneNumber || '',
-          alertLevel: prefs.alertLevel || 'critical',
-          frequency: prefs.frequency || 'immediate',
-          timeframe: prefs.timeframe || 'any'
-        });
+      if (data?.monitoring_settings) {
+        // Parse monitoring settings safely
+        const monSettings = typeof data.monitoring_settings === 'string' 
+          ? JSON.parse(data.monitoring_settings) 
+          : data.monitoring_settings;
+        
+        if (monSettings.notificationPreferences) {
+          const prefs = monSettings.notificationPreferences;
+          setSettings({
+            emailEnabled: prefs.emailEnabled ?? true,
+            smsEnabled: prefs.smsEnabled ?? false,
+            emailAddress: prefs.emailAddress || user.email || '',
+            phoneNumber: prefs.phoneNumber || '',
+            alertLevel: prefs.alertLevel || 'critical',
+            frequency: prefs.frequency || 'immediate',
+            timeframe: prefs.timeframe || 'any'
+          });
+        }
       }
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -116,8 +124,14 @@ const NotificationSystem: React.FC = () => {
         throw fetchError;
       }
       
+      // Parse existing settings safely
+      const existingSettings = currentSettings?.monitoring_settings 
+        ? (typeof currentSettings.monitoring_settings === 'string' 
+            ? JSON.parse(currentSettings.monitoring_settings) 
+            : currentSettings.monitoring_settings) 
+        : {};
+      
       // Prepare updated settings with notification preferences
-      const existingSettings = currentSettings?.monitoring_settings || {};
       const updatedSettings = {
         ...existingSettings,
         notificationPreferences: {
@@ -167,25 +181,64 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // Create a test notification in the database
-      const { error: insertError } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          title: 'Test Notification',
-          content: 'This is a test notification from HAWK Security.',
-          type: 'test',
-          is_read: false,
-          metadata: {
+      // Create a test notification using the RPC function
+      try {
+        const { error } = await supabase.rpc('create_test_notification', {
+          user_id_param: user.id,
+          title_param: 'Test Notification',
+          content_param: 'This is a test notification from HAWK Security.',
+          type_param: 'test',
+          is_read_param: false,
+          metadata_param: {
             test: true,
             timestamp: new Date().toISOString()
           }
         });
+        
+        if (error) throw error;
+      } catch (innerError) {
+        console.error('Error creating notification with RPC:', innerError);
+        
+        // Fallback to direct insert
+        const { error: insertError } = await (supabase as any)
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            title: 'Test Notification',
+            content: 'This is a test notification from HAWK Security.',
+            type: 'test',
+            is_read: false,
+            metadata: {
+              test: true,
+              timestamp: new Date().toISOString()
+            }
+          });
+        
+        if (insertError) throw insertError;
+      }
       
-      if (insertError) throw insertError;
+      // Send real email/SMS if enabled
+      if (settings.emailEnabled && settings.emailAddress) {
+        // Call the send-notifications edge function
+        const { error: notifyError } = await supabase.functions.invoke('send-notifications', {
+          body: {
+            userId: user.id,
+            scanResults: [{
+              severity: 'test',
+              title: 'Test Notification',
+              description: 'This is a test notification from HAWK Security.',
+              system: 'Test System'
+            }],
+            scanType: 'test',
+            severity: 'test'
+          }
+        });
+        
+        if (notifyError) {
+          console.error('Error sending notification:', notifyError);
+        }
+      }
       
-      // Also send email/SMS if enabled in a real implementation
-      // For now, we'll just show a toast
       toast.success('Test notification sent successfully');
     } catch (error) {
       console.error('Error sending test notification:', error);

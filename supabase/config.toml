@@ -1,1 +1,8 @@
+
 project_id = "eogwxywiidsnnlaybbdd"
+
+[functions.nvd-fetcher]
+verify_jwt = true
+
+[functions.database-functions]
+verify_jwt = true

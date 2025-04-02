@@ -1,4 +1,3 @@
-
 // Add or update these types to fix the TypeScript errors
 export interface ScanHistoryItem {
   id: string;
@@ -78,6 +77,28 @@ export interface UserSystem {
   system_name: string;
   created_at: string;
   monitoring_settings?: MonitoringSettings;
+}
+
+// Notification type
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+  metadata?: NotificationMetadata;
+}
+
+export interface NotificationMetadata {
+  scanType?: string;
+  severity?: string;
+  cve?: string;
+  description?: string;
+  system?: string;
+  findings?: number;
+  [key: string]: any;
 }
 
 // Json type for compatibility with database types
