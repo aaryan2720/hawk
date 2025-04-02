@@ -28,7 +28,7 @@ serve(async (req: Request) => {
 
   try {
     // Get request data
-    const { source, limit = 5 } = await req.json();
+    const { source, limit = 5, sendNotifications = true, userId = null } = await req.json();
     
     if (!source || !Object.keys(sources).includes(source)) {
       throw new Error("Invalid or missing source parameter");
@@ -56,6 +56,9 @@ serve(async (req: Request) => {
 
     // First try to get real data from NVD API
     try {
+      // Get API key if available
+      const nvdApiKey = Deno.env.get("NVD_API_KEY");
+      
       // Build the URL with query parameters
       const queryParams = new URLSearchParams({
         pubStartDate,
@@ -71,14 +74,21 @@ serve(async (req: Request) => {
       const apiUrl = `${NVD_API_URL}?${queryParams.toString()}`;
       console.log(`API Request URL: ${apiUrl}`);
 
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      
+      // Add API key if available
+      if (nvdApiKey) {
+        headers['apiKey'] = nvdApiKey;
+      }
+
       // Fetch vulnerabilities from NVD API
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
+      const response = await fetch(apiUrl, { headers });
 
       if (!response.ok) {
+        console.error(`NVD API responded with status: ${response.status}`);
         throw new Error(`NVD API responded with status: ${response.status}`);
       }
 
@@ -94,10 +104,31 @@ serve(async (req: Request) => {
                              'No description available';
           
           let severity = 'medium';
+          let score = 0;
+          
+          // Extract CVSS score and severity
           if (cve.metrics?.cvssMetricV31) {
             const cvssData = cve.metrics.cvssMetricV31[0]?.cvssData;
             if (cvssData) {
-              const score = cvssData.baseScore || 0;
+              score = cvssData.baseScore || 0;
+              if (score >= 9.0) severity = 'critical';
+              else if (score >= 7.0) severity = 'high';
+              else if (score >= 4.0) severity = 'medium';
+              else severity = 'low';
+            }
+          } else if (cve.metrics?.cvssMetricV30) {
+            const cvssData = cve.metrics.cvssMetricV30[0]?.cvssData;
+            if (cvssData) {
+              score = cvssData.baseScore || 0;
+              if (score >= 9.0) severity = 'critical';
+              else if (score >= 7.0) severity = 'high';
+              else if (score >= 4.0) severity = 'medium';
+              else severity = 'low';
+            }
+          } else if (cve.metrics?.cvssMetricV2) {
+            const cvssData = cve.metrics.cvssMetricV2[0]?.cvssData;
+            if (cvssData) {
+              score = cvssData.baseScore || 0;
               if (score >= 9.0) severity = 'critical';
               else if (score >= 7.0) severity = 'high';
               else if (score >= 4.0) severity = 'medium';
@@ -108,21 +139,52 @@ serve(async (req: Request) => {
           const title = `${cveId}: ${description.substring(0, 100)}${description.length > 100 ? '...' : ''}`;
           const publishedDate = cve.published || new Date().toISOString();
           
+          // Extract affected systems if available
+          let systems = "";
+          if (cve.configurations && cve.configurations.length > 0) {
+            for (const config of cve.configurations) {
+              if (config.nodes && config.nodes.length > 0) {
+                for (const node of config.nodes) {
+                  if (node.cpeMatch && node.cpeMatch.length > 0) {
+                    for (const cpe of node.cpeMatch) {
+                      if (cpe.criteria) {
+                        // Extract vendor/product information from CPE string
+                        const cpeParts = cpe.criteria.split(':');
+                        if (cpeParts.length >= 5) {
+                          const vendor = cpeParts[3];
+                          const product = cpeParts[4];
+                          if (vendor && product) {
+                            systems += `${vendor} ${product}, `;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Clean up systems string
+          systems = systems.replace(/,\s*$/, "");  // Remove trailing comma
+          if (!systems) {
+            systems = sourceType === 'nvd' ? "NVD Database" : 
+                     sourceType === 'cveDetails' ? "CVE Details Database" : 
+                     "CISA Known Exploited Vulnerabilities";
+          }
+          
           vulnerabilities.push({
             cve: cveId,
             title: title,
             description: description,
             severity: severity,
-            system: cve.configurations?.[0]?.nodes?.[0]?.cpeMatch?.[0]?.criteria || 
-                   (sourceType === 'nvd' ? "NVD Database" : 
-                    sourceType === 'cveDetails' ? "CVE Details Database" : 
-                    "CISA Known Exploited Vulnerabilities"),
+            system: systems,
             mitigation: "Check vendor website for patches and mitigation strategies.",
             details: {
               source: sourceType,
               published: publishedDate,
               lastModified: cve.lastModified || publishedDate,
-              cvssScore: cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore || 0
+              cvssScore: score
             }
           });
         }
@@ -131,9 +193,10 @@ serve(async (req: Request) => {
       console.error("Error fetching from NVD API:", apiError);
       
       // If real API fails, use web scraping as fallback
+      console.log(`Falling back to web scraping from ${source}: ${sources[source]}`);
+
       // Get source URL
       const url = sources[source];
-      console.log(`Falling back to web scraping from ${source}: ${url}`);
 
       // Fetch the page
       const response = await fetch(url);
@@ -190,6 +253,23 @@ serve(async (req: Request) => {
         } else {
           count++;
         }
+      }
+    }
+
+    // If requested, send notifications to the user
+    if (sendNotifications && userId && vulnerabilities.length > 0) {
+      try {
+        await supabaseClient.functions.invoke('send-notifications', {
+          body: {
+            userId,
+            scanResults: vulnerabilities,
+            scanType: 'manual',
+            severity: 'all'
+          }
+        });
+        console.log(`Notifications sent to user ${userId}`);
+      } catch (notifError) {
+        console.error("Error sending notifications:", notifError);
       }
     }
 

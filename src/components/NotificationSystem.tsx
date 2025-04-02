@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,48 @@ const NotificationSystem: React.FC = () => {
     timeframe: 'any'
   });
 
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+    }
+  }, [user]);
+
+  const fetchSettings = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('user_systems')
+        .select('monitoring_settings')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching user settings:', error);
+        return;
+      }
+      
+      if (data?.monitoring_settings?.notificationPreferences) {
+        const prefs = data.monitoring_settings.notificationPreferences;
+        setSettings({
+          emailEnabled: prefs.emailEnabled ?? true,
+          smsEnabled: prefs.smsEnabled ?? false,
+          emailAddress: prefs.emailAddress || user.email || '',
+          phoneNumber: prefs.phoneNumber || '',
+          alertLevel: prefs.alertLevel || 'critical',
+          frequency: prefs.frequency || 'immediate',
+          timeframe: prefs.timeframe || 'any'
+        });
+      }
+    } catch (err) {
+      console.error('Error loading settings:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleToggleEmail = () => {
     setSettings(prev => ({
       ...prev,
@@ -61,9 +103,55 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // This would connect to a notification settings table in a real implementation
-      // For now we'll mock the save operation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Get current user settings
+      const { data: currentSettings, error: fetchError } = await supabase
+        .from('user_systems')
+        .select('monitoring_settings')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" which is fine - we'll create new settings
+        console.error('Error fetching current settings:', fetchError);
+        throw fetchError;
+      }
+      
+      // Prepare updated settings with notification preferences
+      const existingSettings = currentSettings?.monitoring_settings || {};
+      const updatedSettings = {
+        ...existingSettings,
+        notificationPreferences: {
+          emailEnabled: settings.emailEnabled,
+          smsEnabled: settings.smsEnabled,
+          emailAddress: settings.emailAddress,
+          phoneNumber: settings.phoneNumber,
+          alertLevel: settings.alertLevel,
+          frequency: settings.frequency,
+          timeframe: settings.timeframe
+        }
+      };
+      
+      // Check if we need to insert or update
+      if (!currentSettings) {
+        // Insert new record if none exists
+        const { error: insertError } = await supabase
+          .from('user_systems')
+          .insert({
+            user_id: user.id,
+            system_name: 'Default System',
+            monitoring_settings: updatedSettings
+          });
+          
+        if (insertError) throw insertError;
+      } else {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('user_systems')
+          .update({ monitoring_settings: updatedSettings })
+          .eq('user_id', user.id);
+          
+        if (updateError) throw updateError;
+      }
       
       toast.success('Notification settings saved successfully');
     } catch (error) {
@@ -79,9 +167,25 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // In a real implementation, this would call an edge function to send a test notification
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Create a test notification in the database
+      const { error: insertError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          title: 'Test Notification',
+          content: 'This is a test notification from HAWK Security.',
+          type: 'test',
+          is_read: false,
+          metadata: {
+            test: true,
+            timestamp: new Date().toISOString()
+          }
+        });
       
+      if (insertError) throw insertError;
+      
+      // Also send email/SMS if enabled in a real implementation
+      // For now, we'll just show a toast
       toast.success('Test notification sent successfully');
     } catch (error) {
       console.error('Error sending test notification:', error);
@@ -175,6 +279,7 @@ const NotificationSystem: React.FC = () => {
             <Label htmlFor="alert-level" className="text-sm">Alert Level</Label>
             <RadioGroup 
               defaultValue={settings.alertLevel}
+              value={settings.alertLevel}
               onValueChange={(value) => handleChange('alertLevel', value)}
               className="flex flex-col space-y-1 mt-1"
             >
@@ -197,7 +302,8 @@ const NotificationSystem: React.FC = () => {
             <div>
               <Label htmlFor="alert-frequency" className="text-sm">Notification Frequency</Label>
               <Select 
-                defaultValue={settings.frequency} 
+                defaultValue={settings.frequency}
+                value={settings.frequency}
                 onValueChange={(value) => handleChange('frequency', value)}
               >
                 <SelectTrigger id="alert-frequency" className="mt-1">
@@ -216,6 +322,7 @@ const NotificationSystem: React.FC = () => {
               <Label htmlFor="alert-timeframe" className="text-sm">Notification Timeframe</Label>
               <Select 
                 defaultValue={settings.timeframe}
+                value={settings.timeframe}
                 onValueChange={(value) => handleChange('timeframe', value)}
               >
                 <SelectTrigger id="alert-timeframe" className="mt-1">

@@ -8,16 +8,73 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Json } from '@/types';
+
+interface NotificationMetadata {
+  scanType?: string;
+  severity?: string;
+  cve?: string;
+  description?: string;
+  system?: string;
+  findings?: number;
+  [key: string]: any;
+}
 
 interface Notification {
   id: string;
+  user_id: string;
   title: string;
   content: string;
   created_at: string;
   is_read: boolean;
   type: string;
-  metadata: any;
+  metadata: NotificationMetadata;
 }
+
+// Mock notifications for development when table doesn't exist
+const mockNotifications: Notification[] = [
+  {
+    id: '1',
+    user_id: '1',
+    title: 'Critical vulnerability detected',
+    content: 'CVE-2023-1234: Buffer overflow in network stack',
+    created_at: new Date().toISOString(),
+    is_read: false,
+    type: 'vulnerability',
+    metadata: {
+      severity: 'critical',
+      cve: 'CVE-2023-1234',
+      system: 'Network Infrastructure'
+    }
+  },
+  {
+    id: '2',
+    user_id: '1',
+    title: 'Scan completed',
+    content: '5 new vulnerabilities detected in recent scan',
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    is_read: false,
+    type: 'scan',
+    metadata: {
+      scanType: 'manual',
+      findings: 5
+    }
+  },
+  {
+    id: '3',
+    user_id: '1',
+    title: 'High vulnerability detected',
+    content: 'CVE-2023-5678: Authentication bypass in admin panel',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    is_read: true,
+    type: 'vulnerability',
+    metadata: {
+      severity: 'high',
+      cve: 'CVE-2023-5678',
+      system: 'Admin Control Panel'
+    }
+  }
+];
 
 const NotificationCenter: React.FC = () => {
   const { user } = useAuth();
@@ -35,7 +92,7 @@ const NotificationCenter: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Check if notifications table exists, otherwise we'll use mock data
+      // Check if notifications table exists by trying to query it
       let tableExists = true;
       try {
         const { count, error } = await supabase
@@ -43,9 +100,11 @@ const NotificationCenter: React.FC = () => {
           .select('*', { count: 'exact', head: true });
           
         if (error) {
+          console.error('Error checking notifications table:', error);
           tableExists = false;
         }
-      } catch {
+      } catch (error) {
+        console.error('Error checking table existence:', error);
         tableExists = false;
       }
       
@@ -58,59 +117,37 @@ const NotificationCenter: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(10);
           
-        if (error) throw error;
+        if (error) {
+          console.error('Database error:', error);
+          throw error;
+        }
         
-        setNotifications(data || []);
-        setUnreadCount((data || []).filter(n => !n.is_read).length);
+        // Convert data to Notification type to ensure type safety
+        const typedNotifications: Notification[] = (data || []).map(item => ({
+          id: item.id,
+          user_id: item.user_id,
+          title: item.title,
+          content: item.content,
+          created_at: item.created_at,
+          is_read: item.is_read,
+          type: item.type,
+          metadata: item.metadata as NotificationMetadata || {}
+        }));
+        
+        setNotifications(typedNotifications);
+        setUnreadCount(typedNotifications.filter(n => !n.is_read).length);
       } else {
-        // Use mock data if table doesn't exist
-        const mockNotifications: Notification[] = [
-          {
-            id: '1',
-            title: 'Critical vulnerability detected',
-            content: 'CVE-2023-1234: Buffer overflow in network stack',
-            created_at: new Date().toISOString(),
-            is_read: false,
-            type: 'vulnerability',
-            metadata: {
-              severity: 'critical',
-              cve: 'CVE-2023-1234',
-              system: 'Network Infrastructure'
-            }
-          },
-          {
-            id: '2',
-            title: 'Scan completed',
-            content: '5 new vulnerabilities detected in recent scan',
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-            is_read: false,
-            type: 'scan',
-            metadata: {
-              scanType: 'manual',
-              findings: 5
-            }
-          },
-          {
-            id: '3',
-            title: 'High vulnerability detected',
-            content: 'CVE-2023-5678: Authentication bypass in admin panel',
-            created_at: new Date(Date.now() - 86400000).toISOString(),
-            is_read: true,
-            type: 'vulnerability',
-            metadata: {
-              severity: 'high',
-              cve: 'CVE-2023-5678',
-              system: 'Admin Control Panel'
-            }
-          }
-        ];
-        
+        // Use mock data if table doesn't exist or no user
+        console.log('Using mock notification data');
         setNotifications(mockNotifications);
         setUnreadCount(mockNotifications.filter(n => !n.is_read).length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to fetch notifications');
+      // Fallback to mock data
+      setNotifications(mockNotifications);
+      setUnreadCount(mockNotifications.filter(n => !n.is_read).length);
     } finally {
       setIsLoading(false);
     }
@@ -123,21 +160,33 @@ const NotificationCenter: React.FC = () => {
       if (!notification || notification.is_read) return;
       
       // Try to update in database if it exists
+      let success = false;
       try {
-        await supabase
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('id', id);
-      } catch {
-        // If table doesn't exist, just update local state
+        if (user) {
+          const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id)
+            .eq('user_id', user.id);
+            
+          if (!error) {
+            success = true;
+          } else {
+            console.error('Failed to update notification in database:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating notification:', error);
       }
       
-      // Update local state
-      setNotifications(notifications.map(n => 
-        n.id === id ? { ...n, is_read: true } : n
-      ));
-      
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      if (success || !user) {
+        // Update local state
+        setNotifications(notifications.map(n => 
+          n.id === id ? { ...n, is_read: true } : n
+        ));
+        
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       toast.error('Failed to update notification');
@@ -146,29 +195,41 @@ const NotificationCenter: React.FC = () => {
 
   const markAllAsRead = async () => {
     try {
-      // Try to update in database if it exists
-      try {
-        await supabase
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('user_id', user?.id)
-          .eq('is_read', false);
-      } catch {
-        // If table doesn't exist, just update local state
+      let success = false;
+      
+      // Try to update in database if user exists
+      if (user) {
+        try {
+          const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+            
+          if (!error) {
+            success = true;
+          } else {
+            console.error('Failed to update notifications in database:', error);
+          }
+        } catch (error) {
+          console.error('Error updating notifications:', error);
+        }
       }
       
-      // Update local state
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-      
-      toast.success('All notifications marked as read');
+      if (success || !user) {
+        // Update local state
+        setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+        setUnreadCount(0);
+        
+        toast.success('All notifications marked as read');
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       toast.error('Failed to update notifications');
     }
   };
 
-  const getNotificationIcon = (type: string, metadata: any) => {
+  const getNotificationIcon = (type: string, metadata: NotificationMetadata) => {
     if (type === 'vulnerability') {
       const severity = metadata?.severity || 'medium';
       if (severity === 'critical') {

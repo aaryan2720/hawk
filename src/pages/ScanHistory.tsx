@@ -10,8 +10,22 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ScanHistoryItem, Json } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Json } from '@/types';
+
+interface ScanHistoryItem {
+  id: string;
+  user_id: string;
+  system_name: string;
+  created_at: string;
+  monitoring_settings: {
+    lastScanTime?: string;
+    scanInterval?: number;
+    criticalOnly?: boolean;
+    autoScanEnabled?: boolean;
+    scanResults?: any[];
+  } & Json;
+}
 
 interface ScanStatistics {
   totalScans: number;
@@ -56,7 +70,7 @@ const ScanHistory = () => {
         user_id: item.user_id,
         system_name: item.system_name,
         created_at: item.created_at,
-        monitoring_settings: item.monitoring_settings as ScanHistoryItem['monitoring_settings']
+        monitoring_settings: item.monitoring_settings || {}
       }));
       
       setHistory(formattedData);
@@ -68,16 +82,16 @@ const ScanHistory = () => {
         'lastScanTime' in item.monitoring_settings
       );
       
-      // Count vulnerabilities (mocked since we don't have real data structure)
+      // Count vulnerabilities
       let criticalCount = 0;
       let highCount = 0;
       
       completedScans.forEach(scan => {
         if (scan.monitoring_settings && typeof scan.monitoring_settings === 'object') {
-          const results = scan.monitoring_settings.results as any[] || [];
-          if (Array.isArray(results)) {
-            criticalCount += results.filter(r => r?.severity === 'critical').length;
-            highCount += results.filter(r => r?.severity === 'high').length;
+          const scanResults = scan.monitoring_settings.scanResults || [];
+          if (Array.isArray(scanResults)) {
+            criticalCount += scanResults.filter(r => r?.severity === 'critical').length;
+            highCount += scanResults.filter(r => r?.severity === 'high').length;
           }
         }
       });
