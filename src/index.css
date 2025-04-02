@@ -65,6 +65,10 @@
   .glowing-border {
     box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
   }
+  
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-[1.03];
+  }
 }
 
 /* Custom scrollbar */
@@ -88,13 +92,49 @@
 }
 
 /* Animations */
-.animate-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.animate-blink {
+  animation: blink 2s infinite;
 }
 
 /* Transition styles */

@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import DashboardNav from '@/components/DashboardNav';
 import StatusOverview from '@/components/StatusOverview';
-import RealTimeScanner from '@/components/RealTimeScanner';
 import RiskAnalyzer from '@/components/RiskAnalyzer';
 import TrendChart from '@/components/TrendChart';
 import VulnerabilityDistribution from '@/components/VulnerabilityDistribution';
@@ -16,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { MonitoringSettings } from '@/types';
 import { toast } from 'sonner';
+import SecurityScannerVisual from '@/components/SecurityScannerVisual';
+import AlertStatusSummary from '@/components/AlertStatusSummary';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -113,19 +114,21 @@ const Dashboard = () => {
     return <Navigate to="/auth/login" />;
   }
 
+  const totalAlerts = severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low;
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
       <main className="container mx-auto py-8 px-4">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">HAWK Security Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold animate-fade-in">HAWK Security Dashboard</h1>
+          <p className="text-muted-foreground mt-1 animate-fade-in" style={{animationDelay: '0.1s'}}>
             Monitor all your systems security in real-time
           </p>
         </div>
         
         {showNotification && severityCounts.critical > 0 && (
-          <Alert className="mb-6" variant="destructive">
+          <Alert className="mb-6 animate-slide-down" variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Critical Vulnerabilities Detected</AlertTitle>
             <AlertDescription className="flex justify-between items-center">
@@ -141,7 +144,7 @@ const Dashboard = () => {
         )}
 
         {lastScanTime && (
-          <Alert className="mb-6" variant="warning">
+          <Alert className="mb-6 animate-slide-down" style={{animationDelay: '0.2s'}} variant="warning">
             <Clock className="h-4 w-4" />
             <AlertTitle>Last Scan: {new Date(lastScanTime).toLocaleString()}</AlertTitle>
             <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -156,86 +159,39 @@ const Dashboard = () => {
           </Alert>
         )}
         
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <StatusOverview />
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="col-span-1 lg:col-span-1 animate-fade-in" style={{animationDelay: '0.3s'}}>
+            <StatusOverview />
+          </div>
           
-          <Card className="col-span-1 lg:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle>Active Alerts</CardTitle>
-              <CardDescription>
-                Overview of current security alerts requiring attention
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-                <div className="flex flex-col p-3 bg-red-50 border border-red-100 rounded-lg">
-                  <span className="text-sm text-red-800 font-medium">Critical</span>
-                  <div className="flex items-end gap-2 mt-1">
-                    <span className="text-2xl font-bold text-red-600">{severityCounts.critical}</span>
-                    <Shield className="h-5 w-5 text-red-600/80 mb-0.5" />
-                  </div>
-                </div>
-                
-                <div className="flex flex-col p-3 bg-orange-50 border border-orange-100 rounded-lg">
-                  <span className="text-sm text-orange-800 font-medium">High</span>
-                  <div className="flex items-end gap-2 mt-1">
-                    <span className="text-2xl font-bold text-orange-600">{severityCounts.high}</span>
-                    <AlertTriangle className="h-5 w-5 text-orange-600/80 mb-0.5" />
-                  </div>
-                </div>
-                
-                <div className="flex flex-col p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
-                  <span className="text-sm text-yellow-800 font-medium">Medium</span>
-                  <div className="flex items-end gap-2 mt-1">
-                    <span className="text-2xl font-bold text-yellow-600">{severityCounts.medium}</span>
-                    <AlertTriangle className="h-5 w-5 text-yellow-600/80 mb-0.5" />
-                  </div>
-                </div>
-                
-                <div className="flex flex-col p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <span className="text-sm text-blue-800 font-medium">Low</span>
-                  <div className="flex items-end gap-2 mt-1">
-                    <span className="text-2xl font-bold text-blue-600">{severityCounts.low}</span>
-                    <AlertTriangle className="h-5 w-5 text-blue-600/80 mb-0.5" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  {severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low === 0 
-                    ? "No active alerts. System is secure." 
-                    : `Total ${severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low} alerts requiring attention.`
-                  }
-                </div>
-                
-                <Link to="/alerts">
-                  <Button variant="outline" size="sm">
-                    View All Alerts
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="col-span-1 md:col-span-1 lg:col-span-3 animate-fade-in" style={{animationDelay: '0.4s'}}>
+            <AlertStatusSummary severityCounts={severityCounts} />
+          </div>
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <VulnerabilityDistribution 
-            data={severityCounts} 
-            isLoading={isLoading}
-          />
+          <div className="animate-fade-in" style={{animationDelay: '0.5s'}}>
+            <VulnerabilityDistribution 
+              data={severityCounts} 
+              isLoading={isLoading}
+            />
+          </div>
           
-          <div className="col-span-1 md:col-span-1 lg:col-span-2">
+          <div className="col-span-1 md:col-span-1 lg:col-span-2 animate-fade-in" style={{animationDelay: '0.6s'}}>
             <TrendChart />
           </div>
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 mb-8">
-          <RiskAnalyzer />
-          <RealTimeScanner />
+          <div className="animate-fade-in" style={{animationDelay: '0.7s'}}>
+            <RiskAnalyzer />
+          </div>
+          <div className="animate-fade-in" style={{animationDelay: '0.8s'}}>
+            <SecurityScannerVisual />
+          </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 animate-fade-in" style={{animationDelay: '0.9s'}}>
           <Link to="/settings">
             <Button variant="outline" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
