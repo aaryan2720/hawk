@@ -183,7 +183,7 @@ const NotificationSystem: React.FC = () => {
     try {
       // Create a test notification using the RPC function
       try {
-        const { error } = await supabase.rpc('create_test_notification', {
+        const { error } = await supabase.rpc('create_test_notification' as any, {
           user_id_param: user.id,
           title_param: 'Test Notification',
           content_param: 'This is a test notification from HAWK Security.',

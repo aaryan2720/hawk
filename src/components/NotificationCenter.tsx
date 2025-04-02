@@ -91,7 +91,7 @@ const NotificationCenter: React.FC = () => {
       if (tableExists && user) {
         // Fetch real notifications
         const { data, error } = await supabase
-          .rpc('get_user_notifications', { user_id_param: user.id }) as any;
+          .rpc('get_user_notifications' as any, { user_id_param: user.id });
           
         if (error) {
           console.error('Database error:', error);

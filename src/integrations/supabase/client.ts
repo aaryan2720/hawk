@@ -28,7 +28,7 @@ export const checkSupabaseConnection = async () => {
 export const ensureNotificationsTable = async () => {
   try {
     // Try to call the create_notifications_table RPC function
-    const { error } = await supabase.rpc('create_notifications_table');
+    const { error } = await supabase.rpc('create_notifications_table' as any);
     
     if (error) {
       console.error('Error creating notifications table:', error);

@@ -6,3 +6,7 @@ verify_jwt = true
 
 [functions.database-functions]
 verify_jwt = true
+
+[functions.create-notification-table]
+verify_jwt = true
+
