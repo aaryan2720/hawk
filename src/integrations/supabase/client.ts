@@ -7,6 +7,22 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJ
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Helper Types for concise data operations
+export interface VulnerabilityStats {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+}
+
+export interface SystemStatus {
+  operational: number;
+  degraded: number;
+  critical: number;
+  maintenance: number;
+}
+
 // Add a helper function to check connection
 export const checkSupabaseConnection = async () => {
   try {
@@ -53,6 +69,77 @@ export const ensureNotificationsTable = async () => {
     }
     
     return false;
+  }
+};
+
+// Get vulnerability statistics - concise solution
+export const getVulnerabilityStats = async (): Promise<VulnerabilityStats> => {
+  try {
+    const { data, error } = await supabase
+      .from('alerts')
+      .select('severity')
+      .in('status', ['new', 'acknowledged']);
+      
+    if (error) throw error;
+    
+    const stats: VulnerabilityStats = {
+      critical: data.filter(alert => alert.severity === 'critical').length,
+      high: data.filter(alert => alert.severity === 'high').length,
+      medium: data.filter(alert => alert.severity === 'medium').length,
+      low: data.filter(alert => alert.severity === 'low').length,
+      total: data.length
+    };
+    
+    return stats;
+  } catch (error) {
+    console.error('Error fetching vulnerability stats:', error);
+    return { critical: 0, high: 0, medium: 0, low: 0, total: 0 };
+  }
+};
+
+// Get system statuses - concise solution
+export const getSystemStatuses = async (): Promise<SystemStatus> => {
+  try {
+    const { data, error } = await supabase
+      .from('systems')
+      .select('status');
+      
+    if (error) throw error;
+    
+    const statuses: SystemStatus = {
+      operational: data.filter(system => system.status === 'operational').length,
+      degraded: data.filter(system => system.status === 'degraded').length,
+      critical: data.filter(system => system.status === 'critical').length,
+      maintenance: data.filter(system => system.status === 'maintenance').length
+    };
+    
+    return statuses;
+  } catch (error) {
+    console.error('Error fetching system statuses:', error);
+    return { operational: 0, degraded: 0, critical: 0, maintenance: 0 };
+  }
+};
+
+// Get specific vulnerability details with a concise solution
+export const getVulnerabilityDetails = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    
+    // Add CVE link if available
+    if (data.cve) {
+      data.cveLink = `https://nvd.nist.gov/vuln/detail/${data.cve}`;
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error fetching vulnerability details:', error);
+    return { success: false, error: 'Unable to retrieve vulnerability details' };
   }
 };
 
