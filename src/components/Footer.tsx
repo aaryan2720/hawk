@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Heart, Shield, ExternalLink } from 'lucide-react';
+import { ExternalLink, Shield } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -24,9 +24,6 @@ const Footer = () => {
             <ExternalLink className="ml-1 h-3 w-3" />
           </a>
           <a href="#support" className="text-sm text-gray-600 hover:text-primary transition-colors">Support</a>
-          <div className="text-sm flex items-center">
-            Made with <Heart className="h-3 w-3 text-red-500 mx-1" /> by HAWK Team
-          </div>
         </div>
       </div>
     </footer>
