@@ -131,12 +131,16 @@ export const getVulnerabilityDetails = async (id: string) => {
       
     if (error) throw error;
     
-    // Add CVE link if available
-    if (data.cve) {
-      data.cveLink = `https://nvd.nist.gov/vuln/detail/${data.cve}`;
-    }
+    // Add CVE link if available (without modifying the original data type)
+    const result = {
+      ...data,
+      // Provide the CVE link separately without modifying the actual data
+      cveInfo: data.cve ? {
+        cveLink: `https://nvd.nist.gov/vuln/detail/${data.cve}`
+      } : null
+    };
     
-    return { success: true, data };
+    return { success: true, data: result };
   } catch (error) {
     console.error('Error fetching vulnerability details:', error);
     return { success: false, error: 'Unable to retrieve vulnerability details' };

@@ -62,10 +62,10 @@ const ActionRecommendations: React.FC<ActionRecommendationsProps> = ({
         await supabase.from('notifications').insert({
           user_id: 'system', // Or get from auth context if available
           title: `Alert ${action}`,
-          message: `The alert ${alert.title} has been ${action}`,
+          content: `The alert ${alert.title} has been ${action}`,
           type: 'alert_update',
-          read: false,
-          data: { alertId: alert.id, action }
+          is_read: false,
+          metadata: { alertId: alert.id, action }
         });
       } catch (error) {
         console.error(`Error handling ${action} action:`, error);

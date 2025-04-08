@@ -33,8 +33,13 @@ export const prioritizeVulnerabilities = (alerts: Alert[]): Alert[] => {
   
   return [...alerts].sort((a, b) => {
     // First priority: Critical vulnerabilities with exploits
-    const aHasExploit = a.details?.exploitAvailable === true;
-    const bHasExploit = b.details?.exploitAvailable === true;
+    const aHasExploit = a.details && typeof a.details === 'object' && 'exploitAvailable' in a.details 
+      ? Boolean(a.details.exploitAvailable) 
+      : false;
+      
+    const bHasExploit = b.details && typeof b.details === 'object' && 'exploitAvailable' in b.details 
+      ? Boolean(b.details.exploitAvailable) 
+      : false;
     
     if (a.severity === 'critical' && b.severity !== 'critical') return -1;
     if (a.severity !== 'critical' && b.severity === 'critical') return 1;
