@@ -6,6 +6,7 @@ import { BarChart2, Settings, Menu, X, AlertTriangle, Shield, Clock, MessageSqua
 import ProfileMenu from '@/components/ProfileMenu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
+import NotificationBadge from '@/components/NotificationBadge';
 
 const DashboardNav = () => {
   const location = useLocation();
@@ -80,6 +81,7 @@ const DashboardNav = () => {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <NotificationBadge />
           <ProfileMenu />
         </div>
       </div>

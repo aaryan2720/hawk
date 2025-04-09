@@ -5,9 +5,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Bell, Shield, User, Lock, Server } from 'lucide-react';
+import { Bell, Shield, User, Lock, Server, Settings as SettingsIcon } from 'lucide-react';
 import NotificationSystem from '@/components/NotificationSystem';
 import NotificationCenter from '@/components/NotificationCenter';
+import NotificationRules from '@/components/NotificationRules';
 
 const Settings = () => {
   const { user, loading } = useAuth();
@@ -66,6 +67,8 @@ const Settings = () => {
           
           <TabsContent value="notifications" className="mt-4 space-y-6">
             <NotificationSystem />
+            
+            <NotificationRules />
             
             <div className="mt-6">
               <Card>

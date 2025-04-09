@@ -23,6 +23,16 @@ interface UserNotificationSettings {
   alertLevel: string;
 }
 
+interface NotificationRule {
+  id: string;
+  name: string;
+  condition: string;
+  severity?: string;
+  system?: string;
+  enabled: boolean;
+  actions: string[];
+}
+
 // Function to send email notifications using a mock service (in production, use actual email service)
 async function sendEmailNotification(email: string, subject: string, body: string) {
   console.log(`MOCK: Sending email to ${email}`);
@@ -42,6 +52,22 @@ async function sendSMSNotification(phoneNumber: string, message: string) {
   // In a real implementation, we would use a service like Twilio, Vonage, or AWS SNS
   // For now, we'll just log the SMS details
   return { success: true, message: "SMS sent successfully (mock)" };
+}
+
+// Matches a vulnerability result against notification rules
+function matchesRule(result: any, rule: NotificationRule): boolean {
+  if (!rule.enabled) return false;
+  
+  switch (rule.condition) {
+    case 'severity':
+      return result.severity === rule.severity;
+    case 'system':
+      return result.system?.toLowerCase().includes(rule.system?.toLowerCase() || '');
+    case 'cve':
+      return result.cve === rule.system; // Using 'system' field to store the CVE value in rules
+    default:
+      return false;
+  }
 }
 
 serve(async (req: Request) => {
@@ -97,6 +123,10 @@ serve(async (req: Request) => {
       }
     }
     
+    // Get custom notification rules
+    const notificationRules: NotificationRule[] = 
+      userSettings?.monitoring_settings?.notificationRules || [];
+    
     // Get user email
     const { data: userProfile, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
     if (userError) {
@@ -111,18 +141,67 @@ serve(async (req: Request) => {
       console.log(`Will send SMS notifications to: ${notificationSettings.phoneNumber}`);
     }
     
-    // Filter results based on user alert level preference
+    // First filter results based on user alert level preference (if custom rules not defined)
     let filteredResults = scanResults;
-    if (notificationSettings.alertLevel === "critical") {
-      filteredResults = scanResults.filter(result => result.severity === "critical");
-    } else if (notificationSettings.alertLevel === "high") {
-      filteredResults = scanResults.filter(result => 
-        result.severity === "critical" || result.severity === "high"
-      );
+    if (notificationRules.length === 0) {
+      if (notificationSettings.alertLevel === "critical") {
+        filteredResults = scanResults.filter(result => result.severity === "critical");
+      } else if (notificationSettings.alertLevel === "high") {
+        filteredResults = scanResults.filter(result => 
+          result.severity === "critical" || result.severity === "high"
+        );
+      }
     }
     
-    if (filteredResults.length === 0) {
-      console.log("No vulnerabilities match the user's alert level preferences");
+    // Track which notifications should be sent via each channel based on rules
+    const emailNotifications: any[] = [];
+    const smsNotifications: any[] = [];
+    const appNotifications: any[] = [];
+    
+    // Process each result through rules
+    filteredResults.forEach(result => {
+      let matchedRule = false;
+      
+      // Check against custom rules first
+      for (const rule of notificationRules) {
+        if (matchesRule(result, rule)) {
+          matchedRule = true;
+          
+          // Add to appropriate notification channels based on rule actions
+          if (rule.actions.includes('email') && notificationSettings.emailEnabled) {
+            emailNotifications.push(result);
+          }
+          
+          if (rule.actions.includes('sms') && notificationSettings.smsEnabled) {
+            smsNotifications.push(result);
+          }
+          
+          if (rule.actions.includes('notification')) {
+            appNotifications.push(result);
+          }
+          
+          // Stop after first matching rule
+          break;
+        }
+      }
+      
+      // If no custom rules matched and custom rules aren't defined, use default alertLevel
+      if (!matchedRule && notificationRules.length === 0) {
+        appNotifications.push(result);
+        
+        if (notificationSettings.emailEnabled) {
+          emailNotifications.push(result);
+        }
+        
+        if (notificationSettings.smsEnabled) {
+          smsNotifications.push(result);
+        }
+      }
+    });
+    
+    // If nothing matched rules, exit early
+    if (appNotifications.length === 0 && emailNotifications.length === 0 && smsNotifications.length === 0) {
+      console.log("No vulnerabilities match the user's notification rules or alert preferences");
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -134,39 +213,41 @@ serve(async (req: Request) => {
       );
     }
     
-    // Store notification in database for history
-    const notificationsToInsert = filteredResults.map(result => ({
-      user_id: userId,
-      title: `New ${result.severity} vulnerability detected`,
-      content: result.title || result.cve || "Unknown vulnerability",
-      type: "vulnerability",
-      is_read: false,
-      metadata: {
-        scanType,
-        severity: result.severity,
-        cve: result.cve,
-        description: result.description,
-        system: result.system
+    // Store app notifications in database
+    if (appNotifications.length > 0) {
+      const notificationsToInsert = appNotifications.map(result => ({
+        user_id: userId,
+        title: `New ${result.severity} vulnerability detected`,
+        content: result.title || result.cve || "Unknown vulnerability",
+        type: "vulnerability",
+        is_read: false,
+        metadata: {
+          scanType,
+          severity: result.severity,
+          cve: result.cve,
+          description: result.description,
+          system: result.system
+        }
+      }));
+      
+      const { error: insertError } = await supabaseClient
+        .from("notifications")
+        .insert(notificationsToInsert);
+      
+      if (insertError) {
+        console.error("Error inserting notifications:", insertError);
+        // Continue despite error to at least try sending notifications via email/SMS
       }
-    }));
-    
-    const { error: insertError } = await supabaseClient
-      .from("notifications")
-      .insert(notificationsToInsert);
-    
-    if (insertError) {
-      console.error("Error inserting notifications:", insertError);
-      // Continue despite error to at least try sending notifications via email/SMS
     }
     
-    // Send email notifications if enabled
-    if (notificationSettings.emailEnabled && notificationSettings.emailAddress) {
-      const subject = `HAWK Security Alert: ${filteredResults.length} new ${severity} vulnerability alerts`;
-      let body = `Dear User,\n\nHAWK Security has detected ${filteredResults.length} new vulnerability alerts in your recent ${scanType} scan.\n\n`;
+    // Send email notifications if there are any
+    if (emailNotifications.length > 0 && notificationSettings.emailAddress) {
+      const subject = `HAWK Security Alert: ${emailNotifications.length} new vulnerability alerts`;
+      let body = `Dear User,\n\nHAWK Security has detected ${emailNotifications.length} new vulnerability alerts in your recent ${scanType} scan.\n\n`;
       
-      // Add top 5 vulnerabilities to the email
+      // Add top vulnerabilities to the email
       body += "Top Vulnerabilities:\n";
-      filteredResults.slice(0, 5).forEach((result, index) => {
+      emailNotifications.slice(0, 5).forEach((result, index) => {
         body += `\n${index + 1}. ${result.title || result.cve || "Unknown"} (${result.severity})\n`;
         body += `   Description: ${result.description || "No description available"}\n`;
         if (result.system) {
@@ -174,8 +255,8 @@ serve(async (req: Request) => {
         }
       });
       
-      if (filteredResults.length > 5) {
-        body += `\n...and ${filteredResults.length - 5} more vulnerabilities.\n`;
+      if (emailNotifications.length > 5) {
+        body += `\n...and ${emailNotifications.length - 5} more vulnerabilities.\n`;
       }
       
       body += "\nPlease log in to your HAWK Security Dashboard to view full details.\n\nStay Secure,\nHAWK Security Team";
@@ -183,21 +264,29 @@ serve(async (req: Request) => {
       await sendEmailNotification(notificationSettings.emailAddress, subject, body);
     }
     
-    // Send SMS notifications if enabled
-    if (notificationSettings.smsEnabled && notificationSettings.phoneNumber) {
-      const message = `HAWK Security Alert: ${filteredResults.length} new ${severity} vulnerability alerts detected. Log in to your dashboard for details.`;
+    // Send SMS notifications if there are any
+    if (smsNotifications.length > 0 && notificationSettings.smsEnabled && notificationSettings.phoneNumber) {
+      const message = `HAWK Security Alert: ${smsNotifications.length} new vulnerability alerts detected. Log in to your dashboard for details.`;
       await sendSMSNotification(notificationSettings.phoneNumber, message);
     }
     
-    console.log(`Successfully processed ${filteredResults.length} notifications`);
+    console.log(`Successfully processed notifications:
+      - App: ${appNotifications.length}
+      - Email: ${emailNotifications.length}
+      - SMS: ${smsNotifications.length}`);
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        notificationsSent: filteredResults.length,
+        notificationsSent: {
+          app: appNotifications.length,
+          email: emailNotifications.length,
+          sms: smsNotifications.length
+        },
         notificationMethods: {
-          email: notificationSettings.emailEnabled,
-          sms: notificationSettings.smsEnabled
+          email: notificationSettings.emailEnabled && emailNotifications.length > 0,
+          sms: notificationSettings.smsEnabled && smsNotifications.length > 0,
+          app: appNotifications.length > 0
         }
       }),
       {
