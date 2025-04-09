@@ -51,11 +51,14 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         // Convert data to Notification[] type with proper metadata conversion
         const typedNotifications: Notification[] = data.map(item => ({
           ...item,
-          metadata: item.metadata as NotificationMetadata
+          metadata: item.metadata as unknown as NotificationMetadata
         }));
         
         setNotifications(typedNotifications);
-        setUnreadCount(typedNotifications.filter(notification => !notification.is_read).length);
+        setUnreadCount(typedNotifications.filter((notification) => !notification.is_read).length);
+        
+        // Log that notifications were fetched successfully
+        console.log("Notifications fetched successfully:", typedNotifications.length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -120,6 +123,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!user) return;
     
+    console.log("Setting up real-time notification subscription for user:", user.id);
+    
     // Initial fetch
     fetchNotifications();
     
@@ -135,11 +140,13 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
+          console.log("Real-time notification received:", payload);
+          
           // Add new notification to the state with proper type conversion
           const newData = payload.new as any;
           const newNotification: Notification = {
             ...newData,
-            metadata: newData.metadata as NotificationMetadata
+            metadata: newData.metadata as unknown as NotificationMetadata
           };
           
           setNotifications(prev => [newNotification, ...prev]);
@@ -165,7 +172,10 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       )
       .subscribe();
     
+    console.log("Notification subscription activated");
+    
     return () => {
+      console.log("Cleaning up notification subscription");
       supabase.removeChannel(channel);
     };
   }, [user]);

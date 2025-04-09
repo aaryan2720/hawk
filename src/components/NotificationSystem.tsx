@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -181,7 +180,7 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // Create a test notification using the RPC function
+      // Create a test notification using the RPC function or direct insert
       try {
         const { error } = await supabase.rpc('create_test_notification' as any, {
           user_id_param: user.id,
@@ -217,29 +216,9 @@ const NotificationSystem: React.FC = () => {
         if (insertError) throw insertError;
       }
       
-      // Send real email/SMS if enabled
-      if (settings.emailEnabled && settings.emailAddress) {
-        // Call the send-notifications edge function
-        const { error: notifyError } = await supabase.functions.invoke('send-notifications', {
-          body: {
-            userId: user.id,
-            scanResults: [{
-              severity: 'test',
-              title: 'Test Notification',
-              description: 'This is a test notification from HAWK Security.',
-              system: 'Test System'
-            }],
-            scanType: 'test',
-            severity: 'test'
-          }
-        });
-        
-        if (notifyError) {
-          console.error('Error sending notification:', notifyError);
-        }
-      }
-      
-      toast.success('Test notification sent successfully');
+      toast.success('Test notification sent successfully', {
+        description: 'Check the notification bell in the top navigation bar'
+      });
     } catch (error) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');

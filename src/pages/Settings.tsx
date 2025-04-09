@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardNav from '@/components/DashboardNav';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell, Shield, User, Lock, Server, Settings as SettingsIcon } from 'lucide-react';
@@ -12,7 +12,16 @@ import NotificationRules from '@/components/NotificationRules';
 
 const Settings = () => {
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('notifications');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || 'notifications');
+  
+  // Update active tab when URL search params change
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   
   if (loading) {
     return (
