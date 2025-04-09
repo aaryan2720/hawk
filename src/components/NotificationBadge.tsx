@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Notification } from '@/types';
+import { Notification, NotificationMetadata } from '@/types';
 
 const NotificationBadge = () => {
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotifications();
