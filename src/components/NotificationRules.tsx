@@ -22,6 +22,15 @@ interface NotificationRule {
   actions: string[];
 }
 
+interface UserMonitoringSettings {
+  lastScanTime?: string;
+  scanInterval?: number;
+  criticalOnly?: boolean;
+  autoScanEnabled?: boolean;
+  notificationRules?: NotificationRule[];
+  [key: string]: any;
+}
+
 const NotificationRules: React.FC = () => {
   const { user } = useAuth();
   const [rules, setRules] = useState<NotificationRule[]>([]);
@@ -49,8 +58,10 @@ const NotificationRules: React.FC = () => {
         
       if (error) throw error;
       
-      if (data?.monitoring_settings?.notificationRules) {
-        setRules(data.monitoring_settings.notificationRules);
+      const settings = data?.monitoring_settings as UserMonitoringSettings | null;
+      
+      if (settings?.notificationRules) {
+        setRules(settings.notificationRules);
       } else {
         // Initialize with default rules if none exist
         setRules([
@@ -86,9 +97,9 @@ const NotificationRules: React.FC = () => {
         
       if (error) throw error;
       
-      let updatedSettings = data?.monitoring_settings || {};
-      updatedSettings = {
-        ...updatedSettings,
+      const currentSettings = (data?.monitoring_settings || {}) as UserMonitoringSettings;
+      const updatedSettings: UserMonitoringSettings = {
+        ...currentSettings,
         notificationRules: rules
       };
       

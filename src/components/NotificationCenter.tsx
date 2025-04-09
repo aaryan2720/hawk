@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Check, AlertTriangle, Clock, Shield, Info, X } from 'lucide-react';
@@ -91,7 +90,11 @@ const NotificationCenter: React.FC = () => {
       if (tableExists && user) {
         // Fetch real notifications
         const { data, error } = await supabase
-          .rpc('get_user_notifications' as any, { user_id_param: user.id });
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
           
         if (error) {
           console.error('Database error:', error);
@@ -99,31 +102,14 @@ const NotificationCenter: React.FC = () => {
         }
         
         if (data) {
-          // Cast the data to Notification[] type
-          const typedNotifications = data as Notification[];
+          // Convert the database data to properly typed Notification objects
+          const typedNotifications: Notification[] = data.map(item => ({
+            ...item,
+            metadata: item.metadata as NotificationMetadata
+          }));
+          
           setNotifications(typedNotifications);
           setUnreadCount(typedNotifications.filter(n => !n.is_read).length);
-        } else {
-          // Fallback to simpler query
-          try {
-            const { data, error } = await (supabase as any)
-              .from('notifications')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(10);
-            
-            if (error) throw error;
-            
-            const typedNotifications = data as Notification[];
-            setNotifications(typedNotifications);
-            setUnreadCount(typedNotifications.filter(n => !n.is_read).length);
-          } catch (innerError) {
-            console.error('Error with fallback query:', innerError);
-            // Use mock data as a last resort
-            setNotifications(mockNotifications);
-            setUnreadCount(mockNotifications.filter(n => !n.is_read).length);
-          }
         }
       } else {
         // Use mock data if table doesn't exist or no user

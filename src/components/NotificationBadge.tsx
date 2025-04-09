@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNotifications } from './NotificationProvider';
 import { Bell } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Notification } from '@/types';
 
 const NotificationBadge = () => {
   const { notifications, unreadCount, markAsRead } = useNotifications();

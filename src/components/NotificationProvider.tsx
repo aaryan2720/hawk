@@ -2,7 +2,7 @@
 import { useEffect, createContext, useContext, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Notification } from '@/types';
+import { Notification, NotificationMetadata } from '@/types';
 import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
 
@@ -48,8 +48,14 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       if (error) throw error;
       
       if (data) {
-        setNotifications(data as Notification[]);
-        setUnreadCount(data.filter((notification: Notification) => !notification.is_read).length);
+        // Convert data to Notification[] type with proper metadata conversion
+        const typedNotifications: Notification[] = data.map(item => ({
+          ...item,
+          metadata: item.metadata as NotificationMetadata
+        }));
+        
+        setNotifications(typedNotifications);
+        setUnreadCount(typedNotifications.filter(notification => !notification.is_read).length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -129,8 +135,13 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          // Add new notification to the state
-          const newNotification = payload.new as Notification;
+          // Add new notification to the state with proper type conversion
+          const newData = payload.new as any;
+          const newNotification: Notification = {
+            ...newData,
+            metadata: newData.metadata as NotificationMetadata
+          };
+          
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           
