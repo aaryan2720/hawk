@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { BarChart2, Settings, Menu, X, AlertTriangle, Shield, Clock, MessageSquare, Layout, History, PieChart } from 'lucide-react';
+import { BarChart2, Settings, Menu, X, AlertTriangle, Shield, Clock, MessageSquare, Layout, History, PieChart, HelpCircle } from 'lucide-react';
 import ProfileMenu from '@/components/ProfileMenu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ const DashboardNav = () => {
     { href: '/reports', label: 'Reports', icon: <PieChart className="h-4 w-4 mr-2" /> },
     { href: '/chatbot', label: 'AI Assistant', icon: <MessageSquare className="h-4 w-4 mr-2" /> },
     { href: '/settings', label: 'Settings', icon: <Settings className="h-4 w-4 mr-2" /> },
+    { href: '/help', label: 'Help & Support', icon: <HelpCircle className="h-4 w-4 mr-2" /> },
   ];
 
   const isActive = (path: string) => location.pathname === path;

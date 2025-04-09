@@ -62,10 +62,10 @@ const Navbar = () => {
           <>
             <div className="hidden md:flex items-center space-x-6">
               <Link to="/dashboard" className="text-gray-600 hover:text-primary transition-colors duration-200">Dashboard</Link>
-              <a href="#alerts" className="text-gray-600 hover:text-primary transition-colors duration-200">Alerts</a>
-              <a href="#systems" className="text-gray-600 hover:text-primary transition-colors duration-200">Systems</a>
-              <a href="#reports" className="text-gray-600 hover:text-primary transition-colors duration-200">Reports</a>
-              <a href="#settings" className="text-gray-600 hover:text-primary transition-colors duration-200">Settings</a>
+              <Link to="/alerts" className="text-gray-600 hover:text-primary transition-colors duration-200">Alerts</Link>
+              <Link to="/system-monitor" className="text-gray-600 hover:text-primary transition-colors duration-200">Systems</Link>
+              <Link to="/reports" className="text-gray-600 hover:text-primary transition-colors duration-200">Reports</Link>
+              <Link to="/settings" className="text-gray-600 hover:text-primary transition-colors duration-200">Settings</Link>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -151,11 +151,12 @@ const Navbar = () => {
         <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg animate-slide-down">
           <div className="flex flex-col p-4 space-y-3">
             <Link to="/dashboard" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Dashboard</Link>
-            <a href="#alerts" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Alerts</a>
-            <a href="#systems" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Systems</a>
-            <a href="#reports" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Reports</a>
-            <a href="#settings" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Settings</a>
+            <Link to="/alerts" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Alerts</Link>
+            <Link to="/system-monitor" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Systems</Link>
+            <Link to="/reports" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Reports</Link>
+            <Link to="/settings" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Settings</Link>
             <Link to="/profile" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Profile</Link>
+            <Link to="/help" className="text-gray-600 py-2 px-4 hover:bg-gray-50 rounded-md">Help & Support</Link>
             <button 
               onClick={handleLogout}
               className="text-left text-red-600 py-2 px-4 hover:bg-gray-50 rounded-md"
