@@ -54,6 +54,20 @@ const NotificationBadge = () => {
     return date.toLocaleDateString();
   };
 
+  const getDeliveryStatusIcon = (notification: Notification) => {
+    if (!notification.metadata?.delivered) return null;
+    
+    const delivered = notification.metadata.delivered;
+    if (delivered.email) {
+      return <span className="text-xs text-green-600 ml-1">📧</span>;
+    }
+    if (delivered.sms) {
+      return <span className="text-xs text-green-600 ml-1">📱</span>;
+    }
+    
+    return null;
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -93,6 +107,7 @@ const NotificationBadge = () => {
                       <div className="flex justify-between items-center w-full">
                         <span className={`text-sm font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {notification.title}
+                          {getDeliveryStatusIcon(notification)}
                         </span>
                         <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
                           {formatTime(notification.created_at)}

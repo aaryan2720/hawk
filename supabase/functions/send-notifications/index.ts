@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 // CORS headers
 const corsHeaders = {
@@ -42,17 +41,24 @@ async function sendEmailNotification(email: string, subject: string, body: strin
   console.log(`Subject: ${subject}`);
   console.log(`Body: ${body}`);
   
-  // Check if we have SendGrid or Resend API key available
-  const emailApiKey = Deno.env.get("SENDGRID_API_KEY") || Deno.env.get("RESEND_API_KEY");
-  
-  if (!emailApiKey) {
-    console.log("No email service API key found - would send email if configured");
-    return { success: true, message: "Email sending simulation successful (no API key configured)" };
+  try {
+    // Check if we have SendGrid or Resend API key available
+    const emailApiKey = Deno.env.get("SENDGRID_API_KEY") || Deno.env.get("RESEND_API_KEY");
+    
+    if (!emailApiKey) {
+      console.log("No email service API key found - email would be sent if configured");
+      // For demo purposes, simulate successful sending
+      return { success: true, message: "Email sending simulation successful (no API key configured)" };
+    }
+    
+    // Here we would typically connect to SendGrid, Resend etc.
+    // For this demo, we'll simulate a successful send
+    console.log("Email would be sent with API key available");
+    return { success: true, message: "Email sent successfully (simulated)" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return { success: false, error: error.message };
   }
-  
-  // For this demo, we'll return success without actually sending
-  // In a production environment, this would connect to SendGrid, Resend, etc.
-  return { success: true, message: "Email sent successfully (simulated)" };
 }
 
 // Function to send SMS notifications
@@ -60,50 +66,60 @@ async function sendSMSNotification(phoneNumber: string, message: string) {
   console.log(`Sending SMS to ${phoneNumber}`);
   console.log(`Message: ${message}`);
   
-  // Check if we have Twilio API keys available
-  const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-  const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-  
-  if (!twilioSid || !twilioToken) {
-    console.log("No SMS service API keys found - would send SMS if configured");
-    return { success: true, message: "SMS sending simulation successful (no API keys configured)" };
+  try {
+    // Check if we have Twilio API keys available
+    const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+    
+    if (!twilioSid || !twilioToken) {
+      console.log("No SMS service API keys found - SMS would be sent if configured");
+      // For demo purposes, simulate successful sending
+      return { success: true, message: "SMS sending simulation successful (no API keys configured)" };
+    }
+    
+    // Here we would typically connect to Twilio 
+    // For this demo, we'll simulate a successful send
+    console.log("SMS would be sent with API keys available");
+    return { success: true, message: "SMS sent successfully (simulated)" };
+  } catch (error) {
+    console.error("Error sending SMS:", error);
+    return { success: false, error: error.message };
   }
-  
-  // For this demo, we'll return success without actually sending
-  // In a production environment, this would connect to Twilio
-  return { success: true, message: "SMS sent successfully (simulated)" };
 }
 
 // Verify an email address by sending a verification link
 async function sendVerificationEmail(email: string, userId: string, supabaseClient: any) {
   console.log(`Sending verification email to ${email} for user ${userId}`);
   
-  // Generate a verification token and save it to the database
-  const verificationToken = crypto.randomUUID();
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration
-  
   try {
-    // Store verification token
-    // In a real implementation, this would be stored in a dedicated table
-    const { error } = await supabaseClient
-      .from("verification_tokens")
-      .insert({
-        user_id: userId,
-        email: email,
-        token: verificationToken,
-        expires_at: expiresAt.toISOString(),
-        type: "email_verification"
-      })
-      .select();
+    // Generate a verification token
+    const verificationToken = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration
     
-    if (error) {
-      console.log("Error storing verification token:", error);
-      // For demo purposes, continue anyway
+    try {
+      // Store verification token
+      const { error } = await supabaseClient
+        .from("verification_tokens")
+        .insert({
+          user_id: userId,
+          email: email,
+          token: verificationToken,
+          expires_at: expiresAt.toISOString(),
+          type: "email_verification"
+        });
+      
+      if (error) {
+        console.log("Error storing verification token:", error);
+        // Continue anyway for demo purposes
+      }
+    } catch (dbError) {
+      console.error("Database error:", dbError);
+      // For demo, continue even if database operation fails
     }
     
-    // Create verification URL (this should point to your frontend)
-    const verificationUrl = `https://hawk-security-app.com/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+    // Create verification URL (should point to your frontend)
+    const verificationUrl = `https://b1a74c8c-51c3-46a2-ae25-be24252b3af1.lovableproject.com/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
     
     const subject = "Verify your email for HAWK Security notifications";
     const body = `
@@ -125,7 +141,7 @@ async function sendVerificationEmail(email: string, userId: string, supabaseClie
     return await sendEmailNotification(email, subject, body);
   } catch (error) {
     console.error("Error in sendVerificationEmail:", error);
-    throw error;
+    return { success: false, error: error.message };
   }
 }
 
@@ -145,6 +161,15 @@ function matchesRule(result: any, rule: NotificationRule): boolean {
   }
 }
 
+// Initialize Supabase client
+function createSupabaseClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  
+  const { createClient } = require("https://esm.sh/@supabase/supabase-js@2.38.4");
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -152,21 +177,23 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("Received notification request");
+    
+    // Initialize Supabase client
+    const supabaseClient = createSupabaseClient();
+    
     const requestData: NotificationRequest = await req.json();
     const { userId, scanResults, scanType, severity, action, email } = requestData;
+    
+    console.log(`Processing request: userId=${userId}, action=${action}, email=${email}`);
     
     if (!userId) {
       throw new Error("Missing required userId parameter");
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
-    
     // Handle special actions
     if (action === "verify-email" && email) {
+      console.log(`Handling verify-email action for ${email}`);
       const verificationResult = await sendVerificationEmail(email, userId, supabaseClient);
       
       return new Response(
@@ -311,6 +338,13 @@ serve(async (req: Request) => {
       );
     }
     
+    // Track which notifications were successfully delivered
+    const delivered = {
+      app: false,
+      email: false,
+      sms: false
+    };
+    
     // Store app notifications in database
     if (appNotifications.length > 0) {
       const notificationsToInsert = appNotifications.map(result => ({
@@ -324,17 +358,27 @@ serve(async (req: Request) => {
           severity: result.severity,
           cve: result.cve,
           description: result.description,
-          system: result.system
+          system: result.system,
+          delivered: {
+            app: true,
+            email: false,
+            sms: false
+          }
         }
       }));
       
-      const { error: insertError } = await supabaseClient
-        .from("notifications")
-        .insert(notificationsToInsert);
-      
-      if (insertError) {
-        console.error("Error inserting notifications:", insertError);
-        // Continue despite error to at least try sending notifications via email/SMS
+      try {
+        const { error: insertError } = await supabaseClient
+          .from("notifications")
+          .insert(notificationsToInsert);
+        
+        if (insertError) {
+          console.error("Error inserting notifications:", insertError);
+        } else {
+          delivered.app = true;
+        }
+      } catch (insertErr) {
+        console.error("Exception during notification insert:", insertErr);
       }
     }
     
@@ -363,20 +407,97 @@ serve(async (req: Request) => {
       
       body += "\nPlease log in to your HAWK Security Dashboard to view full details.\n\nStay Secure,\nHAWK Security Team";
       
-      await sendEmailNotification(notificationSettings.emailAddress, subject, body);
-      emailSent = true;
+      try {
+        const emailResult = await sendEmailNotification(notificationSettings.emailAddress, subject, body);
+        console.log("Email result:", emailResult);
+        emailSent = emailResult.success;
+        delivered.email = emailResult.success;
+        
+        // Update the notifications to indicate email delivery status
+        if (delivered.app && emailSent) {
+          try {
+            const { data: notifications } = await supabaseClient
+              .from("notifications")
+              .select("id")
+              .eq("user_id", userId)
+              .eq("is_read", false)
+              .order("created_at", { ascending: false })
+              .limit(appNotifications.length);
+              
+            if (notifications && notifications.length > 0) {
+              const notificationIds = notifications.map(n => n.id);
+              await supabaseClient.from("notifications")
+                .update({ 
+                  metadata: {
+                    scanType,
+                    severity: severity,
+                    delivered: {
+                      app: true, 
+                      email: emailSent, 
+                      sms: false
+                    }
+                  } 
+                })
+                .in("id", notificationIds);
+            }
+          } catch (updateErr) {
+            console.error("Error updating notification email status:", updateErr);
+          }
+        }
+      } catch (emailErr) {
+        console.error("Error sending email:", emailErr);
+      }
     }
     
     // Send SMS notifications if there are any
     let smsSent = false;
     if (smsNotifications.length > 0 && notificationSettings.smsEnabled && notificationSettings.phoneNumber) {
       const message = `HAWK Security Alert: ${smsNotifications.length} new vulnerability alerts detected. Log in to your dashboard for details.`;
-      await sendSMSNotification(notificationSettings.phoneNumber, message);
-      smsSent = true;
+      
+      try {
+        const smsResult = await sendSMSNotification(notificationSettings.phoneNumber, message);
+        console.log("SMS result:", smsResult);
+        smsSent = smsResult.success;
+        delivered.sms = smsResult.success;
+        
+        // Update the notifications to indicate SMS delivery status
+        if (delivered.app && smsSent) {
+          try {
+            const { data: notifications } = await supabaseClient
+              .from("notifications")
+              .select("id")
+              .eq("user_id", userId)
+              .eq("is_read", false)
+              .order("created_at", { ascending: false })
+              .limit(appNotifications.length);
+              
+            if (notifications && notifications.length > 0) {
+              const notificationIds = notifications.map(n => n.id);
+              await supabaseClient.from("notifications")
+                .update({ 
+                  metadata: {
+                    scanType,
+                    severity: severity,
+                    delivered: {
+                      app: true, 
+                      email: delivered.email, 
+                      sms: smsSent
+                    }
+                  } 
+                })
+                .in("id", notificationIds);
+            }
+          } catch (updateErr) {
+            console.error("Error updating notification SMS status:", updateErr);
+          }
+        }
+      } catch (smsErr) {
+        console.error("Error sending SMS:", smsErr);
+      }
     }
     
     console.log(`Successfully processed notifications:
-      - App: ${appNotifications.length}
+      - App: ${appNotifications.length} (Delivered: ${delivered.app})
       - Email: ${emailNotifications.length} (Sent: ${emailSent})
       - SMS: ${smsNotifications.length} (Sent: ${smsSent})`);
     
@@ -388,10 +509,10 @@ serve(async (req: Request) => {
           email: emailNotifications.length,
           sms: smsNotifications.length
         },
-        notificationMethods: {
-          email: emailSent,
-          sms: smsSent,
-          app: appNotifications.length > 0
+        delivered: {
+          app: delivered.app,
+          email: delivered.email,
+          sms: delivered.sms
         }
       }),
       {
