@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardNav from '@/components/DashboardNav';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell, Shield, User, Lock, Server, Settings as SettingsIcon } from 'lucide-react';
@@ -12,7 +12,8 @@ import NotificationRules from '@/components/NotificationRules';
 
 const Settings = () => {
   const { user, loading } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam || 'notifications');
   
@@ -22,6 +23,12 @@ const Settings = () => {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
+  
+  // Update the URL when the tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
   
   if (loading) {
     return (
@@ -46,7 +53,7 @@ const Settings = () => {
           </p>
         </div>
         
-        <Tabs defaultValue="notifications" value={activeTab} onValueChange={setActiveTab} className="mb-8">
+        <Tabs defaultValue="notifications" value={activeTab} onValueChange={handleTabChange} className="mb-8">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="notifications">
               <span className="flex items-center gap-2">

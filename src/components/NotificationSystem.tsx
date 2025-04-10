@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { MonitoringSettings } from '@/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -76,7 +75,7 @@ const NotificationSystem: React.FC = () => {
     if (user && emailAddress === user.email) {
       setValue('emailVerified', true);
     }
-  }, [emailAddress, user]);
+  }, [emailAddress, user, setValue]);
 
   const fetchSettings = async () => {
     if (!user) return;
@@ -131,9 +130,9 @@ const NotificationSystem: React.FC = () => {
     try {
       const emailDifferentFromUser = values.emailEnabled && values.emailAddress !== user.email;
       
-      const { data: currentSettings, error: fetchError } = await supabase
+      const { data: existingSystem, error: fetchError } = await supabase
         .from('user_systems')
-        .select('monitoring_settings')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
       
@@ -142,40 +141,40 @@ const NotificationSystem: React.FC = () => {
         throw fetchError;
       }
       
-      const existingSettings = currentSettings?.monitoring_settings 
-        ? (typeof currentSettings.monitoring_settings === 'string' 
-            ? JSON.parse(currentSettings.monitoring_settings) 
-            : currentSettings.monitoring_settings) 
-        : {};
-      
-      const updatedSettings = {
-        ...existingSettings,
-        notificationPreferences: {
-          emailEnabled: values.emailEnabled,
-          smsEnabled: values.smsEnabled,
-          emailAddress: values.emailAddress,
-          phoneNumber: values.phoneNumber,
-          alertLevel: values.alertLevel,
-          frequency: values.frequency,
-          timeframe: values.timeframe,
-          emailVerified: emailDifferentFromUser ? false : (values.emailVerified || false)
-        }
+      const notificationPreferences = {
+        emailEnabled: values.emailEnabled,
+        smsEnabled: values.smsEnabled,
+        emailAddress: values.emailAddress,
+        phoneNumber: values.phoneNumber,
+        alertLevel: values.alertLevel,
+        frequency: values.frequency,
+        timeframe: values.timeframe,
+        emailVerified: emailDifferentFromUser ? false : (values.emailVerified || false)
       };
       
-      if (!currentSettings) {
+      const existingSettings = existingSystem?.monitoring_settings || {};
+      const monitoringSettings = typeof existingSettings === 'string' 
+        ? JSON.parse(existingSettings)
+        : existingSettings;
+      
+      monitoringSettings.notificationPreferences = notificationPreferences;
+      
+      if (!existingSystem) {
         const { error: insertError } = await supabase
           .from('user_systems')
           .insert({
             user_id: user.id,
             system_name: 'Default System',
-            monitoring_settings: updatedSettings
+            monitoring_settings: monitoringSettings
           });
           
         if (insertError) throw insertError;
       } else {
         const { error: updateError } = await supabase
           .from('user_systems')
-          .update({ monitoring_settings: updatedSettings })
+          .update({ 
+            monitoring_settings: monitoringSettings
+          })
           .eq('user_id', user.id);
           
         if (updateError) throw updateError;

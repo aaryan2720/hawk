@@ -384,9 +384,12 @@ serve(async (req: Request) => {
     
     // Send email notifications if there are any and email is verified
     let emailSent = false;
+    // Allow sending to the email that is currently being tested (even if not verified)
+    const isTestEmail = email && email === notificationSettings.emailAddress;
+    
     if (emailNotifications.length > 0 && notificationSettings.emailEnabled && 
         notificationSettings.emailAddress && 
-        (notificationSettings.emailVerified || notificationSettings.emailAddress === email)) {
+        (notificationSettings.emailVerified || isTestEmail)) {
       
       const subject = `HAWK Security Alert: ${emailNotifications.length} new vulnerability alerts`;
       let body = `Dear User,\n\nHAWK Security has detected ${emailNotifications.length} new vulnerability alerts in your recent ${scanType} scan.\n\n`;
@@ -447,6 +450,8 @@ serve(async (req: Request) => {
       } catch (emailErr) {
         console.error("Error sending email:", emailErr);
       }
+    } else {
+      console.log(`Email not sent: enabled=${notificationSettings.emailEnabled}, address=${notificationSettings.emailAddress}, verified=${notificationSettings.emailVerified}, test=${isTestEmail}`);
     }
     
     // Send SMS notifications if there are any
