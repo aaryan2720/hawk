@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -41,7 +40,7 @@ const notificationSchema = z.object({
 });
 
 const NotificationSystem: React.FC = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
@@ -73,7 +72,6 @@ const NotificationSystem: React.FC = () => {
     }
   }, [user]);
 
-  // Automatically set emailVerified to true if using login email
   useEffect(() => {
     if (user && emailAddress === user.email) {
       setValue('emailVerified', true);
@@ -98,7 +96,6 @@ const NotificationSystem: React.FC = () => {
       }
       
       if (data?.monitoring_settings) {
-        // Parse monitoring settings safely
         const monSettings = typeof data.monitoring_settings === 'string' 
           ? JSON.parse(data.monitoring_settings) 
           : data.monitoring_settings;
@@ -115,7 +112,6 @@ const NotificationSystem: React.FC = () => {
           setValue('timeframe', prefs.timeframe || 'any');
           setValue('emailVerified', prefs.emailVerified === undefined ? true : prefs.emailVerified);
 
-          // If using login email, ensure it's marked as verified
           if (prefs.emailAddress === user.email) {
             setValue('emailVerified', true);
           }
@@ -133,10 +129,8 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // Check if email changed and needs verification
       const emailDifferentFromUser = values.emailEnabled && values.emailAddress !== user.email;
       
-      // Get current user settings
       const { data: currentSettings, error: fetchError } = await supabase
         .from('user_systems')
         .select('monitoring_settings')
@@ -144,19 +138,16 @@ const NotificationSystem: React.FC = () => {
         .maybeSingle();
       
       if (fetchError && fetchError.code !== 'PGRST116') {
-        // PGRST116 is "no rows returned" which is fine - we'll create new settings
         console.error('Error fetching current settings:', fetchError);
         throw fetchError;
       }
       
-      // Parse existing settings safely
       const existingSettings = currentSettings?.monitoring_settings 
         ? (typeof currentSettings.monitoring_settings === 'string' 
             ? JSON.parse(currentSettings.monitoring_settings) 
             : currentSettings.monitoring_settings) 
         : {};
       
-      // Prepare updated settings with notification preferences
       const updatedSettings = {
         ...existingSettings,
         notificationPreferences: {
@@ -171,9 +162,7 @@ const NotificationSystem: React.FC = () => {
         }
       };
       
-      // Check if we need to insert or update
       if (!currentSettings) {
-        // Insert new record if none exists
         const { error: insertError } = await supabase
           .from('user_systems')
           .insert({
@@ -184,7 +173,6 @@ const NotificationSystem: React.FC = () => {
           
         if (insertError) throw insertError;
       } else {
-        // Update existing record
         const { error: updateError } = await supabase
           .from('user_systems')
           .update({ monitoring_settings: updatedSettings })
@@ -193,7 +181,6 @@ const NotificationSystem: React.FC = () => {
         if (updateError) throw updateError;
       }
       
-      // If email is different from user's and email notifications are enabled, send verification
       if (emailDifferentFromUser) {
         try {
           console.log("Sending verification email to:", values.emailAddress);
@@ -224,12 +211,11 @@ const NotificationSystem: React.FC = () => {
     console.log('Sending verification email to:', email);
     
     try {
-      // Call the edge function directly with the required parameters
       const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
+          'Authorization': `Bearer ${session?.access_token || ''}`,
         },
         body: JSON.stringify({ 
           action: 'verify-email',
@@ -256,7 +242,6 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
-      // Create a test notification using direct insert
       const { error: insertError } = await supabase
         .from('notifications')
         .insert({
@@ -273,13 +258,12 @@ const NotificationSystem: React.FC = () => {
       
       if (insertError) throw insertError;
       
-      // Also test email/SMS notifications via direct fetch to the edge function
       console.log("Sending test notification via edge function");
       const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
+          'Authorization': `Bearer ${session?.access_token || ''}`,
         },
         body: JSON.stringify({ 
           userId: user.id,
