@@ -66,12 +66,14 @@ const NotificationSystem: React.FC = () => {
   const emailAddress = watch('emailAddress');
   const isEmailVerified = watch('emailVerified');
 
+  // Fetch settings on component mount and when user changes
   useEffect(() => {
     if (user) {
       fetchSettings();
     }
   }, [user]);
 
+  // Auto-verify email if it's the same as user's login email
   useEffect(() => {
     if (user && emailAddress === user.email) {
       setValue('emailVerified', true);
@@ -83,6 +85,7 @@ const NotificationSystem: React.FC = () => {
     
     try {
       setIsLoading(true);
+      console.log("Fetching settings for user:", user.id);
       
       const { data, error } = await supabase
         .from('user_systems')
@@ -96,6 +99,7 @@ const NotificationSystem: React.FC = () => {
       }
       
       if (data?.monitoring_settings) {
+        console.log("Found settings in database:", data.monitoring_settings);
         const monSettings = typeof data.monitoring_settings === 'string' 
           ? JSON.parse(data.monitoring_settings) 
           : data.monitoring_settings;
@@ -115,8 +119,10 @@ const NotificationSystem: React.FC = () => {
             emailVerified: prefs.emailAddress === user.email ? true : (prefs.emailVerified ?? false)
           });
           
-          console.log("Loaded settings:", monSettings.notificationPreferences);
+          console.log("Loaded settings:", prefs);
         }
+      } else {
+        console.log("No settings found for user, using defaults");
       }
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -126,10 +132,14 @@ const NotificationSystem: React.FC = () => {
   };
 
   const handleSaveSettings = async (values: NotificationSettings) => {
-    if (!user) return;
+    if (!user || !session) {
+      toast.error("You must be logged in to save settings");
+      return;
+    }
     
     setIsLoading(true);
     try {
+      console.log("Saving notification settings:", values);
       const emailDifferentFromUser = values.emailEnabled && values.emailAddress !== user.email;
       
       const { data: existingSystem, error: fetchError } = await supabase
@@ -162,8 +172,11 @@ const NotificationSystem: React.FC = () => {
       // Ensure we're not overwriting other properties
       monitoringSettings.notificationPreferences = notificationPreferences;
       
+      console.log("Saving monitoring settings:", monitoringSettings);
+      
       // Initialize or create user_system record
       if (!existingSystem) {
+        console.log("Creating new user_system record");
         const { error: insertError } = await supabase
           .from('user_systems')
           .insert({
@@ -174,6 +187,7 @@ const NotificationSystem: React.FC = () => {
           
         if (insertError) throw insertError;
       } else {
+        console.log("Updating existing user_system record");
         const { error: updateError } = await supabase
           .from('user_systems')
           .update({ 
@@ -187,7 +201,7 @@ const NotificationSystem: React.FC = () => {
       if (emailDifferentFromUser) {
         try {
           console.log("Sending verification email to:", values.emailAddress);
-          const result = await sendVerificationEmail(values.emailAddress);
+          const result = await sendVerificationEmail(values.emailAddress, session.access_token);
           console.log("Verification email result:", result);
           setEmailVerificationSent(true);
           setDebug(`Verification sent to ${values.emailAddress}. Result: ${JSON.stringify(result)}`);
@@ -213,20 +227,15 @@ const NotificationSystem: React.FC = () => {
     }
   };
   
-  const sendVerificationEmail = async (email: string) => {
+  const sendVerificationEmail = async (email: string, accessToken: string) => {
     console.log('Sending verification email to:', email);
     
     try {
-      // Ensure we have a valid session token
-      if (!session?.access_token) {
-        throw new Error('No access token available');
-      }
-      
-      const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
+      const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ 
           action: 'verify-email',
@@ -249,7 +258,10 @@ const NotificationSystem: React.FC = () => {
   };
 
   const handleTestNotification = async () => {
-    if (!user) return;
+    if (!user || !session) {
+      toast.error("You must be logged in to test notifications");
+      return;
+    }
     
     setIsLoading(true);
     try {
@@ -270,13 +282,8 @@ const NotificationSystem: React.FC = () => {
       
       if (insertError) throw insertError;
       
-      // Ensure we have a valid session token
-      if (!session?.access_token) {
-        throw new Error('No access token available');
-      }
-      
       console.log("Sending test notification via edge function");
-      const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
+      const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -166,11 +166,11 @@ function matchesRule(result: any, rule: NotificationRule): boolean {
 
 // Initialize Supabase client
 function createSupabaseClient() {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://eogwxywiidsnnlaybbdd.supabase.co";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing Supabase environment variables");
+  if (!supabaseServiceKey) {
+    console.error("Missing Supabase service role key");
   }
   
   return createClient(supabaseUrl, supabaseServiceKey);
