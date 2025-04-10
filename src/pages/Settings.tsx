@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardNav from '@/components/DashboardNav';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,25 +8,38 @@ import { Bell, Shield, User, Lock, Server, Settings as SettingsIcon } from 'luci
 import NotificationSystem from '@/components/NotificationSystem';
 import NotificationCenter from '@/components/NotificationCenter';
 import NotificationRules from '@/components/NotificationRules';
+import { toast } from 'sonner';
 
 const Settings = () => {
   const { user, loading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'notifications');
   
-  // Update active tab when URL search params change
-  useEffect(() => {
+  const getInitialTab = () => {
+    const tabParam = searchParams.get('tab');
     if (tabParam) {
-      setActiveTab(tabParam);
+      localStorage.setItem('settingsActiveTab', tabParam);
+      return tabParam;
     }
-  }, [tabParam]);
+    
+    const savedTab = localStorage.getItem('settingsActiveTab');
+    return savedTab || 'notifications';
+  };
   
-  // Update the URL when the tab changes
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+  
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+      localStorage.setItem('settingsActiveTab', tabParam);
+    }
+  }, [searchParams]);
+  
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value });
+    localStorage.setItem('settingsActiveTab', value);
   };
   
   if (loading) {
@@ -39,6 +51,7 @@ const Settings = () => {
   }
   
   if (!user) {
+    toast.error("You must be logged in to access settings");
     return <Navigate to="/auth/login" />;
   }
 

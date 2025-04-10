@@ -15,196 +15,209 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log("Creating database functions for notifications...");
+    console.log("Database functions edge function called");
     
     // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://eogwxywiidsnnlaybbdd.supabase.co"; 
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     
-    // Create a function to create notifications table
-    const createNotificationsTableSql = `
-    CREATE OR REPLACE FUNCTION public.create_notifications_table()
-    RETURNS void
-    LANGUAGE plpgsql
-    SECURITY DEFINER
-    AS $$
-    BEGIN
-      -- Check if table exists
-      IF NOT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'notifications'
-      ) THEN
-        -- Create notifications table
-        CREATE TABLE public.notifications (
+    if (!supabaseServiceKey) {
+      throw new Error("Missing Supabase service role key");
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Create verification_tokens table if it doesn't exist
+    const createVerificationTokensSQL = `
+      CREATE TABLE IF NOT EXISTS public.verification_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        email TEXT NOT NULL,
+        token TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        type TEXT NOT NULL,
+        is_verified BOOLEAN DEFAULT false NOT NULL
+      );
+      
+      -- Add RLS policy
+      ALTER TABLE public.verification_tokens ENABLE ROW LEVEL SECURITY;
+      
+      -- Create policy to allow users to see their own tokens
+      DO $$
+      BEGIN
+          IF NOT EXISTS (
+              SELECT 1 FROM pg_policies 
+              WHERE tablename = 'verification_tokens' 
+              AND policyname = 'Users can view their own tokens'
+          ) THEN
+              CREATE POLICY "Users can view their own tokens" 
+              ON public.verification_tokens 
+              FOR SELECT 
+              USING (auth.uid() = user_id);
+          END IF;
+      END
+      $$;
+    `;
+    
+    // Create the RPC function for verification tokens table
+    const createVerificationTokensRPCSQL = `
+      CREATE OR REPLACE FUNCTION public.create_verification_tokens_table()
+      RETURNS void
+      LANGUAGE plpgsql
+      SECURITY INVOKER
+      AS $$
+      BEGIN
+        CREATE TABLE IF NOT EXISTS public.verification_tokens (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id UUID NOT NULL,
-          title TEXT NOT NULL,
-          content TEXT NOT NULL,
+          email TEXT NOT NULL,
+          token TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
           type TEXT NOT NULL,
-          is_read BOOLEAN NOT NULL DEFAULT false,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-          metadata JSONB
+          is_verified BOOLEAN DEFAULT false NOT NULL
         );
         
-        -- Enable Row Level Security
-        ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+        -- Add RLS policy
+        ALTER TABLE public.verification_tokens ENABLE ROW LEVEL SECURITY;
         
-        -- Create policies
-        CREATE POLICY "Users can view their own notifications" 
-          ON public.notifications 
-          FOR SELECT 
-          USING (auth.uid() = user_id);
+        -- Create policy to allow users to see their own tokens
+        BEGIN
+            CREATE POLICY "Users can view their own tokens" 
+            ON public.verification_tokens 
+            FOR SELECT 
+            USING (auth.uid() = user_id);
+        EXCEPTION
+            WHEN duplicate_object THEN
+                -- Policy already exists
+                NULL;
+        END;
+      END;
+      $$;
+    `;
+    
+    // Create the RPC function for inserting verification tokens
+    const createInsertTokenRPCSQL = `
+      CREATE OR REPLACE FUNCTION public.insert_verification_token(
+        p_user_id UUID,
+        p_email TEXT,
+        p_token TEXT,
+        p_expires_at TIMESTAMPTZ,
+        p_type TEXT
+      )
+      RETURNS void
+      LANGUAGE plpgsql
+      SECURITY INVOKER
+      AS $$
+      BEGIN
+        INSERT INTO public.verification_tokens (
+          user_id, email, token, expires_at, type
+        ) VALUES (
+          p_user_id, p_email, p_token, p_expires_at, p_type
+        );
+      END;
+      $$;
+    `;
+    
+    // Create function to create all RPC functions
+    const createRPCFunctionsSQL = `
+      CREATE OR REPLACE FUNCTION public.create_rpc_functions()
+      RETURNS void
+      LANGUAGE plpgsql
+      SECURITY INVOKER
+      AS $$
+      BEGIN
+        -- Create verification tokens table RPC
+        CREATE OR REPLACE FUNCTION public.create_verification_tokens_table()
+        RETURNS void
+        LANGUAGE plpgsql
+        SECURITY INVOKER
+        AS $FUNC$
+        BEGIN
+          CREATE TABLE IF NOT EXISTS public.verification_tokens (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL,
+            email TEXT NOT NULL,
+            token TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            type TEXT NOT NULL,
+            is_verified BOOLEAN DEFAULT false NOT NULL
+          );
           
-        CREATE POLICY "Users can insert their own notifications" 
-          ON public.notifications 
-          FOR INSERT 
-          WITH CHECK (auth.uid() = user_id);
+          -- Add RLS policy
+          ALTER TABLE public.verification_tokens ENABLE ROW LEVEL SECURITY;
           
-        CREATE POLICY "Users can update their own notifications" 
-          ON public.notifications 
-          FOR UPDATE 
-          USING (auth.uid() = user_id);
-          
-        -- Index for performance
-        CREATE INDEX notifications_user_id_idx ON public.notifications(user_id);
-        CREATE INDEX notifications_created_at_idx ON public.notifications(created_at);
-      END IF;
-    END;
-    $$;
+          -- Create policy to allow users to see their own tokens
+          BEGIN
+              CREATE POLICY "Users can view their own tokens" 
+              ON public.verification_tokens 
+              FOR SELECT 
+              USING (auth.uid() = user_id);
+          EXCEPTION
+              WHEN duplicate_object THEN
+                  -- Policy already exists
+                  NULL;
+          END;
+        END;
+        $FUNC$;
+        
+        -- Create insert verification token RPC
+        CREATE OR REPLACE FUNCTION public.insert_verification_token(
+          p_user_id UUID,
+          p_email TEXT,
+          p_token TEXT,
+          p_expires_at TIMESTAMPTZ,
+          p_type TEXT
+        )
+        RETURNS void
+        LANGUAGE plpgsql
+        SECURITY INVOKER
+        AS $FUNC$
+        BEGIN
+          INSERT INTO public.verification_tokens (
+            user_id, email, token, expires_at, type
+          ) VALUES (
+            p_user_id, p_email, p_token, p_expires_at, p_type
+          );
+        END;
+        $FUNC$;
+      END;
+      $$;
     `;
     
-    // Function to create a test notification
-    const createTestNotificationSql = `
-    CREATE OR REPLACE FUNCTION public.create_test_notification(
-      user_id_param UUID,
-      title_param TEXT,
-      content_param TEXT,
-      type_param TEXT,
-      is_read_param BOOLEAN,
-      metadata_param JSONB
-    )
-    RETURNS void
-    LANGUAGE plpgsql
-    SECURITY DEFINER
-    AS $$
-    BEGIN
-      -- Ensure the notifications table exists
-      PERFORM public.create_notifications_table();
-      
-      -- Insert the test notification
-      INSERT INTO public.notifications (
-        user_id, 
-        title, 
-        content, 
-        type, 
-        is_read, 
-        metadata
-      ) VALUES (
-        user_id_param,
-        title_param,
-        content_param,
-        type_param,
-        is_read_param,
-        metadata_param
-      );
-    END;
-    $$;
-    `;
-    
-    // Function to get user notifications
-    const getUserNotificationsSql = `
-    CREATE OR REPLACE FUNCTION public.get_user_notifications(
-      user_id_param UUID
-    )
-    RETURNS SETOF public.notifications
-    LANGUAGE plpgsql
-    SECURITY DEFINER
-    AS $$
-    BEGIN
-      -- Ensure the notifications table exists
-      PERFORM public.create_notifications_table();
-      
-      -- Return the user's notifications
-      RETURN QUERY
-      SELECT * FROM public.notifications
-      WHERE user_id = user_id_param
-      ORDER BY created_at DESC
-      LIMIT 10;
-    END;
-    $$;
-    `;
-    
-    // Execute the SQL to create the functions
-    const { error: fnError1 } = await supabaseClient.rpc('exec_sql', { 
-      sql: createNotificationsTableSql 
-    }).single();
-    
-    if (fnError1) {
-      console.error('Error creating notifications table function:', fnError1);
-      // Try direct SQL if RPC fails
-      await supabaseClient.sql(createNotificationsTableSql);
-    }
-    
-    const { error: fnError2 } = await supabaseClient.rpc('exec_sql', { 
-      sql: createTestNotificationSql 
-    }).single();
-    
-    if (fnError2) {
-      console.error('Error creating test notification function:', fnError2);
-      // Try direct SQL if RPC fails
-      await supabaseClient.sql(createTestNotificationSql);
-    }
-    
-    const { error: fnError3 } = await supabaseClient.rpc('exec_sql', { 
-      sql: getUserNotificationsSql 
-    }).single();
-    
-    if (fnError3) {
-      console.error('Error creating get user notifications function:', fnError3);
-      // Try direct SQL if RPC fails
-      await supabaseClient.sql(getUserNotificationsSql);
-    }
-    
-    // Create exec_sql function if it doesn't exist
-    const createExecSqlFunction = `
-    CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
-    RETURNS void
-    LANGUAGE plpgsql
-    SECURITY DEFINER
-    AS $$
-    BEGIN
-      EXECUTE sql;
-    END;
-    $$;
-    `;
-    
+    // Execute SQL to create required tables and functions
     try {
-      await supabaseClient.sql(createExecSqlFunction);
-    } catch (err) {
-      console.error('Error creating exec_sql function:', err);
+      await supabase.rpc('create_rpc_functions');
+      console.log("RPC functions already exist");
+    } catch (e) {
+      console.log("Creating RPC functions");
+      const { error } = await supabase.sql(createRPCFunctionsSQL);
+      if (error) {
+        throw error;
+      }
     }
     
-    // Manually create notifications table as a fallback
+    // Try to create the table directly as well
     try {
-      await supabaseClient.rpc('create_notifications_table');
-    } catch (createTableError) {
-      console.error('Error calling create_notifications_table RPC:', createTableError);
+      const { error } = await supabase.sql(createVerificationTokensSQL);
+      if (error) {
+        throw error;
+      }
+    } catch (e) {
+      console.log("Error creating verification tokens table directly:", e);
     }
     
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Database functions for notifications created successfully"
-      }),
+      JSON.stringify({ success: true, message: "Database functions executed successfully" }),
       {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   } catch (error) {
-    console.error("Error in database-functions edge function:", error);
+    console.error("Error in database-functions:", error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       {
@@ -214,3 +227,4 @@ serve(async (req: Request) => {
     );
   }
 });
+

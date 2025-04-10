@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -40,59 +39,150 @@ interface NotificationRule {
 
 // Function to send email notifications
 async function sendEmailNotification(email: string, subject: string, body: string) {
-  console.log(`Sending email to ${email}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Body: ${body}`);
+  console.log(`[EMAIL] Sending email to ${email}`);
+  console.log(`[EMAIL] Subject: ${subject}`);
+  console.log(`[EMAIL] Body: ${body}`);
   
   try {
     // Check if we have SendGrid or Resend API key available
     const emailApiKey = Deno.env.get("SENDGRID_API_KEY") || Deno.env.get("RESEND_API_KEY");
     
     if (!emailApiKey) {
-      console.log("No email service API key found - email would be sent if configured");
+      console.log("[EMAIL] No email service API key found - email would be sent if configured");
+      
+      // For development purposes, log the would-be email
+      console.log("[EMAIL] Would send:");
+      console.log(`[EMAIL] To: ${email}`);
+      console.log(`[EMAIL] Subject: ${subject}`);
+      console.log(`[EMAIL] Body: ${body}`);
+      
       // For demo purposes, simulate successful sending
       return { success: true, message: "Email sending simulation successful (no API key configured)" };
     }
     
-    // Here we would typically connect to SendGrid, Resend etc.
-    // For this demo, we'll simulate a successful send
-    console.log("Email would be sent with API key available");
-    return { success: true, message: "Email sent successfully (simulated)" };
+    // If we have a Resend API key, use it
+    if (Deno.env.get("RESEND_API_KEY")) {
+      try {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            from: "alerts@hawksecurity.org",
+            to: email,
+            subject: subject,
+            text: body,
+          })
+        });
+        
+        const result = await response.json();
+        console.log("[EMAIL] Resend API response:", result);
+        
+        if (!response.ok) {
+          throw new Error(`Resend API error: ${JSON.stringify(result)}`);
+        }
+        
+        return { success: true, message: "Email sent successfully via Resend", id: result.id };
+      } catch (resendError) {
+        console.error("[EMAIL] Resend API error:", resendError);
+        throw resendError;
+      }
+    }
+    
+    // If we have a SendGrid API key, use it (fallback)
+    if (Deno.env.get("SENDGRID_API_KEY")) {
+      const sendgridKey = Deno.env.get("SENDGRID_API_KEY");
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sendgridKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email }] }],
+          from: { email: "alerts@hawksecurity.org" },
+          subject,
+          content: [{ type: "text/plain", value: body }]
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
+      }
+      
+      return { success: true, message: "Email sent successfully via SendGrid" };
+    }
+    
+    // This should never happen as we've checked for API keys above
+    return { success: false, error: "No email service configured" };
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("[EMAIL] Error sending email:", error);
     return { success: false, error: error.message };
   }
 }
 
 // Function to send SMS notifications
 async function sendSMSNotification(phoneNumber: string, message: string) {
-  console.log(`Sending SMS to ${phoneNumber}`);
-  console.log(`Message: ${message}`);
+  console.log(`[SMS] Sending SMS to ${phoneNumber}`);
+  console.log(`[SMS] Message: ${message}`);
   
   try {
     // Check if we have Twilio API keys available
     const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const twilioPhone = Deno.env.get("TWILIO_PHONE_NUMBER");
     
-    if (!twilioSid || !twilioToken) {
-      console.log("No SMS service API keys found - SMS would be sent if configured");
+    if (!twilioSid || !twilioToken || !twilioPhone) {
+      console.log("[SMS] No SMS service API keys found - SMS would be sent if configured");
+      
+      // For development purposes, log the would-be SMS
+      console.log("[SMS] Would send:");
+      console.log(`[SMS] To: ${phoneNumber}`);
+      console.log(`[SMS] Message: ${message}`);
+      
       // For demo purposes, simulate successful sending
       return { success: true, message: "SMS sending simulation successful (no API keys configured)" };
     }
     
-    // Here we would typically connect to Twilio 
-    // For this demo, we'll simulate a successful send
-    console.log("SMS would be sent with API keys available");
-    return { success: true, message: "SMS sent successfully (simulated)" };
+    // Send SMS via Twilio
+    const twilioEndpoint = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
+    const twilioAuthHeader = btoa(`${twilioSid}:${twilioToken}`);
+    
+    const formData = new URLSearchParams();
+    formData.append('To', phoneNumber);
+    formData.append('From', twilioPhone);
+    formData.append('Body', message);
+    
+    const response = await fetch(twilioEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${twilioAuthHeader}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData.toString()
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`Twilio API error: ${JSON.stringify(result)}`);
+    }
+    
+    console.log("[SMS] Twilio response:", result);
+    return { success: true, message: "SMS sent successfully via Twilio", sid: result.sid };
   } catch (error) {
-    console.error("Error sending SMS:", error);
+    console.error("[SMS] Error sending SMS:", error);
     return { success: false, error: error.message };
   }
 }
 
 // Verify an email address by sending a verification link
 async function sendVerificationEmail(email: string, userId: string, supabaseClient: any) {
-  console.log(`Sending verification email to ${email} for user ${userId}`);
+  console.log(`[VERIFY] Sending verification email to ${email} for user ${userId}`);
   
   try {
     // Generate a verification token
@@ -101,49 +191,109 @@ async function sendVerificationEmail(email: string, userId: string, supabaseClie
     expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration
     
     try {
-      // Store verification token
-      const { error } = await supabaseClient
-        .from("verification_tokens")
-        .insert({
-          user_id: userId,
-          email: email,
-          token: verificationToken,
-          expires_at: expiresAt.toISOString(),
-          type: "email_verification"
-        });
-      
-      if (error) {
-        console.log("Error storing verification token:", error);
-        // Continue anyway for demo purposes
+      // Create verification_tokens table if it doesn't exist
+      const { error: tableError } = await supabaseClient.rpc('create_verification_tokens_table');
+      if (tableError) {
+        console.log("[VERIFY] Error checking/creating verification_tokens table:", tableError);
+        // Continue anyway - the table might already exist
       }
+      
+      // Check if we already have a token for this email
+      const { data: existingToken, error: existingError } = await supabaseClient
+        .from("verification_tokens")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("email", email)
+        .eq("type", "email_verification")
+        .eq("is_verified", false)
+        .maybeSingle();
+        
+      if (existingError) {
+        console.error("[VERIFY] Error checking existing token:", existingError);
+      }
+      
+      // If we have an existing token and it's not expired, use it
+      // Otherwise, create a new one
+      let token = verificationToken;
+      
+      if (existingToken && new Date(existingToken.expires_at) > new Date()) {
+        console.log("[VERIFY] Using existing token");
+        token = existingToken.token;
+      } else {
+        // Store verification token
+        const { error } = await supabaseClient
+          .from("verification_tokens")
+          .insert({
+            user_id: userId,
+            email: email,
+            token: verificationToken,
+            expires_at: expiresAt.toISOString(),
+            type: "email_verification",
+            is_verified: false
+          });
+        
+        if (error) {
+          console.log("[VERIFY] Error storing verification token:", error);
+          // Try a more direct approach
+          await supabaseClient.rpc('insert_verification_token', {
+            p_user_id: userId,
+            p_email: email,
+            p_token: verificationToken, 
+            p_expires_at: expiresAt.toISOString(),
+            p_type: 'email_verification'
+          });
+        }
+      }
+      
+      // Create verification URL (should point to your frontend)
+      const verificationUrl = `https://b1a74c8c-51c3-46a2-ae25-be24252b3af1.lovableproject.com/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+      
+      const subject = "Verify your email for HAWK Security notifications";
+      const body = `
+        Hello,
+        
+        Please verify this email address to receive HAWK Security notifications.
+        
+        Click the link below to verify:
+        ${verificationUrl}
+        
+        This link will expire in 24 hours.
+        
+        If you didn't request this verification, please ignore this email.
+        
+        HAWK Security Team
+      `;
+      
+      // Send the verification email
+      return await sendEmailNotification(email, subject, body);
     } catch (dbError) {
-      console.error("Database error:", dbError);
+      console.error("[VERIFY] Database error:", dbError);
       // For demo, continue even if database operation fails
+      
+      // Create verification URL
+      const verificationUrl = `https://b1a74c8c-51c3-46a2-ae25-be24252b3af1.lovableproject.com/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+      
+      const subject = "Verify your email for HAWK Security notifications";
+      const body = `
+        Hello,
+        
+        Please verify this email address to receive HAWK Security notifications.
+        
+        Click the link below to verify:
+        ${verificationUrl}
+        
+        This link will expire in 24 hours.
+        
+        If you didn't request this verification, please ignore this email.
+        
+        HAWK Security Team
+      `;
+      
+      // Send the verification email even if we couldn't store the token
+      return await sendEmailNotification(email, subject, body);
     }
-    
-    // Create verification URL (should point to your frontend)
-    const verificationUrl = `https://b1a74c8c-51c3-46a2-ae25-be24252b3af1.lovableproject.com/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
-    
-    const subject = "Verify your email for HAWK Security notifications";
-    const body = `
-      Hello,
-      
-      Please verify this email address to receive HAWK Security notifications.
-      
-      Click the link below to verify:
-      ${verificationUrl}
-      
-      This link will expire in 24 hours.
-      
-      If you didn't request this verification, please ignore this email.
-      
-      HAWK Security Team
-    `;
-    
-    // Send the verification email
-    return await sendEmailNotification(email, subject, body);
   } catch (error) {
-    console.error("Error in sendVerificationEmail:", error);
+    console.error("[VERIFY] Error in sendVerificationEmail:", error);
     return { success: false, error: error.message };
   }
 }
@@ -170,7 +320,7 @@ function createSupabaseClient() {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   
   if (!supabaseServiceKey) {
-    console.error("Missing Supabase service role key");
+    console.error("[INIT] Missing Supabase service role key");
   }
   
   return createClient(supabaseUrl, supabaseServiceKey);
@@ -183,15 +333,24 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log("Received notification request");
+    console.log("[API] Received notification request");
     
     // Initialize Supabase client
     const supabaseClient = createSupabaseClient();
     
+    // Create verification_tokens table if it doesn't exist
+    try {
+      await supabaseClient.rpc('create_verification_tokens_table');
+    } catch (e) {
+      console.log("[API] Error calling create_verification_tokens_table RPC:", e);
+      // Create the function if it doesn't exist
+      await supabaseClient.rpc('create_rpc_functions');
+    }
+    
     const requestData: NotificationRequest = await req.json();
     const { userId, scanResults, scanType, severity, action, email } = requestData;
     
-    console.log(`Processing request: userId=${userId}, action=${action}, email=${email}`);
+    console.log(`[API] Processing request: userId=${userId}, action=${action}, email=${email}`);
     
     if (!userId) {
       throw new Error("Missing required userId parameter");
@@ -199,7 +358,7 @@ serve(async (req: Request) => {
 
     // Handle special actions
     if (action === "verify-email" && email) {
-      console.log(`Handling verify-email action for ${email}`);
+      console.log(`[API] Handling verify-email action for ${email}`);
       const verificationResult = await sendVerificationEmail(email, userId, supabaseClient);
       
       return new Response(
@@ -216,7 +375,7 @@ serve(async (req: Request) => {
       throw new Error("Missing required scan results parameters");
     }
     
-    console.log(`Processing notifications for user ${userId} with ${scanResults.length} results`);
+    console.log(`[API] Processing notifications for user ${userId} with ${scanResults.length} results`);
     
     // Get user profile and notification settings
     const { data: userSettings, error: settingsError } = await supabaseClient
@@ -243,7 +402,7 @@ serve(async (req: Request) => {
     
     // Apply user settings if available
     if (userSettings?.monitoring_settings) {
-      console.log("Found user settings:", JSON.stringify(userSettings.monitoring_settings));
+      console.log("[API] Found user settings:", JSON.stringify(userSettings.monitoring_settings));
       const settings = userSettings.monitoring_settings;
       if (settings.notificationPreferences) {
         notificationSettings.emailEnabled = !!settings.notificationPreferences.emailEnabled;
@@ -261,7 +420,7 @@ serve(async (req: Request) => {
     if (email && action !== "verify-email") {
       notificationSettings.emailAddress = email;
       notificationSettings.emailVerified = true; // Assume test email is verified
-      console.log(`Using test email address: ${email}`);
+      console.log(`[API] Using test email address: ${email}`);
     }
     
     // Get custom notification rules
@@ -279,9 +438,9 @@ serve(async (req: Request) => {
       notificationSettings.emailVerified = true; // Assume login email is verified
     }
     
-    console.log(`Will send email notifications to: ${notificationSettings.emailAddress} (Enabled: ${notificationSettings.emailEnabled}, Verified: ${notificationSettings.emailVerified})`);
+    console.log(`[API] Will send email notifications to: ${notificationSettings.emailAddress} (Enabled: ${notificationSettings.emailEnabled}, Verified: ${notificationSettings.emailVerified})`);
     if (notificationSettings.smsEnabled) {
-      console.log(`Will send SMS notifications to: ${notificationSettings.phoneNumber}`);
+      console.log(`[API] Will send SMS notifications to: ${notificationSettings.phoneNumber}`);
     }
     
     // First filter results based on user alert level preference (if custom rules not defined)
@@ -344,7 +503,7 @@ serve(async (req: Request) => {
     
     // If nothing matched rules, exit early
     if (appNotifications.length === 0 && emailNotifications.length === 0 && smsNotifications.length === 0) {
-      console.log("No vulnerabilities match the user's notification rules or alert preferences");
+      console.log("[API] No vulnerabilities match the user's notification rules or alert preferences");
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -391,12 +550,12 @@ serve(async (req: Request) => {
           .insert(notificationsToInsert);
         
         if (insertError) {
-          console.error("Error inserting notifications:", insertError);
+          console.error("[API] Error inserting notifications:", insertError);
         } else {
           delivered.app = true;
         }
       } catch (insertErr) {
-        console.error("Exception during notification insert:", insertErr);
+        console.error("[API] Exception during notification insert:", insertErr);
       }
     }
     
@@ -433,7 +592,7 @@ serve(async (req: Request) => {
       
       try {
         const emailResult = await sendEmailNotification(notificationSettings.emailAddress, subject, body);
-        console.log("Email result:", emailResult);
+        console.log("[API] Email result:", emailResult);
         emailSent = emailResult.success;
         delivered.email = emailResult.success;
         
@@ -465,14 +624,14 @@ serve(async (req: Request) => {
                 .in("id", notificationIds);
             }
           } catch (updateErr) {
-            console.error("Error updating notification email status:", updateErr);
+            console.error("[API] Error updating notification email status:", updateErr);
           }
         }
       } catch (emailErr) {
-        console.error("Error sending email:", emailErr);
+        console.error("[API] Error sending email:", emailErr);
       }
     } else {
-      console.log(`Email not sent: enabled=${notificationSettings.emailEnabled}, address=${notificationSettings.emailAddress}, verified=${notificationSettings.emailVerified}, test=${isTestEmail}`);
+      console.log(`[API] Email not sent: enabled=${notificationSettings.emailEnabled}, address=${notificationSettings.emailAddress}, verified=${notificationSettings.emailVerified}, test=${isTestEmail}`);
     }
     
     // Send SMS notifications if there are any
@@ -483,7 +642,7 @@ serve(async (req: Request) => {
       
       try {
         const smsResult = await sendSMSNotification(notificationSettings.phoneNumber, message);
-        console.log("SMS result:", smsResult);
+        console.log("[API] SMS result:", smsResult);
         smsSent = smsResult.success;
         delivered.sms = smsResult.success;
         
@@ -515,15 +674,15 @@ serve(async (req: Request) => {
                 .in("id", notificationIds);
             }
           } catch (updateErr) {
-            console.error("Error updating notification SMS status:", updateErr);
+            console.error("[API] Error updating notification SMS status:", updateErr);
           }
         }
       } catch (smsErr) {
-        console.error("Error sending SMS:", smsErr);
+        console.error("[API] Error sending SMS:", smsErr);
       }
     }
     
-    console.log(`Successfully processed notifications:
+    console.log(`[API] Successfully processed notifications:
       - App: ${appNotifications.length} (Delivered: ${delivered.app})
       - Email: ${emailNotifications.length} (Sent: ${emailSent})
       - SMS: ${smsNotifications.length} (Sent: ${smsSent})`);

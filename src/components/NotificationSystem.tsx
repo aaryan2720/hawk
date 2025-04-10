@@ -77,8 +77,35 @@ const NotificationSystem: React.FC = () => {
   useEffect(() => {
     if (user && emailAddress === user.email) {
       setValue('emailVerified', true);
+    } else if (emailAddress && emailAddress !== user?.email) {
+      // If it's a different email, check if it's already verified
+      checkEmailVerificationStatus(emailAddress);
     }
   }, [emailAddress, user, setValue]);
+
+  const checkEmailVerificationStatus = async (email: string) => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('verification_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('email', email)
+        .eq('type', 'email_verification')
+        .eq('is_verified', true)
+        .maybeSingle();
+        
+      if (error) {
+        console.error('Error checking verification status:', error);
+        return;
+      }
+      
+      setValue('emailVerified', !!data);
+    } catch (err) {
+      console.error('Error checking email verification:', err);
+    }
+  };
 
   const fetchSettings = async () => {
     if (!user) return;
@@ -95,6 +122,7 @@ const NotificationSystem: React.FC = () => {
       
       if (error) {
         console.error('Error fetching user settings:', error);
+        toast.error('Failed to load notification settings');
         return;
       }
       
@@ -122,12 +150,57 @@ const NotificationSystem: React.FC = () => {
           console.log("Loaded settings:", prefs);
         }
       } else {
-        console.log("No settings found for user, using defaults");
+        // No settings found, create default settings
+        console.log("No settings found for user, creating defaults");
+        await initializeDefaultSettings();
       }
     } catch (err) {
       console.error('Error loading settings:', err);
+      toast.error('Failed to load notification settings');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const initializeDefaultSettings = async () => {
+    if (!user) return;
+    
+    try {
+      const defaultSettings = {
+        notificationPreferences: {
+          emailEnabled: true,
+          smsEnabled: false,
+          emailAddress: user.email,
+          phoneNumber: '',
+          alertLevel: 'critical',
+          frequency: 'immediate',
+          timeframe: 'any',
+          emailVerified: true
+        }
+      };
+      
+      const { error } = await supabase
+        .from('user_systems')
+        .insert({
+          user_id: user.id,
+          system_name: 'Default System',
+          monitoring_settings: defaultSettings
+        });
+        
+      if (error) throw error;
+      
+      reset({
+        emailEnabled: true,
+        smsEnabled: false,
+        emailAddress: user.email || '',
+        phoneNumber: '',
+        alertLevel: 'critical',
+        frequency: 'immediate',
+        timeframe: 'any',
+        emailVerified: true
+      });
+    } catch (err) {
+      console.error('Error initializing default settings:', err);
     }
   };
 
@@ -161,7 +234,7 @@ const NotificationSystem: React.FC = () => {
         alertLevel: values.alertLevel,
         frequency: values.frequency,
         timeframe: values.timeframe,
-        emailVerified: emailDifferentFromUser ? false : (values.emailVerified || false)
+        emailVerified: emailDifferentFromUser ? values.emailVerified : true
       };
       
       const existingSettings = existingSystem?.monitoring_settings || {};
@@ -193,12 +266,12 @@ const NotificationSystem: React.FC = () => {
           .update({ 
             monitoring_settings: monitoringSettings
           })
-          .eq('user_id', user.id);
+          .eq('id', existingSystem.id);
           
         if (updateError) throw updateError;
       }
       
-      if (emailDifferentFromUser) {
+      if (emailDifferentFromUser && !values.emailVerified) {
         try {
           console.log("Sending verification email to:", values.emailAddress);
           const result = await sendVerificationEmail(values.emailAddress, session.access_token);
@@ -265,6 +338,13 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
+      // Save current settings first to ensure test uses latest configuration
+      await form.handleSubmit(handleSaveSettings)();
+      
+      toast.info('Sending test notification...', {
+        description: 'This may take a few moments'
+      });
+      
       // Create an in-app notification first
       const { error: insertError } = await supabase
         .from('notifications')
@@ -607,3 +687,4 @@ const NotificationSystem: React.FC = () => {
 };
 
 export default NotificationSystem;
+
