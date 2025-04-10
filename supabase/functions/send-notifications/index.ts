@@ -24,6 +24,8 @@ interface UserNotificationSettings {
   phoneNumber: string;
   alertLevel: string;
   emailVerified?: boolean;
+  frequency?: string;
+  timeframe?: string;
 }
 
 interface NotificationRule {
@@ -167,6 +169,10 @@ function createSupabaseClient() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error("Missing Supabase environment variables");
+  }
+  
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
@@ -230,11 +236,14 @@ serve(async (req: Request) => {
       emailAddress: "", 
       phoneNumber: "",
       alertLevel: "critical",
-      emailVerified: false
+      emailVerified: false,
+      frequency: "immediate",
+      timeframe: "any"
     };
     
     // Apply user settings if available
     if (userSettings?.monitoring_settings) {
+      console.log("Found user settings:", JSON.stringify(userSettings.monitoring_settings));
       const settings = userSettings.monitoring_settings;
       if (settings.notificationPreferences) {
         notificationSettings.emailEnabled = !!settings.notificationPreferences.emailEnabled;
@@ -243,7 +252,16 @@ serve(async (req: Request) => {
         notificationSettings.phoneNumber = settings.notificationPreferences.phoneNumber || '';
         notificationSettings.alertLevel = settings.notificationPreferences.alertLevel || 'critical';
         notificationSettings.emailVerified = !!settings.notificationPreferences.emailVerified;
+        notificationSettings.frequency = settings.notificationPreferences.frequency || 'immediate';
+        notificationSettings.timeframe = settings.notificationPreferences.timeframe || 'any';
       }
+    }
+    
+    // Override email address for testing if provided
+    if (email && action !== "verify-email") {
+      notificationSettings.emailAddress = email;
+      notificationSettings.emailVerified = true; // Assume test email is verified
+      console.log(`Using test email address: ${email}`);
     }
     
     // Get custom notification rules
@@ -382,6 +400,9 @@ serve(async (req: Request) => {
       }
     }
     
+    // Check if this is a test notification
+    const isTestNotification = scanType === "test";
+    
     // Send email notifications if there are any and email is verified
     let emailSent = false;
     // Allow sending to the email that is currently being tested (even if not verified)
@@ -389,7 +410,7 @@ serve(async (req: Request) => {
     
     if (emailNotifications.length > 0 && notificationSettings.emailEnabled && 
         notificationSettings.emailAddress && 
-        (notificationSettings.emailVerified || isTestEmail)) {
+        (notificationSettings.emailVerified || isTestEmail || isTestNotification)) {
       
       const subject = `HAWK Security Alert: ${emailNotifications.length} new vulnerability alerts`;
       let body = `Dear User,\n\nHAWK Security has detected ${emailNotifications.length} new vulnerability alerts in your recent ${scanType} scan.\n\n`;
@@ -456,7 +477,8 @@ serve(async (req: Request) => {
     
     // Send SMS notifications if there are any
     let smsSent = false;
-    if (smsNotifications.length > 0 && notificationSettings.smsEnabled && notificationSettings.phoneNumber) {
+    if (smsNotifications.length > 0 && notificationSettings.smsEnabled && 
+        notificationSettings.phoneNumber && (isTestNotification || !isTestNotification)) {
       const message = `HAWK Security Alert: ${smsNotifications.length} new vulnerability alerts detected. Log in to your dashboard for details.`;
       
       try {

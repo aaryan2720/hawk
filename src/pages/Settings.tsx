@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardNav from '@/components/DashboardNav';
 import { useAuth } from '@/hooks/useAuth';
@@ -53,7 +52,7 @@ const Settings = () => {
           </p>
         </div>
         
-        <Tabs defaultValue="notifications" value={activeTab} onValueChange={handleTabChange} className="mb-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-8">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="notifications">
               <span className="flex items-center gap-2">

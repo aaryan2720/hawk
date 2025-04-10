@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -59,7 +60,7 @@ const NotificationSystem: React.FC = () => {
     }
   });
 
-  const { watch, setValue } = form;
+  const { watch, setValue, reset } = form;
   const emailEnabled = watch('emailEnabled');
   const smsEnabled = watch('smsEnabled');
   const emailAddress = watch('emailAddress');
@@ -102,18 +103,19 @@ const NotificationSystem: React.FC = () => {
         if (monSettings.notificationPreferences) {
           const prefs = monSettings.notificationPreferences;
           
-          setValue('emailEnabled', prefs.emailEnabled ?? true);
-          setValue('smsEnabled', prefs.smsEnabled ?? false);
-          setValue('emailAddress', prefs.emailAddress || user.email || '');
-          setValue('phoneNumber', prefs.phoneNumber || '');
-          setValue('alertLevel', prefs.alertLevel || 'critical');
-          setValue('frequency', prefs.frequency || 'immediate');
-          setValue('timeframe', prefs.timeframe || 'any');
-          setValue('emailVerified', prefs.emailVerified === undefined ? true : prefs.emailVerified);
-
-          if (prefs.emailAddress === user.email) {
-            setValue('emailVerified', true);
-          }
+          // Reset form with all settings at once to avoid partial updates
+          reset({
+            emailEnabled: prefs.emailEnabled ?? true,
+            smsEnabled: prefs.smsEnabled ?? false,
+            emailAddress: prefs.emailAddress || user.email || '',
+            phoneNumber: prefs.phoneNumber || '',
+            alertLevel: prefs.alertLevel || 'critical',
+            frequency: prefs.frequency || 'immediate',
+            timeframe: prefs.timeframe || 'any',
+            emailVerified: prefs.emailAddress === user.email ? true : (prefs.emailVerified ?? false)
+          });
+          
+          console.log("Loaded settings:", monSettings.notificationPreferences);
         }
       }
     } catch (err) {
@@ -157,8 +159,10 @@ const NotificationSystem: React.FC = () => {
         ? JSON.parse(existingSettings)
         : existingSettings;
       
+      // Ensure we're not overwriting other properties
       monitoringSettings.notificationPreferences = notificationPreferences;
       
+      // Initialize or create user_system record
       if (!existingSystem) {
         const { error: insertError } = await supabase
           .from('user_systems')
@@ -197,6 +201,9 @@ const NotificationSystem: React.FC = () => {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
       toast.success('Notification settings saved successfully');
+      
+      // Refresh the form with the saved values to ensure state is consistent
+      fetchSettings();
     } catch (error) {
       console.error('Error saving notification settings:', error);
       toast.error('Failed to save notification settings');
@@ -210,11 +217,16 @@ const NotificationSystem: React.FC = () => {
     console.log('Sending verification email to:', email);
     
     try {
+      // Ensure we have a valid session token
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+      
       const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ 
           action: 'verify-email',
@@ -241,6 +253,7 @@ const NotificationSystem: React.FC = () => {
     
     setIsLoading(true);
     try {
+      // Create an in-app notification first
       const { error: insertError } = await supabase
         .from('notifications')
         .insert({
@@ -257,12 +270,17 @@ const NotificationSystem: React.FC = () => {
       
       if (insertError) throw insertError;
       
+      // Ensure we have a valid session token
+      if (!session?.access_token) {
+        throw new Error('No access token available');
+      }
+      
       console.log("Sending test notification via edge function");
       const response = await fetch('https://eogwxywiidsnnlaybbdd.functions.supabase.co/send-notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ 
           userId: user.id,
@@ -274,7 +292,8 @@ const NotificationSystem: React.FC = () => {
             cve: 'TEST-2023-0001'
           }],
           scanType: 'test',
-          severity: 'critical'
+          severity: 'critical',
+          email: emailAddress // Pass the current email address to help with testing
         })
       });
       
