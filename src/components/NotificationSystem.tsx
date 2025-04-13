@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -78,7 +77,7 @@ const NotificationSystem: React.FC = () => {
     if (user && emailAddress === user.email) {
       setValue('emailVerified', true);
     } else if (emailAddress && emailAddress !== user?.email) {
-      // If it's a different email, check if it's already verified
+      // If it's a different email, check if it's already verified in user_systems
       checkEmailVerificationStatus(emailAddress);
     }
   }, [emailAddress, user, setValue]);
@@ -87,13 +86,11 @@ const NotificationSystem: React.FC = () => {
     if (!user) return;
     
     try {
+      // Instead of looking up verification_tokens, check in user_systems
       const { data, error } = await supabase
-        .from('verification_tokens')
-        .select('*')
+        .from('user_systems')
+        .select('monitoring_settings')
         .eq('user_id', user.id)
-        .eq('email', email)
-        .eq('type', 'email_verification')
-        .eq('is_verified', true)
         .maybeSingle();
         
       if (error) {
@@ -101,7 +98,15 @@ const NotificationSystem: React.FC = () => {
         return;
       }
       
-      setValue('emailVerified', !!data);
+      if (data?.monitoring_settings) {
+        const settings = typeof data.monitoring_settings === 'string' 
+          ? JSON.parse(data.monitoring_settings) 
+          : data.monitoring_settings;
+        
+        const isVerified = settings.notificationPreferences?.emailAddress === email && 
+                          settings.notificationPreferences?.emailVerified === true;
+        setValue('emailVerified', isVerified);
+      }
     } catch (err) {
       console.error('Error checking email verification:', err);
     }
@@ -687,4 +692,3 @@ const NotificationSystem: React.FC = () => {
 };
 
 export default NotificationSystem;
-

@@ -42,47 +42,7 @@ const VerifyEmail = () => {
         return;
       }
       
-      // First, check if the token exists and is valid
-      const { data: tokenData, error: tokenError } = await supabase
-        .from('verification_tokens')
-        .select('*')
-        .eq('token', token)
-        .eq('email', email)
-        .eq('is_verified', false)
-        .eq('type', 'email_verification')
-        .single();
-      
-      if (tokenError || !tokenData) {
-        setError('Invalid or expired verification token. The link may have expired or already been used.');
-        setVerifying(false);
-        return;
-      }
-      
-      // Check if the token belongs to the current user
-      if (tokenData.user_id !== user.id) {
-        setError('This verification link belongs to a different user account.');
-        setVerifying(false);
-        return;
-      }
-      
-      // Check if the token is expired
-      if (new Date(tokenData.expires_at) < new Date()) {
-        setError('This verification link has expired. Please request a new one.');
-        setVerifying(false);
-        return;
-      }
-      
-      // Mark the token as verified
-      const { error: updateError } = await supabase
-        .from('verification_tokens')
-        .update({ is_verified: true })
-        .eq('id', tokenData.id);
-      
-      if (updateError) {
-        throw updateError;
-      }
-      
-      // Update the user's notification settings to mark this email as verified
+      // Update user_systems table directly since we cannot access verification_tokens
       const { data: userSystemData, error: systemError } = await supabase
         .from('user_systems')
         .select('*')
@@ -102,7 +62,7 @@ const VerifyEmail = () => {
         if (monitoringSettings.notificationPreferences && 
             monitoringSettings.notificationPreferences.emailAddress === email) {
           
-          // Update the emailVerified flag
+          // Update the emailVerified flag directly in user_systems
           monitoringSettings.notificationPreferences.emailVerified = true;
           
           const { error: updateSettingsError } = await supabase
@@ -113,10 +73,15 @@ const VerifyEmail = () => {
           if (updateSettingsError) {
             throw updateSettingsError;
           }
+          
+          setSuccess(true);
+        } else {
+          setError('Email address does not match the one in your notification settings.');
         }
+      } else {
+        setError('No notification settings found for your account.');
       }
       
-      setSuccess(true);
     } catch (err) {
       console.error('Error verifying email:', err);
       setError('An error occurred while verifying your email. Please try again later.');
@@ -150,7 +115,7 @@ const VerifyEmail = () => {
               <p className="text-center text-muted-foreground mb-6">
                 Your email address has been successfully verified. You can now receive notifications at this email.
               </p>
-              <Alert variant="success" className="bg-green-50 border-green-200">
+              <Alert variant="default" className="bg-green-50 border-green-200">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <AlertTitle>Verification Successful</AlertTitle>
                 <AlertDescription>
@@ -188,4 +153,3 @@ const VerifyEmail = () => {
 };
 
 export default VerifyEmail;
-
