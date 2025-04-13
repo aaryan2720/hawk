@@ -72,7 +72,7 @@ async function sendEmail(to, subject, htmlContent) {
   try {
     const msg = {
       to,
-      from: 'notifications@hawksecurity.example.com', // Replace with your verified sender
+      from: 'security@hawksecurity.example.com', // Using the hawk security email domain
       subject,
       html: htmlContent,
     };
