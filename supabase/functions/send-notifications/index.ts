@@ -38,6 +38,8 @@ serve(async (req) => {
     // Handle different actions
     if (action === 'verify-email') {
       return await handleEmailVerification(supabase, userId, email, authHeader);
+    } else if (action === 'test-notification') {
+      return await handleTestNotification(supabase, userId, body);
     } else {
       // Default behavior: send notification about scan results
       return await handleScanNotification(supabase, body);
@@ -62,7 +64,7 @@ async function handleEmailVerification(supabase, userId, email, authHeader) {
   console.log(`Handling email verification for user ${userId} and email ${email}`);
   
   try {
-    // Create a verification token (store in user_systems since we don't have a verification_tokens table)
+    // Create a verification token
     const token = crypto.randomUUID();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // Token expires in 24 hours
@@ -74,36 +76,86 @@ async function handleEmailVerification(supabase, userId, email, authHeader) {
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (userSystemError && userSystemError.code !== 'PGRST116') {
+    if (userSystemError) {
       throw userSystemError;
     }
     
+    let monitoringSettings = {};
+    let userSystemId = null;
+    
     if (!userSystem) {
       // Create a new user_system entry if one doesn't exist
-      await supabase.from('user_systems').insert({
-        user_id: userId,
-        system_name: 'Default System',
-        monitoring_settings: {
-          pendingVerification: {
-            email,
-            token,
-            expiresAt: expiresAt.toISOString(),
+      const { data: newSystem, error: createError } = await supabase
+        .from('user_systems')
+        .insert({
+          user_id: userId,
+          system_name: 'Default System',
+          monitoring_settings: {
+            pendingVerification: {
+              email,
+              token,
+              expiresAt: expiresAt.toISOString(),
+            },
+            notificationPreferences: {
+              emailEnabled: true,
+              emailAddress: email,
+              emailVerified: false,
+              smsEnabled: false,
+              phoneNumber: '',
+              alertLevel: 'all'
+            }
           }
-        }
-      });
+        })
+        .select()
+        .single();
+        
+      if (createError) {
+        throw createError;
+      }
+      
+      userSystemId = newSystem.id;
+      monitoringSettings = newSystem.monitoring_settings;
     } else {
       // Update the existing user_system entry
-      const monitoringSettings = userSystem.monitoring_settings || {};
+      monitoringSettings = userSystem.monitoring_settings || {};
+      
+      if (typeof monitoringSettings === 'string') {
+        monitoringSettings = JSON.parse(monitoringSettings);
+      }
+      
+      // Initialize notification preferences if they don't exist
+      if (!monitoringSettings.notificationPreferences) {
+        monitoringSettings.notificationPreferences = {
+          emailEnabled: true,
+          emailAddress: email,
+          emailVerified: false,
+          smsEnabled: false,
+          phoneNumber: '',
+          alertLevel: 'all'
+        };
+      } else {
+        // Update email address
+        monitoringSettings.notificationPreferences.emailAddress = email;
+        monitoringSettings.notificationPreferences.emailVerified = false;
+      }
+      
+      // Add pending verification data
       monitoringSettings.pendingVerification = {
         email,
         token,
         expiresAt: expiresAt.toISOString(),
       };
       
-      await supabase
+      const { error: updateError } = await supabase
         .from('user_systems')
         .update({ monitoring_settings: monitoringSettings })
         .eq('id', userSystem.id);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      userSystemId = userSystem.id;
     }
     
     // Create email verification link
@@ -123,15 +175,15 @@ async function handleEmailVerification(supabase, userId, email, authHeader) {
       }
     });
     
-    // Send verification email (simulated here - would use a real email service)
+    // Here we would actually send an email - in a real implementation
     console.log(`Would send verification email to ${email} with link: ${verificationLink}`);
     
-    // For demo purposes, we're returning the verification link
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Verification email sent',
-        debugLink: verificationLink
+        debugLink: verificationLink,
+        userSystemId,
       }),
       { 
         status: 200, 
@@ -140,6 +192,99 @@ async function handleEmailVerification(supabase, userId, email, authHeader) {
     );
   } catch (error) {
     console.error('Error handling email verification:', error);
+    throw error;
+  }
+}
+
+async function handleTestNotification(supabase, userId, body) {
+  try {
+    const { email, phone, notificationPreferences } = body;
+    console.log(`Sending test notification for user ${userId}`);
+    
+    // Get user notification preferences
+    const { data: userSystem, error: userSystemError } = await supabase
+      .from('user_systems')
+      .select('monitoring_settings')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (userSystemError) {
+      throw userSystemError;
+    }
+    
+    let prefs = notificationPreferences;
+    
+    if (!prefs && userSystem?.monitoring_settings) {
+      const settings = typeof userSystem.monitoring_settings === 'string'
+        ? JSON.parse(userSystem.monitoring_settings)
+        : userSystem.monitoring_settings;
+        
+      prefs = settings.notificationPreferences;
+    }
+    
+    if (!prefs) {
+      throw new Error('No notification preferences found');
+    }
+    
+    console.log('Using notification preferences:', prefs);
+    
+    // Create a test notification
+    const { data: notification, error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: 'Test Notification',
+        content: 'This is a test notification to verify your notification settings.',
+        type: 'system',
+        is_read: false,
+        metadata: {
+          test: true,
+          timestamp: new Date().toISOString()
+        }
+      })
+      .select()
+      .single();
+    
+    if (notificationError) {
+      throw notificationError;
+    }
+    
+    // Prepare response data
+    const result = {
+      success: true,
+      notification_id: notification.id,
+      email_sent: false,
+      sms_sent: false
+    };
+    
+    // Send email notification if enabled
+    if (prefs.emailEnabled && prefs.emailAddress) {
+      if (prefs.emailVerified) {
+        // Here we would actually send an email - in a real implementation
+        console.log(`Would send test email to ${prefs.emailAddress}`);
+        result.email_sent = true;
+      } else {
+        console.log(`Email ${prefs.emailAddress} is not verified, not sending test email`);
+        result.email_not_verified = true;
+      }
+    }
+    
+    // Send SMS notification if enabled
+    if (prefs.smsEnabled && prefs.phoneNumber) {
+      // Here we would actually send an SMS - in a real implementation
+      console.log(`Would send test SMS to ${prefs.phoneNumber}`);
+      result.sms_sent = true;
+    }
+    
+    return new Response(
+      JSON.stringify(result),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  } catch (error) {
+    console.error('Error sending test notification:', error);
     throw error;
   }
 }
@@ -161,16 +306,22 @@ async function handleScanNotification(supabase, body) {
       throw userSystemError;
     }
     
-    if (!userSystem || !userSystem.monitoring_settings) {
-      console.log('No notification preferences found, using defaults');
-    }
-    
-    const notificationPrefs = userSystem?.monitoring_settings?.notificationPreferences || {
-      emailEnabled: true,
+    let notificationPrefs = {
+      emailEnabled: false,
       smsEnabled: false,
-      emailAddress: email || '',
-      alertLevel: 'critical'
+      emailAddress: '',
+      phoneNumber: '',
+      alertLevel: 'critical',
+      emailVerified: false
     };
+    
+    if (userSystem?.monitoring_settings) {
+      const settings = typeof userSystem.monitoring_settings === 'string'
+        ? JSON.parse(userSystem.monitoring_settings)
+        : userSystem.monitoring_settings;
+        
+      notificationPrefs = settings.notificationPreferences || notificationPrefs;
+    }
     
     console.log('User notification preferences:', notificationPrefs);
     
@@ -186,7 +337,11 @@ async function handleScanNotification(supabase, body) {
         metadata: {
           scanResults,
           severity,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          delivered: {
+            email: false,
+            sms: false
+          }
         }
       })
       .select()
@@ -196,8 +351,13 @@ async function handleScanNotification(supabase, body) {
       throw notificationError;
     }
     
+    // Create deliveryStatus to track what was sent
+    const deliveryStatus = {
+      email: false,
+      sms: false
+    };
+    
     // Send email notification if enabled and applicable to this severity
-    let emailSent = false;
     if (notificationPrefs.emailEnabled && notificationPrefs.emailAddress) {
       // Check if the severity meets the user's alert level threshold
       const shouldSendEmail = 
@@ -207,12 +367,10 @@ async function handleScanNotification(supabase, body) {
       
       if (shouldSendEmail) {
         // Check if email is verified
-        const isVerified = notificationPrefs.emailAddress === email || notificationPrefs.emailVerified;
-        
-        if (isVerified) {
+        if (notificationPrefs.emailVerified) {
           // In a real app, send an actual email here
           console.log(`Would send email to ${notificationPrefs.emailAddress} about ${severity} vulnerability`);
-          emailSent = true;
+          deliveryStatus.email = true;
         } else {
           console.log(`Email ${notificationPrefs.emailAddress} is not verified, not sending email`);
         }
@@ -220,7 +378,6 @@ async function handleScanNotification(supabase, body) {
     }
     
     // Send SMS notification if enabled
-    let smsSent = false;
     if (notificationPrefs.smsEnabled && notificationPrefs.phoneNumber) {
       // Check if the severity meets the user's alert level threshold
       const shouldSendSMS = 
@@ -231,16 +388,29 @@ async function handleScanNotification(supabase, body) {
       if (shouldSendSMS) {
         // In a real app, send an actual SMS here
         console.log(`Would send SMS to ${notificationPrefs.phoneNumber} about ${severity} vulnerability`);
-        smsSent = true;
+        deliveryStatus.sms = true;
       }
+    }
+    
+    // Update the notification with delivery status
+    if (deliveryStatus.email || deliveryStatus.sms) {
+      await supabase
+        .from('notifications')
+        .update({
+          metadata: {
+            ...notification.metadata,
+            delivered: deliveryStatus
+          }
+        })
+        .eq('id', notification.id);
     }
     
     return new Response(
       JSON.stringify({
         success: true,
         notification_id: notification.id,
-        email_sent: emailSent,
-        sms_sent: smsSent
+        email_sent: deliveryStatus.email,
+        sms_sent: deliveryStatus.sms
       }),
       { 
         status: 200, 

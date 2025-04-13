@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
 
 const VerifyEmail = () => {
   const [verifying, setVerifying] = useState(true);
@@ -42,45 +43,87 @@ const VerifyEmail = () => {
         return;
       }
       
-      // Update user_systems table directly since we cannot access verification_tokens
+      console.log(`Verifying email ${email} with token ${token} for user ${user.id}`);
+      
+      // Update user_systems table directly
       const { data: userSystemData, error: systemError } = await supabase
         .from('user_systems')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
       
-      if (systemError && systemError.code !== 'PGRST116') {
+      if (systemError) {
+        console.error('Error fetching user system data:', systemError);
         throw systemError;
       }
       
-      if (userSystemData) {
-        const settings = userSystemData.monitoring_settings || {};
-        const monitoringSettings = typeof settings === 'string' 
-          ? JSON.parse(settings)
-          : settings;
-        
-        if (monitoringSettings.notificationPreferences && 
-            monitoringSettings.notificationPreferences.emailAddress === email) {
-          
-          // Update the emailVerified flag directly in user_systems
-          monitoringSettings.notificationPreferences.emailVerified = true;
-          
-          const { error: updateSettingsError } = await supabase
-            .from('user_systems')
-            .update({ monitoring_settings: monitoringSettings })
-            .eq('id', userSystemData.id);
-          
-          if (updateSettingsError) {
-            throw updateSettingsError;
-          }
-          
-          setSuccess(true);
-        } else {
-          setError('Email address does not match the one in your notification settings.');
-        }
-      } else {
+      if (!userSystemData) {
         setError('No notification settings found for your account.');
+        setVerifying(false);
+        return;
       }
+      
+      const monitoringSettings = typeof userSystemData.monitoring_settings === 'string' 
+        ? JSON.parse(userSystemData.monitoring_settings)
+        : userSystemData.monitoring_settings || {};
+      
+      // Verify the token against the pending verification data
+      const pendingVerification = monitoringSettings.pendingVerification || {};
+      
+      if (pendingVerification.email !== email || pendingVerification.token !== token) {
+        setError('Invalid verification token or email. Please request a new verification link.');
+        setVerifying(false);
+        return;
+      }
+      
+      // Check if token is expired
+      if (pendingVerification.expiresAt && new Date(pendingVerification.expiresAt) < new Date()) {
+        setError('Verification link has expired. Please request a new one in your notification settings.');
+        setVerifying(false);
+        return;
+      }
+      
+      // Update the email verification status
+      if (!monitoringSettings.notificationPreferences) {
+        monitoringSettings.notificationPreferences = {
+          emailEnabled: true,
+          emailAddress: email,
+          emailVerified: true,
+          smsEnabled: false,
+          phoneNumber: '',
+          alertLevel: 'all'
+        };
+      } else {
+        // Update existing notification preferences
+        monitoringSettings.notificationPreferences.emailAddress = email;
+        monitoringSettings.notificationPreferences.emailVerified = true;
+      }
+      
+      // Remove the pending verification data
+      delete monitoringSettings.pendingVerification;
+      
+      // Update the monitoring settings in the database
+      const { error: updateError } = await supabase
+        .from('user_systems')
+        .update({ monitoring_settings: monitoringSettings })
+        .eq('id', userSystemData.id);
+      
+      if (updateError) {
+        console.error('Error updating user system:', updateError);
+        throw updateError;
+      }
+      
+      // Create a notification about successful verification
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Email Verified Successfully',
+        content: `Your email address (${email}) has been verified and will now receive security notifications.`,
+        type: 'system',
+        is_read: false
+      });
+      
+      setSuccess(true);
+      toast.success('Email verified successfully!');
       
     } catch (err) {
       console.error('Error verifying email:', err);
