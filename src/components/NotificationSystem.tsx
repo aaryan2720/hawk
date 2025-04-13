@@ -55,7 +55,7 @@ const NotificationSystem: React.FC = () => {
       alertLevel: 'critical',
       frequency: 'immediate',
       timeframe: 'any',
-      emailVerified: true // Default to true for login email
+      emailVerified: true // Default to true for all emails
     }
   });
 
@@ -63,8 +63,7 @@ const NotificationSystem: React.FC = () => {
   const emailEnabled = watch('emailEnabled');
   const smsEnabled = watch('smsEnabled');
   const emailAddress = watch('emailAddress');
-  const isEmailVerified = watch('emailVerified');
-
+  
   // Fetch settings on component mount and when user changes
   useEffect(() => {
     if (user) {
@@ -72,44 +71,16 @@ const NotificationSystem: React.FC = () => {
     }
   }, [user]);
 
-  // Auto-verify email if it's the same as user's login email
+  // Auto-verify all emails - skip verification
   useEffect(() => {
-    if (user && emailAddress === user.email) {
+    if (emailAddress) {
       setValue('emailVerified', true);
-    } else if (emailAddress && emailAddress !== user?.email) {
-      // If it's a different email, check if it's already verified in user_systems
-      checkEmailVerificationStatus(emailAddress);
     }
-  }, [emailAddress, user, setValue]);
+  }, [emailAddress, setValue]);
 
   const checkEmailVerificationStatus = async (email: string) => {
-    if (!user) return;
-    
-    try {
-      // Instead of looking up verification_tokens, check in user_systems
-      const { data, error } = await supabase
-        .from('user_systems')
-        .select('monitoring_settings')
-        .eq('user_id', user.id)
-        .maybeSingle();
-        
-      if (error) {
-        console.error('Error checking verification status:', error);
-        return;
-      }
-      
-      if (data?.monitoring_settings) {
-        const settings = typeof data.monitoring_settings === 'string' 
-          ? JSON.parse(data.monitoring_settings) 
-          : data.monitoring_settings;
-        
-        const isVerified = settings.notificationPreferences?.emailAddress === email && 
-                          settings.notificationPreferences?.emailVerified === true;
-        setValue('emailVerified', isVerified);
-      }
-    } catch (err) {
-      console.error('Error checking email verification:', err);
-    }
+    // Always set emails as verified
+    setValue('emailVerified', true);
   };
 
   const fetchSettings = async () => {
@@ -138,24 +109,19 @@ const NotificationSystem: React.FC = () => {
           : data.monitoring_settings;
         
         if (monSettings.notificationPreferences) {
-          const prefs = monSettings.notificationPreferences;
-          
-          // Reset form with all settings at once to avoid partial updates
+          console.log("Loaded settings:", monSettings.notificationPreferences);
           reset({
-            emailEnabled: prefs.emailEnabled ?? true,
-            smsEnabled: prefs.smsEnabled ?? false,
-            emailAddress: prefs.emailAddress || user.email || '',
-            phoneNumber: prefs.phoneNumber || '',
-            alertLevel: prefs.alertLevel || 'critical',
-            frequency: prefs.frequency || 'immediate',
-            timeframe: prefs.timeframe || 'any',
-            emailVerified: prefs.emailAddress === user.email ? true : (prefs.emailVerified ?? false)
+            emailEnabled: monSettings.notificationPreferences.emailEnabled ?? true,
+            smsEnabled: monSettings.notificationPreferences.smsEnabled ?? false,
+            emailAddress: monSettings.notificationPreferences.emailAddress || user.email || '',
+            phoneNumber: monSettings.notificationPreferences.phoneNumber || '',
+            alertLevel: monSettings.notificationPreferences.alertLevel || 'critical',
+            frequency: monSettings.notificationPreferences.frequency || 'immediate',
+            timeframe: monSettings.notificationPreferences.timeframe || 'any',
+            emailVerified: monSettings.notificationPreferences.emailAddress === user.email ? true : (monSettings.notificationPreferences.emailVerified ?? false)
           });
-          
-          console.log("Loaded settings:", prefs);
         }
       } else {
-        // No settings found, create default settings
         console.log("No settings found for user, creating defaults");
         await initializeDefaultSettings();
       }
@@ -218,7 +184,9 @@ const NotificationSystem: React.FC = () => {
     setIsLoading(true);
     try {
       console.log("Saving notification settings:", values);
-      const emailDifferentFromUser = values.emailEnabled && values.emailAddress !== user.email;
+      
+      // Always set email as verified
+      values.emailVerified = true;
       
       const { data: existingSystem, error: fetchError } = await supabase
         .from('user_systems')
@@ -239,7 +207,7 @@ const NotificationSystem: React.FC = () => {
         alertLevel: values.alertLevel,
         frequency: values.frequency,
         timeframe: values.timeframe,
-        emailVerified: emailDifferentFromUser ? values.emailVerified : true
+        emailVerified: true // Always set as verified
       };
       
       const existingSettings = existingSystem?.monitoring_settings || {};
@@ -276,19 +244,8 @@ const NotificationSystem: React.FC = () => {
         if (updateError) throw updateError;
       }
       
-      if (emailDifferentFromUser && !values.emailVerified) {
-        try {
-          console.log("Sending verification email to:", values.emailAddress);
-          const result = await sendVerificationEmail(values.emailAddress, session.access_token);
-          console.log("Verification email result:", result);
-          setEmailVerificationSent(true);
-          setDebug(`Verification sent to ${values.emailAddress}. Result: ${JSON.stringify(result)}`);
-        } catch (verifyError) {
-          console.error('Error sending verification email:', verifyError);
-          toast.error('Could not verify alternate email address. Please try again.');
-          setDebug(`Error sending verification: ${JSON.stringify(verifyError)}`);
-        }
-      }
+      // No need to send verification emails
+      setEmailVerificationSent(false);
       
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -420,21 +377,6 @@ const NotificationSystem: React.FC = () => {
         <CardDescription>Configure how and when you receive vulnerability alerts</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {emailEnabled && emailAddress !== user?.email && !isEmailVerified && (
-          <Alert variant="warning" className="bg-yellow-50 border-yellow-200">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertTitle className="text-yellow-800">Email verification required</AlertTitle>
-            <AlertDescription className="text-yellow-700">
-              You must verify this email address before notifications can be sent to it.
-              {emailVerificationSent ? (
-                " Please check your inbox and spam folder for the verification link."
-              ) : (
-                " Save settings to send a verification email."
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSaveSettings)} className="space-y-6">
             <div className="space-y-4">
@@ -487,12 +429,6 @@ const NotificationSystem: React.FC = () => {
                       </FormItem>
                     )}
                   />
-                  {emailVerificationSent && (
-                    <div className="mt-2 text-xs flex items-center gap-1 text-amber-600">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>Verification email sent. Please check your inbox and spam folder.</span>
-                    </div>
-                  )}
                 </div>
               )}
               

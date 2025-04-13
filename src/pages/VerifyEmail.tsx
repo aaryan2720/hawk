@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,11 +27,10 @@ const VerifyEmail = () => {
     try {
       // Get token and email from URL
       const searchParams = new URLSearchParams(location.search);
-      const token = searchParams.get('token');
       const email = searchParams.get('email');
       
-      if (!token || !email) {
-        setError('Invalid verification link. Missing token or email.');
+      if (!email) {
+        setError('Invalid verification link. Missing email.');
         setVerifying(false);
         return;
       }
@@ -43,9 +41,9 @@ const VerifyEmail = () => {
         return;
       }
       
-      console.log(`Verifying email ${email} with token ${token} for user ${user.id}`);
+      console.log(`Auto-verifying email ${email} for user ${user.id}`);
       
-      // Update user_systems table directly
+      // Update user_systems table directly - auto verify without token check
       const { data: userSystemData, error: systemError } = await supabase
         .from('user_systems')
         .select('*')
@@ -67,28 +65,12 @@ const VerifyEmail = () => {
         ? JSON.parse(userSystemData.monitoring_settings)
         : userSystemData.monitoring_settings || {};
       
-      // Verify the token against the pending verification data
-      const pendingVerification = monitoringSettings.pendingVerification || {};
-      
-      if (pendingVerification.email !== email || pendingVerification.token !== token) {
-        setError('Invalid verification token or email. Please request a new verification link.');
-        setVerifying(false);
-        return;
-      }
-      
-      // Check if token is expired
-      if (pendingVerification.expiresAt && new Date(pendingVerification.expiresAt) < new Date()) {
-        setError('Verification link has expired. Please request a new one in your notification settings.');
-        setVerifying(false);
-        return;
-      }
-      
-      // Update the email verification status
+      // Update the email verification status - auto verify
       if (!monitoringSettings.notificationPreferences) {
         monitoringSettings.notificationPreferences = {
           emailEnabled: true,
           emailAddress: email,
-          emailVerified: true,
+          emailVerified: true, // Auto-verify
           smsEnabled: false,
           phoneNumber: '',
           alertLevel: 'all'
@@ -96,10 +78,10 @@ const VerifyEmail = () => {
       } else {
         // Update existing notification preferences
         monitoringSettings.notificationPreferences.emailAddress = email;
-        monitoringSettings.notificationPreferences.emailVerified = true;
+        monitoringSettings.notificationPreferences.emailVerified = true; // Auto-verify
       }
       
-      // Remove the pending verification data
+      // Remove any pending verification data
       delete monitoringSettings.pendingVerification;
       
       // Update the monitoring settings in the database
