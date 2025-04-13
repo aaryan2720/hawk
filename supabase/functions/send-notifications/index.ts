@@ -12,6 +12,9 @@ const corsHeaders = {
 const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
 if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
+  console.log("SendGrid API key configured successfully");
+} else {
+  console.error("SendGrid API key is not configured");
 }
 
 serve(async (req) => {
@@ -71,23 +74,34 @@ async function sendEmail(to, subject, htmlContent) {
   }
 
   try {
+    console.log(`Attempting to send email to ${to} with subject: ${subject}`);
+    
+    // Use a simple and reliable sender format - no need for specific domain
     const msg = {
       to,
-      from: 'security@hawksecurity.example.com', // Using the hawk security email domain
+      from: 'noreply@example.com', // Use a generic sender that doesn't require verification
       subject,
       html: htmlContent,
     };
 
-    await sgMail.send(msg);
-    console.log(`Email sent successfully to ${to}`);
-    return { success: true };
+    console.log("Email configuration:", JSON.stringify({
+      to: msg.to,
+      from: msg.from,
+      subject: msg.subject,
+      htmlLength: msg.html.length
+    }));
+
+    const response = await sgMail.send(msg);
+    console.log(`Email sent successfully to ${to}, SendGrid response:`, response);
+    return { success: true, response };
   } catch (error) {
     console.error('Error sending email with SendGrid:', error);
+    console.error('SendGrid error details:', JSON.stringify(error));
     throw error;
   }
 }
 
-// New function to auto-verify email
+// Auto-verify email function
 async function handleAutoVerification(supabase, userId, email, authHeader) {
   if (!email) {
     throw new Error('Email is required for verification');
@@ -317,8 +331,10 @@ async function handleTestNotification(supabase, userId, body) {
       `;
       
       try {
-        await sendEmail(prefs.emailAddress, emailSubject, emailHtml);
+        const emailResponse = await sendEmail(prefs.emailAddress, emailSubject, emailHtml);
+        console.log(`Test email response:`, emailResponse);
         result.email_sent = true;
+        result.email_details = emailResponse;
       } catch (emailError) {
         console.error(`Error sending test email to ${prefs.emailAddress}:`, emailError);
         result.email_error = emailError.message;
@@ -473,7 +489,8 @@ async function handleScanNotification(supabase, body) {
         `;
         
         try {
-          await sendEmail(notificationPrefs.emailAddress, emailSubject, emailHtml);
+          const emailResponse = await sendEmail(notificationPrefs.emailAddress, emailSubject, emailHtml);
+          console.log('Security alert email response:', emailResponse);
           deliveryStatus.email = true;
         } catch (emailError) {
           console.error(`Error sending vulnerability notification email:`, emailError);

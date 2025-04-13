@@ -78,11 +78,6 @@ const NotificationSystem: React.FC = () => {
     }
   }, [emailAddress, setValue]);
 
-  const checkEmailVerificationStatus = async (email: string) => {
-    // Always set emails as verified
-    setValue('emailVerified', true);
-  };
-
   const fetchSettings = async () => {
     if (!user) return;
     
@@ -118,7 +113,7 @@ const NotificationSystem: React.FC = () => {
             alertLevel: monSettings.notificationPreferences.alertLevel || 'critical',
             frequency: monSettings.notificationPreferences.frequency || 'immediate',
             timeframe: monSettings.notificationPreferences.timeframe || 'any',
-            emailVerified: monSettings.notificationPreferences.emailAddress === user.email ? true : (monSettings.notificationPreferences.emailVerified ?? false)
+            emailVerified: true // Always set to true
           });
         }
       } else {
@@ -262,36 +257,6 @@ const NotificationSystem: React.FC = () => {
     }
   };
   
-  const sendVerificationEmail = async (email: string, accessToken: string) => {
-    console.log('Sending verification email to:', email);
-    
-    try {
-      const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ 
-          action: 'verify-email',
-          email: email,
-          userId: user?.id
-        })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error status: ${response.status}, ${errorText}`);
-      }
-      
-      const data = await response.json();
-      return data;
-    } catch (e) {
-      console.error('Error sending verification email:', e);
-      throw e;
-    }
-  };
-
   const handleTestNotification = async () => {
     if (!user || !session) {
       toast.error("You must be logged in to test notifications");
@@ -325,6 +290,9 @@ const NotificationSystem: React.FC = () => {
       if (insertError) throw insertError;
       
       console.log("Sending test notification via edge function");
+      const currentEmailAddress = form.getValues().emailAddress;
+      console.log("Using email address for test:", currentEmailAddress);
+      
       const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
         method: 'POST',
         headers: {
@@ -333,6 +301,8 @@ const NotificationSystem: React.FC = () => {
         },
         body: JSON.stringify({ 
           userId: user.id,
+          action: 'test-notification',
+          email: currentEmailAddress, // Pass the current email address to help with testing
           scanResults: [{
             severity: 'critical',
             title: 'Test Vulnerability',
@@ -341,13 +311,13 @@ const NotificationSystem: React.FC = () => {
             cve: 'TEST-2023-0001'
           }],
           scanType: 'test',
-          severity: 'critical',
-          email: emailAddress // Pass the current email address to help with testing
+          severity: 'critical'
         })
       });
       
       if (!response.ok) {
         const errorText = await response.text();
+        console.error("Error response from function:", errorText);
         throw new Error(`Error status: ${response.status}, ${errorText}`);
       }
       
@@ -356,7 +326,9 @@ const NotificationSystem: React.FC = () => {
       setDebug(`Test notification response: ${JSON.stringify(data)}`);
       
       toast.success('Test notification sent successfully', {
-        description: 'Check the notification bell in the top navigation bar and your configured email/SMS if enabled'
+        description: data.email_sent 
+          ? 'Check your email and the notification bell in the top navigation bar' 
+          : 'Check the notification bell in the top navigation bar'
       });
     } catch (error) {
       console.error('Error sending test notification:', error);

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,7 @@ const VerifyEmail = () => {
     setError('');
     
     try {
-      // Get token and email from URL
+      // Get email from URL
       const searchParams = new URLSearchParams(location.search);
       const email = searchParams.get('email');
       
@@ -43,7 +44,54 @@ const VerifyEmail = () => {
       
       console.log(`Auto-verifying email ${email} for user ${user.id}`);
       
-      // Update user_systems table directly - auto verify without token check
+      // Try to call the edge function to auto-verify and send welcome email
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session) {
+          throw new Error('No valid session found');
+        }
+        
+        const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'verify-email',
+            email: email,
+            userId: user.id
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Error status: ${response.status}, ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Email auto-verification result:', result);
+        
+        setSuccess(true);
+        toast.success('Email verified successfully!');
+      } catch (edgeFunctionError) {
+        console.error('Error calling edge function:', edgeFunctionError);
+        
+        // Fallback to direct database update if edge function fails
+        await updateDirectly(email);
+      }
+    } catch (err) {
+      console.error('Error verifying email:', err);
+      setError('An error occurred while verifying your email. Please try again later.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+  
+  // Fallback method to update directly if edge function fails
+  const updateDirectly = async (email: string) => {
+    try {
+      // Update user_systems table directly
       const { data: userSystemData, error: systemError } = await supabase
         .from('user_systems')
         .select('*')
@@ -56,43 +104,62 @@ const VerifyEmail = () => {
       }
       
       if (!userSystemData) {
-        setError('No notification settings found for your account.');
-        setVerifying(false);
-        return;
-      }
-      
-      const monitoringSettings = typeof userSystemData.monitoring_settings === 'string' 
-        ? JSON.parse(userSystemData.monitoring_settings)
-        : userSystemData.monitoring_settings || {};
-      
-      // Update the email verification status - auto verify
-      if (!monitoringSettings.notificationPreferences) {
-        monitoringSettings.notificationPreferences = {
-          emailEnabled: true,
-          emailAddress: email,
-          emailVerified: true, // Auto-verify
-          smsEnabled: false,
-          phoneNumber: '',
-          alertLevel: 'all'
-        };
+        // Create new user system record
+        const { error: createError } = await supabase
+          .from('user_systems')
+          .insert({
+            user_id: user.id,
+            system_name: 'Default System',
+            monitoring_settings: {
+              notificationPreferences: {
+                emailEnabled: true,
+                emailAddress: email,
+                emailVerified: true, // Auto-verify
+                smsEnabled: false,
+                phoneNumber: '',
+                alertLevel: 'all'
+              }
+            }
+          });
+          
+        if (createError) {
+          throw createError;
+        }
       } else {
-        // Update existing notification preferences
-        monitoringSettings.notificationPreferences.emailAddress = email;
-        monitoringSettings.notificationPreferences.emailVerified = true; // Auto-verify
-      }
-      
-      // Remove any pending verification data
-      delete monitoringSettings.pendingVerification;
-      
-      // Update the monitoring settings in the database
-      const { error: updateError } = await supabase
-        .from('user_systems')
-        .update({ monitoring_settings: monitoringSettings })
-        .eq('id', userSystemData.id);
-      
-      if (updateError) {
-        console.error('Error updating user system:', updateError);
-        throw updateError;
+        // Update existing record
+        const monitoringSettings = typeof userSystemData.monitoring_settings === 'string' 
+          ? JSON.parse(userSystemData.monitoring_settings)
+          : userSystemData.monitoring_settings || {};
+        
+        // Update the email verification status - auto verify
+        if (!monitoringSettings.notificationPreferences) {
+          monitoringSettings.notificationPreferences = {
+            emailEnabled: true,
+            emailAddress: email,
+            emailVerified: true, // Auto-verify
+            smsEnabled: false,
+            phoneNumber: '',
+            alertLevel: 'all'
+          };
+        } else {
+          // Update existing notification preferences
+          monitoringSettings.notificationPreferences.emailAddress = email;
+          monitoringSettings.notificationPreferences.emailVerified = true; // Auto-verify
+        }
+        
+        // Remove any pending verification data
+        delete monitoringSettings.pendingVerification;
+        
+        // Update the monitoring settings in the database
+        const { error: updateError } = await supabase
+          .from('user_systems')
+          .update({ monitoring_settings: monitoringSettings })
+          .eq('id', userSystemData.id);
+        
+        if (updateError) {
+          console.error('Error updating user system:', updateError);
+          throw updateError;
+        }
       }
       
       // Create a notification about successful verification
@@ -106,12 +173,9 @@ const VerifyEmail = () => {
       
       setSuccess(true);
       toast.success('Email verified successfully!');
-      
     } catch (err) {
-      console.error('Error verifying email:', err);
-      setError('An error occurred while verifying your email. Please try again later.');
-    } finally {
-      setVerifying(false);
+      console.error('Error in fallback verification method:', err);
+      throw err;
     }
   };
   
