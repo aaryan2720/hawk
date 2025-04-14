@@ -78,7 +78,7 @@ async function sendEmail(to, subject, htmlContent) {
     
     // Use a verified sender from your SendGrid account
     // Replace this with your actual verified sender email
-    const verifiedSender = "noreply@hawksecurity.app";
+    const verifiedSender = "notifications@hawksecurity.app";
     
     const msg = {
       to: to,
