@@ -74,13 +74,16 @@ async function sendEmail(to, subject, htmlContent) {
   }
 
   try {
-    console.log(`Attempting to send email to ${to} with subject: ${subject}`);
+    console.log(`Preparing to send email to ${to} with subject: ${subject}`);
     
-    // Use a simple and reliable sender format - no need for specific domain
+    // Use a verified sender from your SendGrid account
+    // Replace this with your actual verified sender email
+    const verifiedSender = "noreply@hawksecurity.app";
+    
     const msg = {
-      to,
-      from: 'noreply@example.com', // Use a generic sender that doesn't require verification
-      subject,
+      to: to,
+      from: verifiedSender,
+      subject: subject,
       html: htmlContent,
     };
 
@@ -91,12 +94,22 @@ async function sendEmail(to, subject, htmlContent) {
       htmlLength: msg.html.length
     }));
 
+    // Send the email
     const response = await sgMail.send(msg);
-    console.log(`Email sent successfully to ${to}, SendGrid response:`, response);
-    return { success: true, response };
+    console.log(`Email sent successfully to ${to}, SendGrid response status:`, response[0].statusCode);
+    console.log("SendGrid headers:", response[0].headers);
+    
+    return { success: true, response: response[0] };
   } catch (error) {
     console.error('Error sending email with SendGrid:', error);
-    console.error('SendGrid error details:', JSON.stringify(error));
+    
+    if (error.response) {
+      console.error('SendGrid API error details:');
+      console.error('  Status code:', error.response.statusCode);
+      console.error('  Body:', error.response.body);
+      console.error('  Headers:', error.response.headers);
+    }
+    
     throw error;
   }
 }
@@ -216,21 +229,39 @@ async function handleAutoVerification(supabase, userId, email, authHeader) {
       </div>
     `;
     
-    const emailResult = await sendEmail(email, emailSubject, emailHtml);
-    console.log(`Welcome email result:`, emailResult);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Email auto-verified and welcome message sent',
-        userSystemId,
-        emailSent: emailResult.success
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+    try {
+      const emailResult = await sendEmail(email, emailSubject, emailHtml);
+      console.log(`Welcome email result:`, emailResult);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Email auto-verified and welcome message sent',
+          userSystemId,
+          emailSent: emailResult.success
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Don't fail the entire operation if just the email fails
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Email auto-verified but welcome message failed to send',
+          userSystemId,
+          emailSent: false,
+          emailError: emailError.message
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
   } catch (error) {
     console.error('Error auto-verifying email:', error);
     throw error;
@@ -331,6 +362,7 @@ async function handleTestNotification(supabase, userId, body) {
       `;
       
       try {
+        console.log(`Attempting to send test email to ${prefs.emailAddress}`);
         const emailResponse = await sendEmail(prefs.emailAddress, emailSubject, emailHtml);
         console.log(`Test email response:`, emailResponse);
         result.email_sent = true;
@@ -489,6 +521,7 @@ async function handleScanNotification(supabase, body) {
         `;
         
         try {
+          console.log(`Attempting to send vulnerability alert email to ${notificationPrefs.emailAddress}`);
           const emailResponse = await sendEmail(notificationPrefs.emailAddress, emailSubject, emailHtml);
           console.log('Security alert email response:', emailResponse);
           deliveryStatus.email = true;
