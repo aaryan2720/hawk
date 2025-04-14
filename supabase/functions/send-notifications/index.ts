@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import sgMail from "npm:@sendgrid/mail";
 import { EmailService } from "./email-service.ts";
+import { SMSService } from "./sms-service.ts";
 import { NotificationHandlers } from "./notification-handlers.ts";
 
 const corsHeaders = {
@@ -13,6 +14,12 @@ const corsHeaders = {
 // Initialize SendGrid with API key
 const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
 const emailService = new EmailService(SENDGRID_API_KEY);
+
+// Initialize Twilio SMS service
+const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+const smsService = new SMSService(TWILIO_ACCOUNT_SID || "", TWILIO_AUTH_TOKEN || "", TWILIO_PHONE_NUMBER || "");
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -31,8 +38,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Create handlers instance
-    const handlers = new NotificationHandlers(supabase, emailService);
+    // Create handlers instance with both email and SMS services
+    const handlers = new NotificationHandlers(supabase, emailService, smsService);
     
     // Parse request body
     const body = await req.json();

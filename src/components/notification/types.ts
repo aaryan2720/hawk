@@ -27,6 +27,7 @@ export interface TestNotificationResponse {
   email_sent: boolean;
   sms_sent: boolean;
   email_details?: any;
+  sms_details?: any;
   email_error?: string;
-  sms_integration_pending?: boolean;
+  sms_error?: string;
 }

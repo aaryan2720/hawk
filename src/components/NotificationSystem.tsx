@@ -59,7 +59,9 @@ const NotificationSystem: React.FC = () => {
       
       console.log("Sending test notification via edge function");
       const currentEmailAddress = form.getValues().emailAddress;
+      const currentPhoneNumber = form.getValues().phoneNumber;
       console.log("Using email address for test:", currentEmailAddress);
+      console.log("Using phone number for test:", currentPhoneNumber);
       
       const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
         method: 'POST',
@@ -71,6 +73,7 @@ const NotificationSystem: React.FC = () => {
           userId: user.id,
           action: 'test-notification',
           email: currentEmailAddress,
+          phone: currentPhoneNumber,
           scanResults: [{
             severity: 'critical',
             title: 'Test Vulnerability',
@@ -91,17 +94,38 @@ const NotificationSystem: React.FC = () => {
       
       const data = await response.json() as TestNotificationResponse;
       console.log("Test notification response:", data);
-      setDebug(`Test notification response: ${JSON.stringify(data)}`);
+      setDebug(`Test notification response: ${JSON.stringify(data, null, 2)}`);
+      
+      let toastDescription = "";
+      if (data.email_sent && data.sms_sent) {
+        toastDescription = "Check your email, SMS, and the notification bell in the top navigation bar";
+      } else if (data.email_sent) {
+        toastDescription = "Check your email and the notification bell in the top navigation bar";
+      } else if (data.sms_sent) {
+        toastDescription = "Check your SMS and the notification bell in the top navigation bar";
+      } else {
+        toastDescription = "Check the notification bell in the top navigation bar";
+      }
       
       toast.success('Test notification sent successfully', {
-        description: data.email_sent 
-          ? 'Check your email and the notification bell in the top navigation bar' 
-          : 'Check the notification bell in the top navigation bar'
+        description: toastDescription
       });
+      
+      if (data.email_error) {
+        toast.error('Email notification failed', {
+          description: data.email_error
+        });
+      }
+      
+      if (data.sms_error) {
+        toast.error('SMS notification failed', {
+          description: data.sms_error
+        });
+      }
     } catch (error) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');
-      setDebug(`Test error: ${JSON.stringify(error)}`);
+      setDebug(`Test error: ${JSON.stringify(error, null, 2)}`);
     }
   };
 

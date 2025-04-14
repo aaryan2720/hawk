@@ -1,6 +1,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { EmailService } from "./email-service.ts";
+import { SMSService } from "./sms-service.ts";
 
 export interface UserNotificationPreferences {
   emailEnabled: boolean;
@@ -14,7 +15,8 @@ export interface UserNotificationPreferences {
 export class NotificationHandlers {
   constructor(
     private supabase: ReturnType<typeof createClient>,
-    private emailService: EmailService
+    private emailService: EmailService,
+    private smsService: SMSService
   ) {}
   
   async handleAutoVerification(userId: string, email: string): Promise<Response> {
@@ -250,12 +252,19 @@ export class NotificationHandlers {
         }
       }
       
-      // Send SMS notification if enabled (placeholder for SMS integration)
+      // Send SMS notification if enabled
       if (prefs.smsEnabled && prefs.phoneNumber) {
-        // Here we would integrate with an SMS service like Twilio
-        console.log(`Would send test SMS to ${prefs.phoneNumber}`);
-        result.sms_sent = false; // Set to true when SMS service is actually integrated
-        result.sms_integration_pending = true;
+        try {
+          console.log(`Attempting to send test SMS to ${prefs.phoneNumber}`);
+          const smsMessage = this.smsService.generateTestSMS();
+          const smsResponse = await this.smsService.sendSMS(prefs.phoneNumber, smsMessage);
+          console.log(`Test SMS response:`, smsResponse);
+          result.sms_sent = true;
+          result.sms_details = smsResponse;
+        } catch (smsError) {
+          console.error(`Error sending test SMS to ${prefs.phoneNumber}:`, smsError);
+          result.sms_error = smsError.message;
+        }
       }
       
       return new Response(
@@ -368,7 +377,7 @@ export class NotificationHandlers {
         }
       }
       
-      // Send SMS notification if enabled (placeholder for SMS integration)
+      // Send SMS notification if enabled and applicable to this severity
       if (notificationPrefs.smsEnabled && notificationPrefs.phoneNumber) {
         // Check if the severity meets the user's alert level threshold
         const shouldSendSMS = 
@@ -377,9 +386,15 @@ export class NotificationHandlers {
           (notificationPrefs.alertLevel === 'critical' && severity === 'critical');
         
         if (shouldSendSMS) {
-          // Here we would integrate with an SMS service like Twilio
-          console.log(`Would send SMS to ${notificationPrefs.phoneNumber} about ${severity} vulnerability`);
-          // deliveryStatus.sms = true; // Uncomment when SMS is implemented
+          try {
+            console.log(`Attempting to send vulnerability alert SMS to ${notificationPrefs.phoneNumber}`);
+            const smsMessage = this.smsService.generateVulnerabilityAlertSMS(severity);
+            const smsResponse = await this.smsService.sendSMS(notificationPrefs.phoneNumber, smsMessage);
+            console.log('Security alert SMS response:', smsResponse);
+            deliveryStatus.sms = true;
+          } catch (smsError) {
+            console.error(`Error sending vulnerability notification SMS:`, smsError);
+          }
         }
       }
       
