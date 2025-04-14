@@ -1,261 +1,30 @@
-import React, { useState, useEffect } from 'react';
+
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Bell, Mail, MessageSquare, Clock, AlertTriangle, Save, CheckCircle, Info } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-interface NotificationSettings {
-  emailEnabled: boolean;
-  smsEnabled: boolean;
-  emailAddress: string;
-  phoneNumber: string;
-  alertLevel: string;
-  frequency: string;
-  timeframe: string;
-  emailVerified?: boolean;
-}
-
-const notificationSchema = z.object({
-  emailEnabled: z.boolean().default(true),
-  smsEnabled: z.boolean().default(false),
-  emailAddress: z.string().email("Please enter a valid email address").or(z.string().length(0)),
-  phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Please enter a valid phone number").or(z.string().length(0)),
-  alertLevel: z.string().default("critical"),
-  frequency: z.string().default("immediate"),
-  timeframe: z.string().default("any"),
-  emailVerified: z.boolean().optional()
-});
+import { Form } from '@/components/ui/form';
+import NotificationForm from './notification/NotificationForm';
+import AlertPreferences from './notification/AlertPreferences';
+import NotificationActions from './notification/NotificationActions';
+import DebugPanel from './notification/DebugPanel';
+import { useNotificationSettings } from './notification/useNotificationSettings';
+import { TestNotificationResponse } from './notification/types';
 
 const NotificationSystem: React.FC = () => {
   const { user, session } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
-  const [debug, setDebug] = useState<string | null>(null);
-  
-  const form = useForm<NotificationSettings>({
-    resolver: zodResolver(notificationSchema),
-    defaultValues: {
-      emailEnabled: true,
-      smsEnabled: false,
-      emailAddress: user?.email || '',
-      phoneNumber: '',
-      alertLevel: 'critical',
-      frequency: 'immediate',
-      timeframe: 'any',
-      emailVerified: true // Default to true for all emails
-    }
-  });
-
-  const { watch, setValue, reset } = form;
-  const emailEnabled = watch('emailEnabled');
-  const smsEnabled = watch('smsEnabled');
-  const emailAddress = watch('emailAddress');
-  
-  // Fetch settings on component mount and when user changes
-  useEffect(() => {
-    if (user) {
-      fetchSettings();
-    }
-  }, [user]);
-
-  // Auto-verify all emails - skip verification
-  useEffect(() => {
-    if (emailAddress) {
-      setValue('emailVerified', true);
-    }
-  }, [emailAddress, setValue]);
-
-  const fetchSettings = async () => {
-    if (!user) return;
-    
-    try {
-      setIsLoading(true);
-      console.log("Fetching settings for user:", user.id);
-      
-      const { data, error } = await supabase
-        .from('user_systems')
-        .select('monitoring_settings')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching user settings:', error);
-        toast.error('Failed to load notification settings');
-        return;
-      }
-      
-      if (data?.monitoring_settings) {
-        console.log("Found settings in database:", data.monitoring_settings);
-        const monSettings = typeof data.monitoring_settings === 'string' 
-          ? JSON.parse(data.monitoring_settings) 
-          : data.monitoring_settings;
-        
-        if (monSettings.notificationPreferences) {
-          console.log("Loaded settings:", monSettings.notificationPreferences);
-          reset({
-            emailEnabled: monSettings.notificationPreferences.emailEnabled ?? true,
-            smsEnabled: monSettings.notificationPreferences.smsEnabled ?? false,
-            emailAddress: monSettings.notificationPreferences.emailAddress || user.email || '',
-            phoneNumber: monSettings.notificationPreferences.phoneNumber || '',
-            alertLevel: monSettings.notificationPreferences.alertLevel || 'critical',
-            frequency: monSettings.notificationPreferences.frequency || 'immediate',
-            timeframe: monSettings.notificationPreferences.timeframe || 'any',
-            emailVerified: true // Always set to true
-          });
-        }
-      } else {
-        console.log("No settings found for user, creating defaults");
-        await initializeDefaultSettings();
-      }
-    } catch (err) {
-      console.error('Error loading settings:', err);
-      toast.error('Failed to load notification settings');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const initializeDefaultSettings = async () => {
-    if (!user) return;
-    
-    try {
-      const defaultSettings = {
-        notificationPreferences: {
-          emailEnabled: true,
-          smsEnabled: false,
-          emailAddress: user.email,
-          phoneNumber: '',
-          alertLevel: 'critical',
-          frequency: 'immediate',
-          timeframe: 'any',
-          emailVerified: true
-        }
-      };
-      
-      const { error } = await supabase
-        .from('user_systems')
-        .insert({
-          user_id: user.id,
-          system_name: 'Default System',
-          monitoring_settings: defaultSettings
-        });
-        
-      if (error) throw error;
-      
-      reset({
-        emailEnabled: true,
-        smsEnabled: false,
-        emailAddress: user.email || '',
-        phoneNumber: '',
-        alertLevel: 'critical',
-        frequency: 'immediate',
-        timeframe: 'any',
-        emailVerified: true
-      });
-    } catch (err) {
-      console.error('Error initializing default settings:', err);
-    }
-  };
-
-  const handleSaveSettings = async (values: NotificationSettings) => {
-    if (!user || !session) {
-      toast.error("You must be logged in to save settings");
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      console.log("Saving notification settings:", values);
-      
-      // Always set email as verified
-      values.emailVerified = true;
-      
-      const { data: existingSystem, error: fetchError } = await supabase
-        .from('user_systems')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching current settings:', fetchError);
-        throw fetchError;
-      }
-      
-      const notificationPreferences = {
-        emailEnabled: values.emailEnabled,
-        smsEnabled: values.smsEnabled,
-        emailAddress: values.emailAddress,
-        phoneNumber: values.phoneNumber,
-        alertLevel: values.alertLevel,
-        frequency: values.frequency,
-        timeframe: values.timeframe,
-        emailVerified: true // Always set as verified
-      };
-      
-      const existingSettings = existingSystem?.monitoring_settings || {};
-      const monitoringSettings = typeof existingSettings === 'string' 
-        ? JSON.parse(existingSettings)
-        : existingSettings;
-      
-      // Ensure we're not overwriting other properties
-      monitoringSettings.notificationPreferences = notificationPreferences;
-      
-      console.log("Saving monitoring settings:", monitoringSettings);
-      
-      // Initialize or create user_system record
-      if (!existingSystem) {
-        console.log("Creating new user_system record");
-        const { error: insertError } = await supabase
-          .from('user_systems')
-          .insert({
-            user_id: user.id,
-            system_name: 'Default System',
-            monitoring_settings: monitoringSettings
-          });
-          
-        if (insertError) throw insertError;
-      } else {
-        console.log("Updating existing user_system record");
-        const { error: updateError } = await supabase
-          .from('user_systems')
-          .update({ 
-            monitoring_settings: monitoringSettings
-          })
-          .eq('id', existingSystem.id);
-          
-        if (updateError) throw updateError;
-      }
-      
-      // No need to send verification emails
-      setEmailVerificationSent(false);
-      
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      toast.success('Notification settings saved successfully');
-      
-      // Refresh the form with the saved values to ensure state is consistent
-      fetchSettings();
-    } catch (error) {
-      console.error('Error saving notification settings:', error);
-      toast.error('Failed to save notification settings');
-      setDebug(`Save error: ${JSON.stringify(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+    form,
+    isLoading,
+    saveSuccess,
+    debug,
+    setDebug,
+    emailEnabled,
+    smsEnabled,
+    handleSaveSettings
+  } = useNotificationSettings();
   
   const handleTestNotification = async () => {
     if (!user || !session) {
@@ -263,7 +32,6 @@ const NotificationSystem: React.FC = () => {
       return;
     }
     
-    setIsLoading(true);
     try {
       // Save current settings first to ensure test uses latest configuration
       await form.handleSubmit(handleSaveSettings)();
@@ -302,7 +70,7 @@ const NotificationSystem: React.FC = () => {
         body: JSON.stringify({ 
           userId: user.id,
           action: 'test-notification',
-          email: currentEmailAddress, // Pass the current email address to help with testing
+          email: currentEmailAddress,
           scanResults: [{
             severity: 'critical',
             title: 'Test Vulnerability',
@@ -321,7 +89,7 @@ const NotificationSystem: React.FC = () => {
         throw new Error(`Error status: ${response.status}, ${errorText}`);
       }
       
-      const data = await response.json();
+      const data = await response.json() as TestNotificationResponse;
       console.log("Test notification response:", data);
       setDebug(`Test notification response: ${JSON.stringify(data)}`);
       
@@ -334,8 +102,6 @@ const NotificationSystem: React.FC = () => {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');
       setDebug(`Test error: ${JSON.stringify(error)}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -351,249 +117,23 @@ const NotificationSystem: React.FC = () => {
       <CardContent className="space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSaveSettings)} className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="email-notifications">Email Notifications</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground ml-6">
-                    Receive alerts via email
-                  </p>
-                </div>
-                <FormField
-                  control={form.control}
-                  name="emailEnabled"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {emailEnabled && (
-                <div className="ml-6 pl-2 border-l-2 border-muted">
-                  <FormField
-                    control={form.control}
-                    name="emailAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm">Email Address</FormLabel>
-                        <FormDescription className="text-xs">
-                          You can use a different email than your login email
-                        </FormDescription>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="email"
-                            placeholder="your@email.com"
-                            className="mt-1"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between pt-2">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="sms-notifications">SMS Notifications</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground ml-6">
-                    Receive alerts via text message
-                  </p>
-                </div>
-                <FormField
-                  control={form.control}
-                  name="smsEnabled"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {smsEnabled && (
-                <div className="ml-6 pl-2 border-l-2 border-muted">
-                  <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm">Phone Number</FormLabel>
-                        <FormDescription className="text-xs">
-                          Enter your number in international format (+123456789)
-                        </FormDescription>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="tel"
-                            placeholder="+1 (555) 123-4567"
-                            className="mt-1"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-            </div>
+            <NotificationForm 
+              form={form} 
+              emailEnabled={emailEnabled}
+              smsEnabled={smsEnabled}
+            />
             
-            <div className="space-y-4 pt-2">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Alert Preferences
-              </h3>
-              
-              <FormField
-                control={form.control}
-                name="alertLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm">Alert Level</FormLabel>
-                    <FormControl>
-                      <RadioGroup 
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        className="flex flex-col space-y-1 mt-1"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="critical" id="alert-critical" />
-                          <Label htmlFor="alert-critical" className="text-sm font-normal">Critical vulnerabilities only</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="high" id="alert-high" />
-                          <Label htmlFor="alert-high" className="text-sm font-normal">High and critical vulnerabilities</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="all" id="alert-all" />
-                          <Label htmlFor="alert-all" className="text-sm font-normal">All vulnerabilities</Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="frequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm">Notification Frequency</FormLabel>
-                      <Select 
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger id="alert-frequency" className="mt-1">
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="immediate">Immediate</SelectItem>
-                          <SelectItem value="hourly">Hourly digest</SelectItem>
-                          <SelectItem value="daily">Daily digest</SelectItem>
-                          <SelectItem value="weekly">Weekly digest</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="timeframe"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm">Notification Timeframe</FormLabel>
-                      <Select 
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger id="alert-timeframe" className="mt-1">
-                            <SelectValue placeholder="Select timeframe" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="any">Any time</SelectItem>
-                          <SelectItem value="business">Business hours only (9AM-5PM)</SelectItem>
-                          <SelectItem value="custom">Custom schedule</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+            <AlertPreferences form={form} />
             
-            <div className="flex justify-between pt-4">
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={handleTestNotification}
-                disabled={isLoading}
-              >
-                Send Test Notification
-              </Button>
-              
-              <Button 
-                type="submit"
-                disabled={isLoading}
-                className={saveSuccess ? 'bg-green-600 hover:bg-green-700' : ''}
-              >
-                {saveSuccess ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Saved!
-                  </>
-                ) : isLoading ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Settings
-                  </>
-                )}
-              </Button>
-            </div>
+            <NotificationActions 
+              handleTestNotification={handleTestNotification}
+              isLoading={isLoading}
+              saveSuccess={saveSuccess}
+            />
           </form>
         </Form>
         
-        {debug && (
-          <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Info className="h-4 w-4" />
-              <span>Debug Info:</span>
-            </div>
-            <pre className="text-xs mt-2 overflow-auto max-h-40 p-2 bg-gray-100 rounded">
-              {debug}
-            </pre>
-          </div>
-        )}
+        <DebugPanel debug={debug} />
       </CardContent>
     </Card>
   );
