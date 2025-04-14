@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import sgMail from "npm:@sendgrid/mail";
@@ -76,9 +75,8 @@ async function sendEmail(to, subject, htmlContent) {
   try {
     console.log(`Preparing to send email to ${to} with subject: ${subject}`);
     
-    // Use a verified sender from your SendGrid account
-    // Replace this with your actual verified sender email
-    const verifiedSender = "notifications@hawksecurity.app";
+    // Use the verified individual sender email
+    const verifiedSender = "aaryanchoudhari326@gmail.com";
     
     const msg = {
       to: to,
