@@ -20,6 +20,8 @@ import Login from '@/pages/auth/Login';
 import SignUp from '@/pages/auth/SignUp';
 import NotFound from '@/pages/NotFound';
 import VerifyEmail from '@/pages/VerifyEmail';
+import ChatBot from '@/pages/ChatBot'
+import ScanHistory from '@/pages/ScanHistory'
 
 // Create a client
 const queryClient = new QueryClient();
@@ -42,6 +44,10 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/chatbot" element={<ChatBot />} />
+                <Route path="/scan-history" element={<ScanHistory />} />
+
+
                 
                 {/* Auth Routes */}
                 <Route path="/auth/login" element={<Login />} />
