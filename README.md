@@ -2,6 +2,10 @@
 
 ## Project info
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> 0d31d95a1287bf5c508c7928c1049dcce0f7eee5
 ## How can I edit this code?
 
 There are several ways of editing your application.
