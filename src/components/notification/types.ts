@@ -10,17 +10,6 @@ export interface NotificationSettings {
   emailVerified?: boolean;
 }
 
-export interface NotificationPreferences {
-  emailEnabled: boolean;
-  smsEnabled: boolean;
-  emailAddress: string;
-  phoneNumber: string;
-  alertLevel: string;
-  frequency: string;
-  timeframe: string;
-  emailVerified: boolean;
-}
-
 export interface TestNotificationResponse {
   success: boolean;
   notification_id?: string;

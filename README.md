@@ -1,17 +1,17 @@
-# Welcome to your Lovable project
 
-## Project info
+# HAWK Security Platform
 
-<<<<<<< HEAD
+## Project Info
 
-=======
->>>>>>> 0d31d95a1287bf5c508c7928c1049dcce0f7eee5
+HAWK Security is a comprehensive security monitoring and vulnerability management platform designed to help organizations identify, track, and remediate security vulnerabilities across their systems.
+
 ## How can I edit this code?
 
-There are several ways of editing your application.
+There are several ways of editing this application:
+
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, you can clone this repo and push changes.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -47,10 +47,11 @@ npm run dev
 
 ## What technologies are used for this project?
 
-This project is built with .
+This project is built with:
 
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase
