@@ -63,7 +63,8 @@ const NotificationSystem: React.FC = () => {
       console.log("Using email address for test:", currentEmailAddress);
       console.log("Using phone number for test:", currentPhoneNumber);
       
-      const response = await fetch('https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications', {
+      // Use the complete URL for the edge function
+      const response = await fetch(`https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +126,7 @@ const NotificationSystem: React.FC = () => {
     } catch (error) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');
-      setDebug(`Test error: ${JSON.stringify(error, null, 2)}`);
+      setDebug(`Test error: ${error instanceof Error ? error.message : JSON.stringify(error, null, 2)}`);
     }
   };
 

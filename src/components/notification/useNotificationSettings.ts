@@ -72,10 +72,8 @@ export const useNotificationSettings = () => {
         .eq('user_id', user.id)
         .maybeSingle();
       
-      if (error) {
-        console.error('Error fetching user settings:', error);
-        toast.error('Failed to load notification settings');
-        return;
+      if (error && error.code !== 'PGRST116') {
+        throw error;
       }
       
       if (data?.monitoring_settings) {
@@ -186,13 +184,19 @@ export const useNotificationSettings = () => {
         emailVerified: true // Always set as verified
       };
       
-      const existingSettings = existingSystem?.monitoring_settings || {};
-      const monitoringSettings = typeof existingSettings === 'string' 
-        ? JSON.parse(existingSettings)
-        : existingSettings;
+      let monitoringSettings = {};
+      if (existingSystem?.monitoring_settings) {
+        // Get the existing monitoring_settings and parse it if necessary
+        monitoringSettings = typeof existingSystem.monitoring_settings === 'string' 
+          ? JSON.parse(existingSystem.monitoring_settings)
+          : {...existingSystem.monitoring_settings};
+      }
       
-      // Ensure we're not overwriting other properties
-      monitoringSettings.notificationPreferences = notificationPreferences;
+      // Update only the notificationPreferences part while preserving other settings
+      monitoringSettings = {
+        ...monitoringSettings,
+        notificationPreferences
+      };
       
       console.log("Saving monitoring settings:", monitoringSettings);
       
@@ -226,9 +230,6 @@ export const useNotificationSettings = () => {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
       toast.success('Notification settings saved successfully');
-      
-      // Refresh the form with the saved values to ensure state is consistent
-      fetchSettings();
     } catch (error) {
       console.error('Error saving notification settings:', error);
       toast.error('Failed to save notification settings');

@@ -13,8 +13,9 @@ export class TestNotificationHandler {
   
   async handleTestNotification(userId: string, body: any): Promise<Response> {
     try {
-      const { email, phone, notificationPreferences } = body;
+      const { email, phone } = body;
       console.log(`Sending test notification for user ${userId}`);
+      console.log(`Email: ${email}, Phone: ${phone}`);
       
       // Get user notification preferences
       const { data: userSystem, error: userSystemError } = await this.supabase
@@ -26,30 +27,6 @@ export class TestNotificationHandler {
       if (userSystemError) {
         throw userSystemError;
       }
-      
-      let prefs = notificationPreferences;
-      
-      if (!prefs && userSystem?.monitoring_settings) {
-        const settings = typeof userSystem.monitoring_settings === 'string'
-          ? JSON.parse(userSystem.monitoring_settings)
-          : userSystem.monitoring_settings;
-          
-        prefs = settings.notificationPreferences;
-      }
-      
-      if (!prefs) {
-        // Create default preferences if none exist
-        prefs = {
-          emailEnabled: true,
-          emailAddress: email || '',
-          emailVerified: true, // Auto-verified
-          smsEnabled: false,
-          phoneNumber: phone || '',
-          alertLevel: 'all'
-        };
-      }
-      
-      console.log('Using notification preferences:', prefs);
       
       // Create a test notification
       const { data: notification, error: notificationError } = await this.supabase
@@ -80,36 +57,69 @@ export class TestNotificationHandler {
         sms_sent: false
       };
       
+      // Extract user preferences from monitoring_settings
+      let prefs = null;
+      
+      if (userSystem?.monitoring_settings) {
+        const settings = typeof userSystem.monitoring_settings === 'string'
+          ? JSON.parse(userSystem.monitoring_settings)
+          : userSystem.monitoring_settings;
+          
+        prefs = settings.notificationPreferences;
+        console.log('Using notification preferences from database:', prefs);
+      } else {
+        // Create default preferences from body if none exist
+        prefs = {
+          emailEnabled: email ? true : false,
+          emailAddress: email || '',
+          emailVerified: true, // Auto-verified
+          smsEnabled: phone ? true : false,
+          phoneNumber: phone || '',
+          alertLevel: 'all'
+        };
+        console.log('Using default notification preferences:', prefs);
+      }
+      
       // Send email notification if enabled
-      if (prefs.emailEnabled && prefs.emailAddress) {
+      if ((prefs.emailEnabled || email) && (prefs.emailAddress || email)) {
+        // Use the provided email or fallback to the stored one
+        const emailToUse = email || prefs.emailAddress;
+        
         // Always send email, regardless of verification status
         const { subject, html } = this.emailService.generateTestEmail();
         
         try {
-          console.log(`Attempting to send test email to ${prefs.emailAddress}`);
-          const emailResponse = await this.emailService.sendEmail(prefs.emailAddress, subject, html);
+          console.log(`Attempting to send test email to ${emailToUse}`);
+          const emailResponse = await this.emailService.sendEmail(emailToUse, subject, html);
           console.log(`Test email response:`, emailResponse);
           result.email_sent = true;
           result.email_details = emailResponse;
         } catch (emailError) {
-          console.error(`Error sending test email to ${prefs.emailAddress}:`, emailError);
+          console.error(`Error sending test email to ${emailToUse}:`, emailError);
           result.email_error = emailError.message;
         }
+      } else {
+        console.log('Email notification not enabled or no email address provided');
       }
       
       // Send SMS notification if enabled
-      if (prefs.smsEnabled && prefs.phoneNumber) {
+      if ((prefs.smsEnabled || phone) && (prefs.phoneNumber || phone)) {
+        // Use the provided phone number or fallback to the stored one
+        const phoneToUse = phone || prefs.phoneNumber;
+        
         try {
-          console.log(`Attempting to send test SMS to ${prefs.phoneNumber}`);
+          console.log(`Attempting to send test SMS to ${phoneToUse}`);
           const smsMessage = this.smsService.generateTestSMS();
-          const smsResponse = await this.smsService.sendSMS(prefs.phoneNumber, smsMessage);
+          const smsResponse = await this.smsService.sendSMS(phoneToUse, smsMessage);
           console.log(`Test SMS response:`, smsResponse);
           result.sms_sent = true;
           result.sms_details = smsResponse;
         } catch (smsError) {
-          console.error(`Error sending test SMS to ${prefs.phoneNumber}:`, smsError);
+          console.error(`Error sending test SMS to ${phoneToUse}:`, smsError);
           result.sms_error = smsError.message;
         }
+      } else {
+        console.log('SMS notification not enabled or no phone number provided');
       }
       
       return new Response(
