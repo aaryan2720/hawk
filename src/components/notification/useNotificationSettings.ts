@@ -184,12 +184,17 @@ export const useNotificationSettings = () => {
         emailVerified: true // Always set as verified
       };
       
-      let monitoringSettings = {};
+      // Fix: Make sure monitoringSettings is always an object
+      let monitoringSettings: Record<string, any> = {};
+      
       if (existingSystem?.monitoring_settings) {
         // Get the existing monitoring_settings and parse it if necessary
-        monitoringSettings = typeof existingSystem.monitoring_settings === 'string' 
-          ? JSON.parse(existingSystem.monitoring_settings)
-          : {...existingSystem.monitoring_settings};
+        if (typeof existingSystem.monitoring_settings === 'string') {
+          monitoringSettings = JSON.parse(existingSystem.monitoring_settings);
+        } else if (existingSystem.monitoring_settings !== null && typeof existingSystem.monitoring_settings === 'object') {
+          // Safe spread of object
+          monitoringSettings = { ...existingSystem.monitoring_settings };
+        }
       }
       
       // Update only the notificationPreferences part while preserving other settings
