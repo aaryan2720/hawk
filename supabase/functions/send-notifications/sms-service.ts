@@ -1,88 +1,75 @@
 
-// SMS Service for sending text messages via Twilio
+import { Client } from "npm:twilio@4.25.0";
+
 export class SMSService {
-  private twilioAccountSid: string;
-  private twilioAuthToken: string;
-  private twilioPhoneNumber: string;
-
-  constructor(accountSid: string, authToken: string, phoneNumber: string) {
-    this.twilioAccountSid = accountSid;
-    this.twilioAuthToken = authToken;
-    this.twilioPhoneNumber = phoneNumber;
+  private twilio: any | null = null;
+  private initialized: boolean = false;
+  private fromNumber: string = "";
+  
+  constructor(
+    private accountSid?: string,
+    private authToken?: string,
+    private twilioNumber?: string
+  ) {
+    if (accountSid && authToken && twilioNumber) {
+      this.initialize(accountSid, authToken, twilioNumber);
+    }
   }
-
-  async sendSMS(to: string, message: string): Promise<any> {
-    if (!to || !message) {
-      throw new Error('Phone number and message are required');
+  
+  public initialize(accountSid: string, authToken: string, twilioNumber: string): void {
+    try {
+      this.twilio = new Client(accountSid, authToken);
+      this.fromNumber = twilioNumber;
+      this.initialized = true;
+      console.log("Twilio client initialized successfully with number:", twilioNumber);
+    } catch (error) {
+      console.error("Failed to initialize Twilio client:", error);
+      this.initialized = false;
+    }
+  }
+  
+  public async sendSMS(to: string, message: string): Promise<any> {
+    if (!this.initialized) {
+      console.log(`Would send SMS to ${to} with message: ${message}`);
+      return { success: true, message: 'SMS would be sent (Twilio not configured)' };
     }
 
-    console.log(`Preparing to send SMS to ${to}`);
-    
-    // Format the phone number if needed
-    const formattedNumber = this.formatPhoneNumber(to);
-    
-    // Create the request body for Twilio API
-    const body = new URLSearchParams();
-    body.append('To', formattedNumber);
-    body.append('From', this.twilioPhoneNumber);
-    body.append('Body', message);
-
-    // Prepare authentication for Twilio API
-    const auth = btoa(`${this.twilioAccountSid}:${this.twilioAuthToken}`);
-    
     try {
-      // Make the request to Twilio API
-      const response = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${this.twilioAccountSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: body.toString(),
-        }
-      );
-
-      const data = await response.json();
+      console.log(`Preparing to send SMS to ${to}`);
       
-      if (!response.ok) {
-        console.error('Error sending SMS:', data);
-        throw new Error(`Twilio API error: ${data.message || 'Unknown error'}`);
+      if (!to || !to.match(/^\+?[1-9]\d{1,14}$/)) {
+        throw new Error("Invalid phone number format. Must be in E.164 format (e.g., +1234567890)");
       }
       
-      console.log('SMS sent successfully:', data.sid);
-      return {
-        success: true,
-        sid: data.sid,
-        status: data.status,
-      };
+      // Clean the phone number to ensure E.164 format
+      const formattedNumber = to.startsWith('+') ? to : `+${to}`;
+      
+      const response = await this.twilio.messages.create({
+        body: message,
+        from: this.fromNumber,
+        to: formattedNumber
+      });
+      
+      console.log(`SMS sent successfully to ${to}, Twilio SID:`, response.sid);
+      
+      return { success: true, sid: response.sid, status: response.status };
     } catch (error) {
-      console.error('Failed to send SMS:', error);
+      console.error('Error sending SMS with Twilio:', error);
+      
+      if (error.code) {
+        console.error('Twilio error code:', error.code);
+        console.error('Twilio error message:', error.message);
+      }
+      
       throw error;
     }
   }
-
-  // Helper method to format phone numbers
-  private formatPhoneNumber(phoneNumber: string): string {
-    // Remove any non-numeric characters except the + sign
-    let formatted = phoneNumber.replace(/[^\d+]/g, '');
-    
-    // Ensure the number starts with a + if it doesn't already
-    if (!formatted.startsWith('+')) {
-      formatted = '+' + formatted;
-    }
-    
-    return formatted;
+  
+  public generateTestSMS(): string {
+    return `HAWK Security: This is a test notification to verify your SMS notification settings. ${new Date().toLocaleString()}`;
   }
-
-  // Generate test SMS content
-  generateTestSMS(): string {
-    return "HAWK Security: This is a test message from your security monitoring system.";
-  }
-
-  // Generate vulnerability alert SMS content
-  generateVulnerabilityAlertSMS(severity: string): string {
-    return `HAWK Security Alert: A new ${severity} vulnerability has been detected in your system. Please check your dashboard for details.`;
+  
+  public generateVulnerabilityAlertSMS(severity: string): string {
+    return `HAWK Security ALERT: ${severity.toUpperCase()} vulnerability detected in your system. Please check your dashboard for details.`;
   }
 }
