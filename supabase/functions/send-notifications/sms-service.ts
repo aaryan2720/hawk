@@ -1,35 +1,35 @@
 
-import { Client } from "npm:twilio@4.19.0";
+// Fixing the Twilio import to use a version that's available in Deno
+import { Twilio } from "npm:twilio@4.19.0";
 
 export class SMSService {
-  private twilio: any | null = null;
+  private client: any = null;
   private initialized: boolean = false;
   private fromNumber: string = "";
   
   constructor(
     private accountSid?: string,
     private authToken?: string,
-    private twilioNumber?: string
+    private phoneNumber?: string
   ) {
-    if (accountSid && authToken && twilioNumber) {
-      this.initialize(accountSid, authToken, twilioNumber);
+    if (accountSid && authToken && phoneNumber) {
+      this.initialize(accountSid, authToken, phoneNumber);
     }
   }
   
-  public initialize(accountSid: string, authToken: string, twilioNumber: string): void {
+  public initialize(accountSid: string, authToken: string, phoneNumber: string): void {
     try {
-      this.twilio = new Client(accountSid, authToken);
-      this.fromNumber = twilioNumber;
+      this.client = new Twilio(accountSid, authToken);
+      this.fromNumber = phoneNumber;
       this.initialized = true;
-      console.log("Twilio client initialized successfully with number:", twilioNumber);
+      console.log("Twilio client initialized successfully");
     } catch (error) {
       console.error("Failed to initialize Twilio client:", error);
-      this.initialized = false;
     }
   }
   
   public async sendSMS(to: string, message: string): Promise<any> {
-    if (!this.initialized) {
+    if (!this.initialized || !this.client) {
       console.log(`Would send SMS to ${to} with message: ${message}`);
       return { success: true, message: 'SMS would be sent (Twilio not configured)' };
     }
@@ -37,39 +37,39 @@ export class SMSService {
     try {
       console.log(`Preparing to send SMS to ${to}`);
       
-      if (!to || !to.match(/^\+?[1-9]\d{1,14}$/)) {
-        throw new Error("Invalid phone number format. Must be in E.164 format (e.g., +1234567890)");
-      }
+      // Ensure phone number is in E.164 format
+      const formattedTo = this.formatPhoneNumber(to);
       
-      // Clean the phone number to ensure E.164 format
-      const formattedNumber = to.startsWith('+') ? to : `+${to}`;
-      
-      const response = await this.twilio.messages.create({
+      const response = await this.client.messages.create({
         body: message,
-        from: this.fromNumber,
-        to: formattedNumber
+        to: formattedTo,
+        from: this.fromNumber
       });
       
       console.log(`SMS sent successfully to ${to}, Twilio SID:`, response.sid);
       
-      return { success: true, sid: response.sid, status: response.status };
+      return { success: true, sid: response.sid };
     } catch (error) {
       console.error('Error sending SMS with Twilio:', error);
-      
-      if (error.code) {
-        console.error('Twilio error code:', error.code);
-        console.error('Twilio error message:', error.message);
-      }
-      
       throw error;
     }
   }
   
-  public generateTestSMS(): string {
-    return `HAWK Security: This is a test notification to verify your SMS notification settings. ${new Date().toLocaleString()}`;
+  private formatPhoneNumber(phoneNumber: string): string {
+    // Basic formatting to ensure E.164 format
+    // Remove any non-digit characters except the leading +
+    let formatted = phoneNumber.trim();
+    
+    if (!formatted.startsWith('+')) {
+      formatted = '+' + formatted.replace(/\D/g, '');
+    } else {
+      formatted = '+' + formatted.substring(1).replace(/\D/g, '');
+    }
+    
+    return formatted;
   }
   
-  public generateVulnerabilityAlertSMS(severity: string): string {
-    return `HAWK Security ALERT: ${severity.toUpperCase()} vulnerability detected in your system. Please check your dashboard for details.`;
+  public generateTestSMS(): string {
+    return "HAWK Security Test: This is a test notification to verify your notification settings.";
   }
 }

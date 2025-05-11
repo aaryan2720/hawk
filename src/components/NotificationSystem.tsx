@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell } from 'lucide-react';
@@ -63,14 +62,9 @@ const NotificationSystem: React.FC = () => {
       console.log("Using email address for test:", currentEmailAddress);
       console.log("Using phone number for test:", currentPhoneNumber);
       
-      // Use the complete URL for the edge function
-      const response = await fetch(`https://eogwxywiidsnnlaybbdd.supabase.co/functions/v1/send-notifications`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ 
+      // Fix: Use the Supabase functions invoke method instead of direct fetch
+      const { data, error } = await supabase.functions.invoke('send-notifications', {
+        body: { 
           userId: user.id,
           action: 'test-notification',
           email: currentEmailAddress,
@@ -84,16 +78,11 @@ const NotificationSystem: React.FC = () => {
           }],
           scanType: 'test',
           severity: 'critical'
-        })
+        }
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error response from function:", errorText);
-        throw new Error(`Error status: ${response.status}, ${errorText}`);
-      }
+      if (error) throw error;
       
-      const data = await response.json() as TestNotificationResponse;
       console.log("Test notification response:", data);
       setDebug(`Test notification response: ${JSON.stringify(data, null, 2)}`);
       
