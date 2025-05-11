@@ -1,5 +1,5 @@
 
-import { Client } from "npm:twilio@4.25.0";
+import { Client } from "npm:twilio@4.19.0";
 
 export class SMSService {
   private twilio: any | null = null;
