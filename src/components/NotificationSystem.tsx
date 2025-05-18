@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell } from 'lucide-react';
@@ -62,59 +63,66 @@ const NotificationSystem: React.FC = () => {
       console.log("Using email address for test:", currentEmailAddress);
       console.log("Using phone number for test:", currentPhoneNumber);
       
-      // Fix: Use the Supabase functions invoke method instead of direct fetch
-      const { data, error } = await supabase.functions.invoke('send-notifications', {
-        body: { 
-          userId: user.id,
-          action: 'test-notification',
-          email: currentEmailAddress,
-          phone: currentPhoneNumber,
-          scanResults: [{
-            severity: 'critical',
-            title: 'Test Vulnerability',
-            description: 'This is a test notification to verify your notification settings.',
-            system: 'Test System',
-            cve: 'TEST-2023-0001'
-          }],
-          scanType: 'test',
-          severity: 'critical'
+      try {
+        // Use the proper way to invoke Edge Functions with the Supabase client
+        const { data, error } = await supabase.functions.invoke('send-notifications', {
+          body: { 
+            userId: user.id,
+            action: 'test-notification',
+            email: currentEmailAddress,
+            phone: currentPhoneNumber,
+            scanResults: [{
+              severity: 'critical',
+              title: 'Test Vulnerability',
+              description: 'This is a test notification to verify your notification settings.',
+              system: 'Test System',
+              cve: 'TEST-2023-0001'
+            }],
+            scanType: 'test',
+            severity: 'critical'
+          }
+        });
+        
+        if (error) throw error;
+        
+        console.log("Test notification response:", data);
+        setDebug(`Test notification response: ${JSON.stringify(data, null, 2)}`);
+        
+        let toastDescription = "";
+        if (data.email_sent && data.sms_sent) {
+          toastDescription = "Check your email, SMS, and the notification bell in the top navigation bar";
+        } else if (data.email_sent) {
+          toastDescription = "Check your email and the notification bell in the top navigation bar";
+        } else if (data.sms_sent) {
+          toastDescription = "Check your SMS and the notification bell in the top navigation bar";
+        } else {
+          toastDescription = "Check the notification bell in the top navigation bar";
         }
-      });
-      
-      if (error) throw error;
-      
-      console.log("Test notification response:", data);
-      setDebug(`Test notification response: ${JSON.stringify(data, null, 2)}`);
-      
-      let toastDescription = "";
-      if (data.email_sent && data.sms_sent) {
-        toastDescription = "Check your email, SMS, and the notification bell in the top navigation bar";
-      } else if (data.email_sent) {
-        toastDescription = "Check your email and the notification bell in the top navigation bar";
-      } else if (data.sms_sent) {
-        toastDescription = "Check your SMS and the notification bell in the top navigation bar";
-      } else {
-        toastDescription = "Check the notification bell in the top navigation bar";
-      }
-      
-      toast.success('Test notification sent successfully', {
-        description: toastDescription
-      });
-      
-      if (data.email_error) {
-        toast.error('Email notification failed', {
-          description: data.email_error
+        
+        toast.success('Test notification sent successfully', {
+          description: toastDescription
         });
-      }
-      
-      if (data.sms_error) {
-        toast.error('SMS notification failed', {
-          description: data.sms_error
-        });
+        
+        if (data.email_error) {
+          toast.error('Email notification failed', {
+            description: data.email_error
+          });
+        }
+        
+        if (data.sms_error) {
+          toast.error('SMS notification failed', {
+            description: data.sms_error
+          });
+        }
+      } catch (functionError) {
+        console.error("Edge function invocation error:", functionError);
+        throw new Error(`Failed to send test notification: ${functionError.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error sending test notification:', error);
-      toast.error('Failed to send test notification');
+      toast.error('Failed to send test notification', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
       setDebug(`Test error: ${error instanceof Error ? error.message : JSON.stringify(error, null, 2)}`);
     }
   };

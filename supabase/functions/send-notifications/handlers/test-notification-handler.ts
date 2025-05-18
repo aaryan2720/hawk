@@ -25,6 +25,7 @@ export class TestNotificationHandler {
         .maybeSingle();
       
       if (userSystemError) {
+        console.error("Error fetching user system:", userSystemError);
         throw userSystemError;
       }
       
@@ -46,6 +47,7 @@ export class TestNotificationHandler {
         .single();
       
       if (notificationError) {
+        console.error("Error creating notification:", notificationError);
         throw notificationError;
       }
       
@@ -61,9 +63,18 @@ export class TestNotificationHandler {
       let prefs = null;
       
       if (userSystem?.monitoring_settings) {
-        const settings = typeof userSystem.monitoring_settings === 'string'
-          ? JSON.parse(userSystem.monitoring_settings)
-          : userSystem.monitoring_settings;
+        let settings: any;
+        
+        if (typeof userSystem.monitoring_settings === 'string') {
+          try {
+            settings = JSON.parse(userSystem.monitoring_settings);
+          } catch (e) {
+            console.error("Error parsing monitoring_settings:", e);
+            settings = {};
+          }
+        } else {
+          settings = userSystem.monitoring_settings;
+        }
           
         prefs = settings.notificationPreferences;
         console.log('Using notification preferences from database:', prefs);
@@ -81,7 +92,7 @@ export class TestNotificationHandler {
       }
       
       // Send email notification if enabled
-      if ((prefs.emailEnabled || email) && (prefs.emailAddress || email)) {
+      if ((prefs?.emailEnabled || email) && (prefs?.emailAddress || email)) {
         // Use the provided email or fallback to the stored one
         const emailToUse = email || prefs.emailAddress;
         
@@ -94,16 +105,16 @@ export class TestNotificationHandler {
           console.log(`Test email response:`, emailResponse);
           result.email_sent = true;
           result.email_details = emailResponse;
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error(`Error sending test email to ${emailToUse}:`, emailError);
-          result.email_error = emailError.message;
+          result.email_error = emailError.message || 'Unknown email error';
         }
       } else {
         console.log('Email notification not enabled or no email address provided');
       }
       
       // Send SMS notification if enabled
-      if ((prefs.smsEnabled || phone) && (prefs.phoneNumber || phone)) {
+      if ((prefs?.smsEnabled || phone) && (prefs?.phoneNumber || phone)) {
         // Use the provided phone number or fallback to the stored one
         const phoneToUse = phone || prefs.phoneNumber;
         
@@ -114,9 +125,9 @@ export class TestNotificationHandler {
           console.log(`Test SMS response:`, smsResponse);
           result.sms_sent = true;
           result.sms_details = smsResponse;
-        } catch (smsError) {
+        } catch (smsError: any) {
           console.error(`Error sending test SMS to ${phoneToUse}:`, smsError);
-          result.sms_error = smsError.message;
+          result.sms_error = smsError.message || 'Unknown SMS error';
         }
       } else {
         console.log('SMS notification not enabled or no phone number provided');
@@ -133,9 +144,22 @@ export class TestNotificationHandler {
           } 
         }
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending test notification:', error);
-      throw error;
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: error.message || 'Unknown error in test notification handler'
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
+          } 
+        }
+      );
     }
   }
 }
