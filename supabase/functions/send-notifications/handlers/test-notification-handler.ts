@@ -5,6 +5,12 @@ import { SMSService } from "../sms-service.ts";
 import { NotificationResponse } from "../types.ts";
 
 export class TestNotificationHandler {
+  private corsHeaders = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
   constructor(
     private supabase: ReturnType<typeof createClient>,
     private emailService: EmailService,
@@ -12,12 +18,6 @@ export class TestNotificationHandler {
   ) {}
   
   async handleTestNotification(userId: string, body: any): Promise<Response> {
-    const corsHeaders = {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    };
-    
     try {
       const { email, phone } = body;
       console.log(`Sending test notification for user ${userId}`);
@@ -37,7 +37,7 @@ export class TestNotificationHandler {
             success: false, 
             error: `Error fetching user preferences: ${userSystemError.message}` 
           }),
-          { status: 500, headers: corsHeaders }
+          { status: 500, headers: this.corsHeaders }
         );
       }
       
@@ -48,7 +48,7 @@ export class TestNotificationHandler {
           user_id: userId,
           title: 'Test Notification',
           content: 'This is a test notification to verify your notification settings.',
-          type: 'system',
+          type: 'test',
           is_read: false,
           metadata: {
             test: true,
@@ -65,7 +65,7 @@ export class TestNotificationHandler {
             success: false, 
             error: `Error creating notification: ${notificationError.message}` 
           }),
-          { status: 500, headers: corsHeaders }
+          { status: 500, headers: this.corsHeaders }
         );
       }
       
@@ -114,7 +114,7 @@ export class TestNotificationHandler {
         // Use the provided email or fallback to the stored one
         const emailToUse = email || prefs.emailAddress || '';
         
-        if (emailToUse) {
+        if (emailToUse && emailToUse.includes('@')) {
           try {
             console.log(`Attempting to send test email to ${emailToUse}`);
             const { subject, html } = this.emailService.generateTestEmail();
@@ -140,7 +140,7 @@ export class TestNotificationHandler {
         // Use the provided phone number or fallback to the stored one
         const phoneToUse = phone || prefs.phoneNumber || '';
         
-        if (phoneToUse) {
+        if (phoneToUse && phoneToUse.length >= 10) {
           try {
             console.log(`Attempting to send test SMS to ${phoneToUse}`);
             const smsMessage = this.smsService.generateTestSMS();
@@ -160,7 +160,7 @@ export class TestNotificationHandler {
         console.log('SMS notification not enabled or no phone number provided');
       }
       
-      return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify(result), { status: 200, headers: this.corsHeaders });
     } catch (error: any) {
       console.error('Error sending test notification:', error);
       return new Response(
@@ -168,7 +168,7 @@ export class TestNotificationHandler {
           success: false, 
           error: error.message || 'Unknown error in test notification handler'
         }),
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: this.corsHeaders }
       );
     }
   }

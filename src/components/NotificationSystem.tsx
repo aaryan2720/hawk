@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell } from 'lucide-react';
@@ -11,7 +10,6 @@ import AlertPreferences from './notification/AlertPreferences';
 import NotificationActions from './notification/NotificationActions';
 import DebugPanel from './notification/DebugPanel';
 import { useNotificationSettings } from './notification/useNotificationSettings';
-import { TestNotificationResponse } from './notification/types';
 
 const NotificationSystem: React.FC = () => {
   const { user, session } = useAuth();
@@ -81,7 +79,9 @@ const NotificationSystem: React.FC = () => {
           severity: 'critical'
         };
         
-        // Use the proper way to invoke Edge Functions with the Supabase client
+        // Log detailed information for debugging
+        console.log("Sending request to edge function with body:", JSON.stringify(requestBody));
+        
         const { data, error } = await supabase.functions.invoke('send-notifications', {
           body: requestBody
         });

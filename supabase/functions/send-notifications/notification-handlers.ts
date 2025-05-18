@@ -5,9 +5,7 @@ import { SMSService } from "./sms-service.ts";
 import { AutoVerificationHandler } from "./handlers/auto-verification-handler.ts";
 import { TestNotificationHandler } from "./handlers/test-notification-handler.ts";
 import { ScanNotificationHandler } from "./handlers/scan-notification-handler.ts";
-import { UserNotificationPreferences } from "./types.ts";
-
-export { UserNotificationPreferences } from "./types.ts";
+import { NotificationResponse } from "./types.ts";
 
 export class NotificationHandlers {
   private autoVerificationHandler: AutoVerificationHandler;

@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import sgMail from "npm:@sendgrid/mail";
 import { EmailService } from "./email-service.ts";
 import { SMSService } from "./sms-service.ts";
 import { NotificationHandlers } from "./notification-handlers.ts";
@@ -26,6 +25,11 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Initialize SendGrid with API key
@@ -36,7 +40,14 @@ serve(async (req) => {
     const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
     const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
-    const smsService = new SMSService(TWILIO_ACCOUNT_SID || "", TWILIO_AUTH_TOKEN || "", TWILIO_PHONE_NUMBER || "");
+    
+    console.log("Twilio configuration:", {
+      hasAccountSid: Boolean(TWILIO_ACCOUNT_SID),
+      hasAuthToken: Boolean(TWILIO_AUTH_TOKEN),
+      hasPhoneNumber: Boolean(TWILIO_PHONE_NUMBER)
+    });
+    
+    const smsService = new SMSService(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER);
     
     // Create handlers instance with both email and SMS services
     const handlers = new NotificationHandlers(supabase, emailService, smsService);
