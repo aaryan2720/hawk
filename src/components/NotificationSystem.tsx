@@ -83,7 +83,14 @@ const NotificationSystem: React.FC = () => {
           }
         });
         
-        if (error) throw error;
+        if (error) {
+          console.error("Edge function error:", error);
+          throw new Error(`Edge function error: ${error.message || JSON.stringify(error)}`);
+        }
+        
+        if (!data) {
+          throw new Error("No data returned from edge function");
+        }
         
         console.log("Test notification response:", data);
         setDebug(`Test notification response: ${JSON.stringify(data, null, 2)}`);
@@ -114,11 +121,11 @@ const NotificationSystem: React.FC = () => {
             description: data.sms_error
           });
         }
-      } catch (functionError) {
+      } catch (functionError: any) {
         console.error("Edge function invocation error:", functionError);
         throw new Error(`Failed to send test notification: ${functionError.message || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification', {
         description: error instanceof Error ? error.message : 'Unknown error occurred'

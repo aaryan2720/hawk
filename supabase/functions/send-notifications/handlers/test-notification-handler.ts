@@ -26,7 +26,20 @@ export class TestNotificationHandler {
       
       if (userSystemError) {
         console.error("Error fetching user system:", userSystemError);
-        throw userSystemError;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Error fetching user preferences: ${userSystemError.message}` 
+          }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
+            } 
+          }
+        );
       }
       
       // Create a test notification
@@ -48,7 +61,20 @@ export class TestNotificationHandler {
       
       if (notificationError) {
         console.error("Error creating notification:", notificationError);
-        throw notificationError;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Error creating notification: ${notificationError.message}` 
+          }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
+            } 
+          }
+        );
       }
       
       // Prepare response data
