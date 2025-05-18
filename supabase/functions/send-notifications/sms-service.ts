@@ -1,6 +1,6 @@
 
 // Import Twilio with the correct import syntax for Deno
-import { Twilio } from "npm:twilio@4.19.0";
+import { Twilio } from "npm:twilio@4.19.0/lib/rest/Twilio.js";
 
 export class SMSService {
   private client: any = null;

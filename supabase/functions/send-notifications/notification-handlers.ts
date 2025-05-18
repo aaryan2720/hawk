@@ -23,14 +23,47 @@ export class NotificationHandlers {
   }
   
   async handleAutoVerification(userId: string, email: string): Promise<Response> {
-    return this.autoVerificationHandler.handleAutoVerification(userId, email);
+    try {
+      return await this.autoVerificationHandler.handleAutoVerification(userId, email);
+    } catch (error) {
+      console.error("Error in handleAutoVerification:", error);
+      return new Response(
+        JSON.stringify({ error: error.message || "Unknown error in auto verification" }),
+        { 
+          status: 500, 
+          headers: { "Content-Type": "application/json" } 
+        }
+      );
+    }
   }
   
   async handleTestNotification(userId: string, body: any): Promise<Response> {
-    return this.testNotificationHandler.handleTestNotification(userId, body);
+    try {
+      return await this.testNotificationHandler.handleTestNotification(userId, body);
+    } catch (error) {
+      console.error("Error in handleTestNotification:", error);
+      return new Response(
+        JSON.stringify({ error: error.message || "Unknown error in test notification" }),
+        { 
+          status: 500, 
+          headers: { "Content-Type": "application/json" } 
+        }
+      );
+    }
   }
   
   async handleScanNotification(body: any): Promise<Response> {
-    return this.scanNotificationHandler.handleScanNotification(body);
+    try {
+      return await this.scanNotificationHandler.handleScanNotification(body);
+    } catch (error) {
+      console.error("Error in handleScanNotification:", error);
+      return new Response(
+        JSON.stringify({ error: error.message || "Unknown error in scan notification" }),
+        { 
+          status: 500, 
+          headers: { "Content-Type": "application/json" } 
+        }
+      );
+    }
   }
 }

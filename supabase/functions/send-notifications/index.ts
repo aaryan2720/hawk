@@ -8,6 +8,8 @@ import { NotificationHandlers } from "./notification-handlers.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Content-Type": "application/json"
 };
 
 serve(async (req) => {
@@ -53,14 +55,25 @@ serve(async (req) => {
     const handlers = new NotificationHandlers(supabase, emailService, smsService);
     
     // Parse request body
-    const body = await req.json();
-    console.log('Request body:', JSON.stringify(body));
+    let body;
+    try {
+      body = await req.json();
+      console.log('Request body:', JSON.stringify(body));
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
     
     // Extract user information from the request body
     const { userId, action, email } = body;
     
     if (!userId) {
-      throw new Error('Missing userId in request');
+      return new Response(
+        JSON.stringify({ error: 'Missing userId in request' }),
+        { status: 400, headers: corsHeaders }
+      );
     }
     
     // Handle different actions
@@ -76,10 +89,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'Unknown error' }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: corsHeaders
       }
     );
   }
