@@ -1,6 +1,6 @@
 
-// Import Twilio with the correct path for Deno
-import { Twilio } from "npm:twilio@4.19.0";
+// Import Twilio with the correct import syntax for Deno
+import twilio from "npm:twilio@4.19.0";
 
 export class SMSService {
   private client: any = null;
@@ -19,7 +19,7 @@ export class SMSService {
   
   public initialize(accountSid: string, authToken: string, phoneNumber: string): void {
     try {
-      this.client = new Twilio(accountSid, authToken);
+      this.client = twilio(accountSid, authToken);
       this.fromNumber = phoneNumber;
       this.initialized = true;
       console.log("Twilio client initialized successfully");

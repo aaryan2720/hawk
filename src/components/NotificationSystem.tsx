@@ -58,29 +58,32 @@ const NotificationSystem: React.FC = () => {
       if (insertError) throw insertError;
       
       console.log("Sending test notification via edge function");
-      const currentEmailAddress = form.getValues().emailAddress;
-      const currentPhoneNumber = form.getValues().phoneNumber;
+      const currentEmailAddress = form.getValues().emailEnabled ? form.getValues().emailAddress : '';
+      const currentPhoneNumber = form.getValues().smsEnabled ? form.getValues().phoneNumber : '';
       console.log("Using email address for test:", currentEmailAddress);
       console.log("Using phone number for test:", currentPhoneNumber);
       
       try {
+        // Create the request body with all necessary information
+        const requestBody = { 
+          userId: user.id,
+          action: 'test-notification',
+          email: currentEmailAddress,
+          phone: currentPhoneNumber,
+          scanResults: [{
+            severity: 'critical',
+            title: 'Test Vulnerability',
+            description: 'This is a test notification to verify your notification settings.',
+            system: 'Test System',
+            cve: 'TEST-2023-0001'
+          }],
+          scanType: 'test',
+          severity: 'critical'
+        };
+        
         // Use the proper way to invoke Edge Functions with the Supabase client
         const { data, error } = await supabase.functions.invoke('send-notifications', {
-          body: { 
-            userId: user.id,
-            action: 'test-notification',
-            email: currentEmailAddress,
-            phone: currentPhoneNumber,
-            scanResults: [{
-              severity: 'critical',
-              title: 'Test Vulnerability',
-              description: 'This is a test notification to verify your notification settings.',
-              system: 'Test System',
-              cve: 'TEST-2023-0001'
-            }],
-            scanType: 'test',
-            severity: 'critical'
-          }
+          body: requestBody
         });
         
         if (error) {

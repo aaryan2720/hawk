@@ -12,10 +12,16 @@ export class TestNotificationHandler {
   ) {}
   
   async handleTestNotification(userId: string, body: any): Promise<Response> {
+    const corsHeaders = {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    };
+    
     try {
       const { email, phone } = body;
       console.log(`Sending test notification for user ${userId}`);
-      console.log(`Email: ${email}, Phone: ${phone}`);
+      console.log(`Email: ${email || 'Not provided'}, Phone: ${phone || 'Not provided'}`);
       
       // Get user notification preferences
       const { data: userSystem, error: userSystemError } = await this.supabase
@@ -31,14 +37,7 @@ export class TestNotificationHandler {
             success: false, 
             error: `Error fetching user preferences: ${userSystemError.message}` 
           }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-            } 
-          }
+          { status: 500, headers: corsHeaders }
         );
       }
       
@@ -66,14 +65,7 @@ export class TestNotificationHandler {
             success: false, 
             error: `Error creating notification: ${notificationError.message}` 
           }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-            } 
-          }
+          { status: 500, headers: corsHeaders }
         );
       }
       
@@ -107,10 +99,10 @@ export class TestNotificationHandler {
       } else {
         // Create default preferences from body if none exist
         prefs = {
-          emailEnabled: email ? true : false,
+          emailEnabled: Boolean(email),
           emailAddress: email || '',
           emailVerified: true, // Auto-verified
-          smsEnabled: phone ? true : false,
+          smsEnabled: Boolean(phone),
           phoneNumber: phone || '',
           alertLevel: 'all'
         };
@@ -120,20 +112,24 @@ export class TestNotificationHandler {
       // Send email notification if enabled
       if ((prefs?.emailEnabled || email) && (prefs?.emailAddress || email)) {
         // Use the provided email or fallback to the stored one
-        const emailToUse = email || prefs.emailAddress;
+        const emailToUse = email || prefs.emailAddress || '';
         
-        // Always send email, regardless of verification status
-        const { subject, html } = this.emailService.generateTestEmail();
-        
-        try {
-          console.log(`Attempting to send test email to ${emailToUse}`);
-          const emailResponse = await this.emailService.sendEmail(emailToUse, subject, html);
-          console.log(`Test email response:`, emailResponse);
-          result.email_sent = true;
-          result.email_details = emailResponse;
-        } catch (emailError: any) {
-          console.error(`Error sending test email to ${emailToUse}:`, emailError);
-          result.email_error = emailError.message || 'Unknown email error';
+        if (emailToUse) {
+          try {
+            console.log(`Attempting to send test email to ${emailToUse}`);
+            const { subject, html } = this.emailService.generateTestEmail();
+            
+            const emailResponse = await this.emailService.sendEmail(emailToUse, subject, html);
+            console.log(`Test email response:`, emailResponse);
+            result.email_sent = true;
+            result.email_details = emailResponse;
+          } catch (emailError: any) {
+            console.error(`Error sending test email to ${emailToUse}:`, emailError);
+            result.email_error = emailError.message || 'Unknown email error';
+          }
+        } else {
+          console.log('No valid email address available');
+          result.email_error = 'No valid email address provided';
         }
       } else {
         console.log('Email notification not enabled or no email address provided');
@@ -142,34 +138,29 @@ export class TestNotificationHandler {
       // Send SMS notification if enabled
       if ((prefs?.smsEnabled || phone) && (prefs?.phoneNumber || phone)) {
         // Use the provided phone number or fallback to the stored one
-        const phoneToUse = phone || prefs.phoneNumber;
+        const phoneToUse = phone || prefs.phoneNumber || '';
         
-        try {
-          console.log(`Attempting to send test SMS to ${phoneToUse}`);
-          const smsMessage = this.smsService.generateTestSMS();
-          const smsResponse = await this.smsService.sendSMS(phoneToUse, smsMessage);
-          console.log(`Test SMS response:`, smsResponse);
-          result.sms_sent = true;
-          result.sms_details = smsResponse;
-        } catch (smsError: any) {
-          console.error(`Error sending test SMS to ${phoneToUse}:`, smsError);
-          result.sms_error = smsError.message || 'Unknown SMS error';
+        if (phoneToUse) {
+          try {
+            console.log(`Attempting to send test SMS to ${phoneToUse}`);
+            const smsMessage = this.smsService.generateTestSMS();
+            const smsResponse = await this.smsService.sendSMS(phoneToUse, smsMessage);
+            console.log(`Test SMS response:`, smsResponse);
+            result.sms_sent = true;
+            result.sms_details = smsResponse;
+          } catch (smsError: any) {
+            console.error(`Error sending test SMS to ${phoneToUse}:`, smsError);
+            result.sms_error = smsError.message || 'Unknown SMS error';
+          }
+        } else {
+          console.log('No valid phone number available');
+          result.sms_error = 'No valid phone number provided';
         }
       } else {
         console.log('SMS notification not enabled or no phone number provided');
       }
       
-      return new Response(
-        JSON.stringify(result),
-        { 
-          status: 200, 
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-          } 
-        }
-      );
+      return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders });
     } catch (error: any) {
       console.error('Error sending test notification:', error);
       return new Response(
@@ -177,14 +168,7 @@ export class TestNotificationHandler {
           success: false, 
           error: error.message || 'Unknown error in test notification handler'
         }),
-        { 
-          status: 500, 
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-          } 
-        }
+        { status: 500, headers: corsHeaders }
       );
     }
   }

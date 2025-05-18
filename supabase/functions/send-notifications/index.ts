@@ -11,16 +11,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Initialize SendGrid with API key
-const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-const emailService = new EmailService(SENDGRID_API_KEY);
-
-// Initialize Twilio SMS service
-const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
-const smsService = new SMSService(TWILIO_ACCOUNT_SID || "", TWILIO_AUTH_TOKEN || "", TWILIO_PHONE_NUMBER || "");
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -37,6 +27,16 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Initialize SendGrid with API key
+    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+    const emailService = new EmailService(SENDGRID_API_KEY);
+
+    // Initialize Twilio SMS service
+    const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+    const smsService = new SMSService(TWILIO_ACCOUNT_SID || "", TWILIO_AUTH_TOKEN || "", TWILIO_PHONE_NUMBER || "");
     
     // Create handlers instance with both email and SMS services
     const handlers = new NotificationHandlers(supabase, emailService, smsService);
