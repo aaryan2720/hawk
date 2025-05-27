@@ -19,47 +19,52 @@ serve(async (req) => {
   }
 
   try {
+    console.log("=== Edge Function Started ===");
+    
     // Create a Supabase client with the auth context
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing Authorization header');
+      console.error('Missing Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { status: 401, headers: corsHeaders }
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase configuration');
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ error: 'Missing Supabase configuration' }),
+        { status: 500, headers: corsHeaders }
+      );
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log("Supabase client created successfully");
     
     // Initialize SendGrid with API key
     const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+    console.log("SendGrid API key available:", Boolean(SENDGRID_API_KEY));
     const emailService = new EmailService(SENDGRID_API_KEY);
 
-    // Initialize Twilio SMS service
-    const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+    // Initialize SMS service (disabled)
+    const smsService = new SMSService();
+    console.log("SMS Service initialized (disabled)");
     
-    console.log("Twilio configuration:", {
-      hasAccountSid: Boolean(TWILIO_ACCOUNT_SID),
-      hasAuthToken: Boolean(TWILIO_AUTH_TOKEN),
-      hasPhoneNumber: Boolean(TWILIO_PHONE_NUMBER)
-    });
-    
-    const smsService = new SMSService(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER);
-    
-    // Create handlers instance with both email and SMS services
+    // Create handlers instance with email service
     const handlers = new NotificationHandlers(supabase, emailService, smsService);
+    console.log("Notification handlers created");
     
     // Parse request body
     let body;
     try {
       body = await req.json();
-      console.log('Request body:', JSON.stringify(body));
+      console.log('Request body received:', JSON.stringify(body, null, 2));
     } catch (error) {
+      console.error('Error parsing request body:', error);
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
         { status: 400, headers: corsHeaders }
@@ -70,26 +75,36 @@ serve(async (req) => {
     const { userId, action, email } = body;
     
     if (!userId) {
+      console.error('Missing userId in request');
       return new Response(
         JSON.stringify({ error: 'Missing userId in request' }),
         { status: 400, headers: corsHeaders }
       );
     }
     
+    console.log(`Processing action: ${action} for user: ${userId}`);
+    
     // Handle different actions
     if (action === 'verify-email') {
-      // Auto-verify email and send welcome notification instead
+      console.log('Handling email verification');
       return await handlers.handleAutoVerification(userId, email);
     } else if (action === 'test-notification') {
+      console.log('Handling test notification');
       return await handlers.handleTestNotification(userId, body);
     } else {
-      // Default behavior: send notification about scan results
+      console.log('Handling scan notification');
       return await handlers.handleScanNotification(body);
     }
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('=== Edge Function Error ===');
+    console.error('Error details:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
+      JSON.stringify({ 
+        error: error.message || 'Unknown error',
+        details: 'Check edge function logs for more information'
+      }),
       { 
         status: 500, 
         headers: corsHeaders

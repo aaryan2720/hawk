@@ -19,11 +19,15 @@ export class TestNotificationHandler {
   
   async handleTestNotification(userId: string, body: any): Promise<Response> {
     try {
+      console.log(`=== Test Notification Handler Started ===`);
+      console.log(`User ID: ${userId}`);
+      
       const { email, phone } = body;
-      console.log(`Sending test notification for user ${userId}`);
-      console.log(`Email: ${email || 'Not provided'}, Phone: ${phone || 'Not provided'}`);
+      console.log(`Email provided: ${email || 'Not provided'}`);
+      console.log(`Phone provided: ${phone || 'Not provided'} (SMS disabled)`);
       
       // Get user notification preferences
+      console.log("Fetching user system preferences...");
       const { data: userSystem, error: userSystemError } = await this.supabase
         .from('user_systems')
         .select('monitoring_settings')
@@ -41,18 +45,22 @@ export class TestNotificationHandler {
         );
       }
       
-      // Create a test notification
+      console.log("User system data:", userSystem);
+      
+      // Create a test notification in database
+      console.log("Creating test notification in database...");
       const { data: notification, error: notificationError } = await this.supabase
         .from('notifications')
         .insert({
           user_id: userId,
           title: 'Test Notification',
-          content: 'This is a test notification to verify your notification settings.',
+          content: 'This is a test notification to verify your email notification settings.',
           type: 'test',
           is_read: false,
           metadata: {
             test: true,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            email_only: true
           }
         })
         .select()
@@ -68,6 +76,8 @@ export class TestNotificationHandler {
           { status: 500, headers: this.corsHeaders }
         );
       }
+      
+      console.log("Notification created:", notification.id);
       
       // Prepare response data
       const result: NotificationResponse = {
@@ -102,8 +112,8 @@ export class TestNotificationHandler {
           emailEnabled: Boolean(email),
           emailAddress: email || '',
           emailVerified: true, // Auto-verified
-          smsEnabled: Boolean(phone),
-          phoneNumber: phone || '',
+          smsEnabled: false, // SMS disabled
+          phoneNumber: '',
           alertLevel: 'all'
         };
         console.log('Using default notification preferences:', prefs);
@@ -133,36 +143,22 @@ export class TestNotificationHandler {
         }
       } else {
         console.log('Email notification not enabled or no email address provided');
+        result.email_error = 'Email notification not enabled';
       }
       
-      // Send SMS notification if enabled
-      if ((prefs?.smsEnabled || phone) && (prefs?.phoneNumber || phone)) {
-        // Use the provided phone number or fallback to the stored one
-        const phoneToUse = phone || prefs.phoneNumber || '';
-        
-        if (phoneToUse && phoneToUse.length >= 10) {
-          try {
-            console.log(`Attempting to send test SMS to ${phoneToUse}`);
-            const smsMessage = this.smsService.generateTestSMS();
-            const smsResponse = await this.smsService.sendSMS(phoneToUse, smsMessage);
-            console.log(`Test SMS response:`, smsResponse);
-            result.sms_sent = true;
-            result.sms_details = smsResponse;
-          } catch (smsError: any) {
-            console.error(`Error sending test SMS to ${phoneToUse}:`, smsError);
-            result.sms_error = smsError.message || 'Unknown SMS error';
-          }
-        } else {
-          console.log('No valid phone number available');
-          result.sms_error = 'No valid phone number provided';
-        }
-      } else {
-        console.log('SMS notification not enabled or no phone number provided');
-      }
+      // SMS is disabled, so we skip SMS sending
+      console.log('SMS notification disabled - email only mode');
+      result.sms_sent = false;
+      
+      console.log("=== Test Notification Handler Completed ===");
+      console.log("Final result:", result);
       
       return new Response(JSON.stringify(result), { status: 200, headers: this.corsHeaders });
     } catch (error: any) {
-      console.error('Error sending test notification:', error);
+      console.error('=== Test Notification Handler Error ===');
+      console.error('Error details:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       return new Response(
         JSON.stringify({ 
           success: false, 

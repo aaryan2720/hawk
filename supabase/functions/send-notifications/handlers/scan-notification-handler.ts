@@ -30,7 +30,7 @@ export class ScanNotificationHandler {
       
       let notificationPrefs: UserNotificationPreferences = {
         emailEnabled: false,
-        smsEnabled: false,
+        smsEnabled: false, // SMS disabled
         emailAddress: '',
         phoneNumber: '',
         alertLevel: 'critical',
@@ -43,8 +43,9 @@ export class ScanNotificationHandler {
           : userSystem.monitoring_settings;
           
         notificationPrefs = settings.notificationPreferences || notificationPrefs;
-        // Force email as verified
+        // Force email as verified and SMS as disabled
         notificationPrefs.emailVerified = true;
+        notificationPrefs.smsEnabled = false;
       }
       
       console.log('User notification preferences:', notificationPrefs);
@@ -62,6 +63,7 @@ export class ScanNotificationHandler {
             scanResults,
             severity,
             timestamp: new Date().toISOString(),
+            email_only: true,
             delivered: {
               email: false,
               sms: false
@@ -78,7 +80,7 @@ export class ScanNotificationHandler {
       // Create deliveryStatus to track what was sent
       const deliveryStatus: NotificationDeliveryStatus = {
         email: false,
-        sms: false
+        sms: false // SMS disabled
       };
       
       // Send email notification if enabled and applicable to this severity
@@ -90,7 +92,6 @@ export class ScanNotificationHandler {
           (notificationPrefs.alertLevel === 'critical' && severity === 'critical');
         
         if (shouldSendEmail) {
-          // Always send email regardless of verification status
           const { subject, html } = this.emailService.generateVulnerabilityAlertEmail(severity, scanResults);
           
           try {
@@ -104,29 +105,12 @@ export class ScanNotificationHandler {
         }
       }
       
-      // Send SMS notification if enabled and applicable to this severity
-      if (notificationPrefs.smsEnabled && notificationPrefs.phoneNumber) {
-        // Check if the severity meets the user's alert level threshold
-        const shouldSendSMS = 
-          (notificationPrefs.alertLevel === 'all') ||
-          (notificationPrefs.alertLevel === 'high' && (severity === 'high' || severity === 'critical')) ||
-          (notificationPrefs.alertLevel === 'critical' && severity === 'critical');
-        
-        if (shouldSendSMS) {
-          try {
-            console.log(`Attempting to send vulnerability alert SMS to ${notificationPrefs.phoneNumber}`);
-            const smsMessage = this.smsService.generateVulnerabilityAlertSMS(severity);
-            const smsResponse = await this.smsService.sendSMS(notificationPrefs.phoneNumber, smsMessage);
-            console.log('Security alert SMS response:', smsResponse);
-            deliveryStatus.sms = true;
-          } catch (smsError) {
-            console.error(`Error sending vulnerability notification SMS:`, smsError);
-          }
-        }
-      }
+      // SMS is disabled, so we skip SMS sending
+      console.log('SMS notification disabled - email only mode');
+      deliveryStatus.sms = false;
       
       // Update the notification with delivery status
-      if (deliveryStatus.email || deliveryStatus.sms) {
+      if (deliveryStatus.email) {
         await this.supabase
           .from('notifications')
           .update({
@@ -143,7 +127,8 @@ export class ScanNotificationHandler {
           success: true,
           notification_id: notification.id,
           email_sent: deliveryStatus.email,
-          sms_sent: deliveryStatus.sms
+          sms_sent: deliveryStatus.sms,
+          sms_disabled: true
         }),
         { 
           status: 200, 
