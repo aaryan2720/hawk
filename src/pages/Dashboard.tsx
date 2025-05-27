@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -8,7 +7,7 @@ import RiskAnalyzer from '@/components/RiskAnalyzer';
 import TrendChart from '@/components/TrendChart';
 import VulnerabilityDistribution from '@/components/VulnerabilityDistribution';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Shield, Clock, Bell } from 'lucide-react';
+import { AlertTriangle, Shield, Clock, Bell, Target } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { MonitoringSettings } from '@/types';
 import { toast } from 'sonner';
 import SecurityScannerVisual from '@/components/SecurityScannerVisual';
 import AlertStatusSummary from '@/components/AlertStatusSummary';
+import EnhancedVulnerabilityScanner from '@/components/EnhancedVulnerabilityScanner';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -29,6 +29,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastScanTime, setLastScanTime] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(true);
+  const [showEnhancedScanner, setShowEnhancedScanner] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -121,11 +122,32 @@ const Dashboard = () => {
       <DashboardNav />
       <main className="container mx-auto py-8 px-4">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold animate-fade-in">HAWK Security Dashboard</h1>
-          <p className="text-muted-foreground mt-1 animate-fade-in" style={{animationDelay: '0.1s'}}>
-            Monitor all your systems security in real-time
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold animate-fade-in">HAWK Security Dashboard</h1>
+              <p className="text-muted-foreground mt-1 animate-fade-in" style={{animationDelay: '0.1s'}}>
+                Monitor all your systems security in real-time
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant={showEnhancedScanner ? "default" : "outline"} 
+                onClick={() => setShowEnhancedScanner(!showEnhancedScanner)}
+                className="flex items-center gap-2"
+              >
+                <Target className="h-4 w-4" />
+                Enhanced Scanner
+              </Button>
+            </div>
+          </div>
         </div>
+        
+        {/* Enhanced Scanner Section */}
+        {showEnhancedScanner && (
+          <div className="mb-8 animate-slide-down">
+            <EnhancedVulnerabilityScanner />
+          </div>
+        )}
         
         {showNotification && severityCounts.critical > 0 && (
           <Alert className="mb-6 animate-slide-down" variant="destructive">
