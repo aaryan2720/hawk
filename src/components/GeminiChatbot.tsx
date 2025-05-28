@@ -52,6 +52,26 @@ const GeminiChatbot: React.FC<GeminiChatbotProps> = ({ startExpanded = false }) 
     );
   }
   
+  // Full page mode (when startExpanded is true)
+  if (startExpanded) {
+    return (
+      <div className="w-full h-full">
+        {apiKeyError && <ApiKeyErrorAlert />}
+        
+        <div className="flex flex-col h-full bg-white rounded-lg shadow-inner">
+          <ChatMessages messages={messages} />
+          <ChatInput 
+            inputMessage={inputMessage}
+            setInputMessage={setInputMessage}
+            sendMessage={sendMessage}
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+  
+  // Floating widget mode
   return (
     <Card className={`fixed bottom-4 right-4 w-80 md:w-96 shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${isCollapsed ? 'h-14' : 'h-[500px]'} z-50`}>
       <div className="bg-primary text-primary-foreground p-3 flex items-center justify-between cursor-pointer" onClick={toggleCollapse}>
