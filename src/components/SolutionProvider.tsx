@@ -183,14 +183,6 @@ const SolutionProvider: React.FC<SolutionProviderProps> = ({ alert }) => {
   const quickFixes = solutions.filter(s => s.category === 'immediate' || s.category === 'patch');
   const comprehensiveSolutions = solutions.filter(s => s.category === 'configuration' || s.category === 'monitoring');
 
-  const toggleStepCompletion = (stepId: number) => {
-    setCompletedSteps(prev => 
-      prev.includes(stepId) 
-        ? prev.filter(id => id !== stepId)
-        : [...prev, stepId]
-    );
-  };
-
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'easy': return 'bg-green-100 text-green-800 border-green-200';
