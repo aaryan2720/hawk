@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -18,15 +18,14 @@ serve(async (req: Request) => {
     // Get request data
     const { message, conversation = [], isSystemPrompt = false } = await req.json();
     
-    // Mock response for development when API key is not available
-    const mockResponse = `I'm your HAWK Security assistant. I can help you with security vulnerabilities, risk assessment, 
-    and understanding security alerts. Is there a specific security concern you'd like to discuss?`;
-    
     // Get Gemini API key from environment variables
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     
     if (!apiKey) {
       console.log("GEMINI_API_KEY not found, using mock response");
+      
+      const mockResponse = `I'm your HAWK Security assistant. I can help you with security vulnerabilities, risk assessment, 
+      and understanding security alerts. Is there a specific security concern you'd like to discuss?`;
       
       // Return mock response when API key is missing
       return new Response(
@@ -122,37 +121,14 @@ serve(async (req: Request) => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("Gemini API error:", errorData);
-        
-        // Return mock response when API fails
-        return new Response(
-          JSON.stringify({ 
-            success: true,
-            message: mockResponse,
-            conversation: [
-              ...conversation,
-              {
-                role: "user",
-                parts: [{ text: message }]
-              },
-              {
-                role: "model",
-                parts: [{ text: mockResponse }]
-              }
-            ],
-            isMock: true
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        throw new Error(`API request failed: ${response.status}`);
       }
       
       const data = await response.json();
       console.log("Received response from Gemini API");
       
       // Extract the response text
-      let responseText = "No response generated";
+      let responseText = "I'm having trouble understanding that. Could you try rephrasing?";
       if (data.candidates && data.candidates.length > 0 && 
           data.candidates[0].content && 
           data.candidates[0].content.parts && 
@@ -184,26 +160,15 @@ serve(async (req: Request) => {
     } catch (apiError) {
       console.error("API request error:", apiError);
       
-      // Return mock response on API error
+      // Return error response instead of mock response
       return new Response(
         JSON.stringify({ 
-          success: true,
-          message: mockResponse,
-          conversation: [
-            ...conversation,
-            {
-              role: "user",
-              parts: [{ text: message }]
-            },
-            {
-              role: "model",
-              parts: [{ text: mockResponse }]
-            }
-          ],
-          isMock: true
+          success: false,
+          error: "Failed to connect to Gemini API. Please check your API key and try again.",
+          errorType: "api_error"
         }),
         {
-          status: 200,
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -219,7 +184,7 @@ serve(async (req: Request) => {
         errorType: "general_error"
       }),
       {
-        status: 200,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
