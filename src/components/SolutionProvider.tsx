@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +14,13 @@ import {
   Users,
   Terminal,
   Shield,
-  Lightbulb
+  Lightbulb,
+  Zap
 } from 'lucide-react';
 import { Alert as AlertType } from '@/types';
+import { useSolutionProgress } from '@/hooks/useSolutionProgress';
+import { getSolutionTemplate } from '@/utils/solutionTemplates';
+import SolutionTemplateSelector from './SolutionTemplateSelector';
 
 interface SolutionProviderProps {
   alert: AlertType;
@@ -36,8 +39,17 @@ interface SolutionStep {
 }
 
 const SolutionProvider: React.FC<SolutionProviderProps> = ({ alert }) => {
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState('quick');
+  const { 
+    completedSteps, 
+    selectedTemplate, 
+    toggleStepCompletion, 
+    updateTemplate,
+    resetProgress,
+    getProgressPercentage 
+  } = useSolutionProgress(alert.id);
+  
+  const [activeTab, setActiveTab] = useState('templates');
+  const [showCustomSolutions, setShowCustomSolutions] = useState(false);
 
   const generateSolutions = (alert: AlertType): SolutionStep[] => {
     const solutions: SolutionStep[] = [];
@@ -140,7 +152,34 @@ const SolutionProvider: React.FC<SolutionProviderProps> = ({ alert }) => {
     return solutions;
   };
 
-  const solutions = generateSolutions(alert);
+  const handleTemplateSelect = (templateId: string) => {
+    updateTemplate(templateId);
+    if (templateId) {
+      setShowCustomSolutions(true);
+      setActiveTab('quick');
+    }
+  };
+
+  const getTemplateSolutions = (): SolutionStep[] => {
+    if (!selectedTemplate) return [];
+    
+    const template = getSolutionTemplate(selectedTemplate);
+    if (!template) return [];
+    
+    return template.steps.map(step => ({
+      ...step,
+      timeEstimate: step.difficulty === 'easy' ? '15-30 min' : 
+                   step.difficulty === 'medium' ? '30-60 min' : '1-2 hours',
+      commands: step.commands || [],
+      links: [],
+      prerequisites: []
+    }));
+  };
+
+  const solutions = showCustomSolutions ? 
+    (selectedTemplate ? getTemplateSolutions() : generateSolutions(alert)) : 
+    [];
+    
   const quickFixes = solutions.filter(s => s.category === 'immediate' || s.category === 'patch');
   const comprehensiveSolutions = solutions.filter(s => s.category === 'configuration' || s.category === 'monitoring');
 
@@ -270,38 +309,68 @@ const SolutionProvider: React.FC<SolutionProviderProps> = ({ alert }) => {
           <Alert className="mb-4">
             <Shield className="h-4 w-4" />
             <AlertDescription>
-              These solutions are tailored for <strong>{alert.cve || 'this vulnerability'}</strong> affecting your <strong>{alert.system}</strong> system. 
-              Follow the steps in order for best results.
+              Choose a solution template or get custom solutions for <strong>{alert.cve || 'this vulnerability'}</strong> affecting your <strong>{alert.system}</strong> system.
             </AlertDescription>
           </Alert>
 
-          <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-            <span>Progress: {completedSteps.length} of {solutions.length} steps completed</span>
-            <div className="w-32 bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(completedSteps.length / solutions.length) * 100}%` }}
-              />
+          {showCustomSolutions && (
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+              <span>Progress: {completedSteps.length} of {solutions.length} steps completed</span>
+              <div className="flex items-center gap-3">
+                <div className="w-32 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${getProgressPercentage(solutions.length)}%` }}
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={resetProgress}
+                  className="text-xs"
+                >
+                  Reset
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="quick" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Templates
+          </TabsTrigger>
+          <TabsTrigger value="quick" className="flex items-center gap-2" disabled={!showCustomSolutions}>
             <AlertTriangle className="h-4 w-4" />
             Quick Fixes ({quickFixes.length})
           </TabsTrigger>
-          <TabsTrigger value="comprehensive" className="flex items-center gap-2">
+          <TabsTrigger value="comprehensive" className="flex items-center gap-2" disabled={!showCustomSolutions}>
             <Shield className="h-4 w-4" />
             Comprehensive ({comprehensiveSolutions.length})
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="templates" className="mt-6">
+          <SolutionTemplateSelector
+            alert={alert}
+            selectedTemplate={selectedTemplate}
+            onTemplateSelect={handleTemplateSelect}
+          />
+        </TabsContent>
+
         <TabsContent value="quick" className="mt-6">
           <div className="space-y-4">
-            <h3 className="text-lg font-medium mb-4">Immediate Actions & Quick Fixes</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Immediate Actions & Quick Fixes</h3>
+              {selectedTemplate && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  Using Template: {getSolutionTemplate(selectedTemplate)?.name}
+                </Badge>
+              )}
+            </div>
             {quickFixes.map(solution => (
               <SolutionCard key={solution.id} solution={solution} />
             ))}
@@ -310,7 +379,14 @@ const SolutionProvider: React.FC<SolutionProviderProps> = ({ alert }) => {
 
         <TabsContent value="comprehensive" className="mt-6">
           <div className="space-y-4">
-            <h3 className="text-lg font-medium mb-4">Long-term Security Improvements</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Long-term Security Improvements</h3>
+              {selectedTemplate && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  Using Template: {getSolutionTemplate(selectedTemplate)?.name}
+                </Badge>
+              )}
+            </div>
             {comprehensiveSolutions.map(solution => (
               <SolutionCard key={solution.id} solution={solution} />
             ))}
