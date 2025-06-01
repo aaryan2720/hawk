@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Loader, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +14,7 @@ import SourceCard from './SourceCard';
 import EditSourceForm from './EditSourceForm';
 import EmptyState from './EmptyState';
 import AutoDetectOEMs from './AutoDetectOEMs';
+import SystemScriptGenerator from './SystemScriptGenerator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -165,6 +165,9 @@ const OEMMonitorList: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* System Script Generator */}
+      <SystemScriptGenerator onDetectionComplete={handleDetectionComplete} />
+      
       {/* Auto-Detection Component */}
       <AutoDetectOEMs onDetectionComplete={handleDetectionComplete} />
       
