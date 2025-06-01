@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader, RefreshCw, AlertTriangle, Shield, Database, Info } from 'lucide-react';
@@ -30,6 +30,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [usedMockData, setUsedMockData] = useState(false);
   const [scanInProgress, setScanInProgress] = useState(false);
+  const [filteredByOEMs, setFilteredByOEMs] = useState(false);
+  const [registeredOEMs, setRegisteredOEMs] = useState<string[]>([]);
+  const [userOEMSources, setUserOEMSources] = useState<any[]>([]);
   
   // Get the results limit from environment variables or default to 10
   const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '10');
@@ -41,6 +44,27 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
     { id: 'medium', name: 'Medium Only' },
     { id: 'low', name: 'Low Only' }
   ];
+
+  useEffect(() => {
+    fetchUserOEMSources();
+  }, [user]);
+
+  const fetchUserOEMSources = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('oem_sources')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setUserOEMSources(data || []);
+    } catch (error) {
+      console.error('Error fetching OEM sources:', error);
+    }
+  };
 
   const sendNotification = async (results: ScanResult[]) => {
     try {
@@ -74,6 +98,8 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       setScanInProgress(true);
       setResults([]);
       setUsedMockData(false);
+      setFilteredByOEMs(false);
+      setRegisteredOEMs([]);
 
       toast.info('Fetching real-time vulnerability data...', {
         duration: 3000,
@@ -92,18 +118,26 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       if (data.results && Array.isArray(data.results)) {
         setResults(data.results);
         setUsedMockData(data.usedMockData || false);
+        setFilteredByOEMs(data.filteredByOEMs || false);
+        setRegisteredOEMs(data.registeredOEMs || []);
         
         if (data.results.length > 0) {
           if (data.usedMockData) {
-            toast.info(`${data.results.length} demonstration vulnerabilities loaded (NVD API unavailable)`);
+            const oemInfo = data.filteredByOEMs ? ' (filtered by your registered OEMs)' : '';
+            toast.info(`${data.results.length} demonstration vulnerabilities loaded${oemInfo}`);
           } else {
-            toast.success(`${data.results.length} new vulnerabilities discovered from NVD`);
+            const oemInfo = data.filteredByOEMs ? ' (filtered by your registered OEMs)' : '';
+            toast.success(`${data.results.length} new vulnerabilities discovered from NVD${oemInfo}`);
           }
           
           // Send notifications for any critical/high results
           await sendNotification(data.results);
         } else {
-          toast.info('No new vulnerabilities found');
+          if (data.filteredByOEMs && userOEMSources.length > 0) {
+            toast.info('No new vulnerabilities found for your registered OEM sources');
+          } else {
+            toast.info('No new vulnerabilities found');
+          }
         }
       } else {
         toast.info('No vulnerabilities found in the response');
@@ -152,6 +186,35 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           )}
         </div>
       </div>
+
+      {/* OEM Filtering Status */}
+      {userOEMSources.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <Shield className="h-4 w-4 text-blue-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">OEM Filtering Active</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Scans will only return vulnerabilities for your registered OEM sources: {userOEMSources.map(oem => oem.name).join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {userOEMSources.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900">No OEM Filtering</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Register OEM sources in System Monitor to get targeted alerts for your specific systems only.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex flex-col space-y-3">
         <div className="flex items-center space-x-2">
@@ -205,6 +268,16 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           <Info className="h-4 w-4" />
           <span className="ml-2 text-xs">
             Using demonstration data as the vulnerability database could not be reached
+            {filteredByOEMs && registeredOEMs.length > 0 && ` (filtered for: ${registeredOEMs.join(', ')})`}
+          </span>
+        </Alert>
+      )}
+
+      {filteredByOEMs && !usedMockData && (
+        <Alert className="bg-green-50 text-green-800 border-green-200">
+          <Shield className="h-4 w-4" />
+          <span className="ml-2 text-xs">
+            Results filtered for your registered OEMs: {registeredOEMs.join(', ')}
           </span>
         </Alert>
       )}

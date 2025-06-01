@@ -11,55 +11,6 @@ const corsHeaders = {
 // NVD API endpoint
 const NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
 
-// Mock data for fallback when API is unreachable
-const MOCK_VULNERABILITIES = [
-  {
-    cve: "CVE-2025-0001",
-    title: "Buffer Overflow in Network Stack",
-    description: "A critical vulnerability in the network protocol stack allows remote attackers to execute arbitrary code via specially crafted packets.",
-    severity: "critical",
-    system: "Network Infrastructure",
-    date: new Date().toISOString(),
-    mitigation: "Update to the latest firmware version and enable packet filtering on border devices."
-  },
-  {
-    cve: "CVE-2025-0002",
-    title: "Authentication Bypass in Admin Panel",
-    description: "A vulnerability in the authentication mechanism allows attackers to bypass login requirements by modifying session parameters.",
-    severity: "high",
-    system: "Admin Control Panel",
-    date: new Date().toISOString(),
-    mitigation: "Apply security patch ABC-123 and enforce multi-factor authentication."
-  },
-  {
-    cve: "CVE-2025-0003",
-    title: "SQL Injection in Search Function",
-    description: "The search function does not properly sanitize user input, allowing attackers to execute arbitrary SQL commands.",
-    severity: "high",
-    system: "Database Systems",
-    date: new Date().toISOString(),
-    mitigation: "Apply input validation and parameterized queries for all database operations."
-  },
-  {
-    cve: "CVE-2025-0004",
-    title: "Cross-Site Scripting in User Profile",
-    description: "User profile fields allow insertion of malicious JavaScript code that executes when other users view the profile.",
-    severity: "medium",
-    system: "Web Application",
-    date: new Date().toISOString(),
-    mitigation: "Implement content security policy and escape user-provided content."
-  },
-  {
-    cve: "CVE-2025-0005",
-    title: "Insecure Deserialization in API Endpoint",
-    description: "The API endpoint deserializes untrusted data without validation, allowing remote code execution.",
-    severity: "critical",
-    system: "API Gateway",
-    date: new Date().toISOString(),
-    mitigation: "Implement integrity checks for serialized data and update the deserialization library."
-  }
-];
-
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -83,6 +34,21 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     );
+
+    // Get user's registered OEM sources to filter alerts
+    let userOEMSources = [];
+    if (userId) {
+      const { data: oemData, error: oemError } = await supabaseClient
+        .from('oem_sources')
+        .select('name, system_type, url')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+        
+      if (!oemError && oemData) {
+        userOEMSources = oemData;
+        console.log(`Found ${userOEMSources.length} registered OEM sources for user ${userId}`);
+      }
+    }
 
     // Current date for query parameters
     const today = new Date();
@@ -155,6 +121,29 @@ serve(async (req: Request) => {
           
           const title = `${cveId}: ${description.substring(0, 100)}${description.length > 100 ? '...' : ''}`;
           const publishedDate = cve.published || new Date().toISOString();
+          const systemInfo = cve.configurations?.[0]?.nodes?.[0]?.cpeMatch?.[0]?.criteria || "Unknown System";
+          
+          // Filter vulnerabilities based on user's registered OEM sources
+          let shouldInclude = true;
+          if (userOEMSources.length > 0) {
+            shouldInclude = userOEMSources.some(oemSource => {
+              const oemName = oemSource.name.toLowerCase();
+              const systemType = oemSource.system_type.toLowerCase();
+              const descriptionLower = description.toLowerCase();
+              const systemInfoLower = systemInfo.toLowerCase();
+              
+              // Check if vulnerability matches user's OEM or system type
+              return descriptionLower.includes(oemName) || 
+                     systemInfoLower.includes(oemName) ||
+                     descriptionLower.includes(systemType) ||
+                     systemInfoLower.includes(systemType);
+            });
+          }
+          
+          if (!shouldInclude) {
+            console.log(`Skipping vulnerability ${cveId} - doesn't match user's registered OEMs`);
+            continue;
+          }
           
           // Check if vulnerability already exists
           const { data: existing } = await supabaseClient
@@ -167,7 +156,7 @@ serve(async (req: Request) => {
             const vulnerability = {
               title,
               description,
-              system: cve.configurations?.[0]?.nodes?.[0]?.cpeMatch?.[0]?.criteria || "Unknown System",
+              system: systemInfo,
               severity,
               cve: cveId,
               date: publishedDate,
@@ -177,7 +166,9 @@ serve(async (req: Request) => {
                 source: "NVD API",
                 published: publishedDate,
                 lastModified: cve.lastModified || publishedDate,
-                cvssScore: cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore || 0
+                cvssScore: cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore || 0,
+                userFiltered: true,
+                matchedOEMs: userOEMSources.map(oem => oem.name)
               }
             };
             
@@ -200,12 +191,15 @@ serve(async (req: Request) => {
     } catch (apiError) {
       console.error("Error fetching from NVD API:", apiError);
       
-      // Use mock data as fallback
-      console.log("Using mock vulnerability data as fallback");
+      // Use filtered mock data as fallback
+      console.log("Using filtered mock vulnerability data as fallback");
       usedMockData = true;
       
-      // Insert mock vulnerabilities if we couldn't get real ones
-      for (const mockVuln of MOCK_VULNERABILITIES) {
+      // Generate mock vulnerabilities based on user's OEM sources
+      const mockVulnerabilities = generateFilteredMockData(userOEMSources);
+      
+      // Insert filtered mock vulnerabilities
+      for (const mockVuln of mockVulnerabilities) {
         // Only insert mocks that match the requested severity if specified
         if (source === 'all' || mockVuln.severity === source) {
           // Check if vulnerability already exists
@@ -231,7 +225,9 @@ serve(async (req: Request) => {
                 lastModified: mockVuln.date,
                 cvssScore: mockVuln.severity === 'critical' ? 9.8 : 
                            mockVuln.severity === 'high' ? 7.5 : 
-                           mockVuln.severity === 'medium' ? 5.0 : 3.0
+                           mockVuln.severity === 'medium' ? 5.0 : 3.0,
+                userFiltered: true,
+                matchedOEMs: userOEMSources.map(oem => oem.name)
               }
             };
             
@@ -295,7 +291,9 @@ serve(async (req: Request) => {
         results: vulnerabilities,
         source: source || "all",
         scanTime: new Date().toISOString(),
-        usedMockData
+        usedMockData,
+        filteredByOEMs: userOEMSources.length > 0,
+        registeredOEMs: userOEMSources.map(oem => oem.name)
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -312,6 +310,44 @@ serve(async (req: Request) => {
     );
   }
 });
+
+// Generate mock data based on user's registered OEM sources
+function generateFilteredMockData(userOEMSources: any[]) {
+  if (userOEMSources.length === 0) {
+    // If no OEM sources registered, return generic alerts
+    return [
+      {
+        cve: "CVE-2025-0001",
+        title: "General System Vulnerability",
+        description: "A general vulnerability affecting common systems. Please register your OEM sources for more targeted alerts.",
+        severity: "medium",
+        system: "Generic System",
+        date: new Date().toISOString(),
+        mitigation: "Register your OEM sources in the system monitor for targeted vulnerability alerts."
+      }
+    ];
+  }
+
+  const mockVulnerabilities = [];
+  
+  // Generate specific mock vulnerabilities for each registered OEM
+  userOEMSources.forEach((oemSource, index) => {
+    const oemName = oemSource.name;
+    const systemType = oemSource.system_type;
+    
+    mockVulnerabilities.push({
+      cve: `CVE-2025-${String(index + 1).padStart(4, '0')}`,
+      title: `${oemName} ${systemType} Security Vulnerability`,
+      description: `A critical vulnerability has been discovered in ${oemName} ${systemType} systems that could allow remote attackers to execute arbitrary code.`,
+      severity: index % 3 === 0 ? 'critical' : index % 2 === 0 ? 'high' : 'medium',
+      system: `${oemName} ${systemType}`,
+      date: new Date().toISOString(),
+      mitigation: `Update your ${oemName} ${systemType} to the latest version and apply security patches from ${oemName}.`
+    });
+  });
+
+  return mockVulnerabilities;
+}
 
 // Handle OEM detection
 async function handleOEMDetection(requestData: any) {
