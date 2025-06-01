@@ -72,9 +72,11 @@ const AutoDetectOEMs: React.FC<{ onDetectionComplete?: () => void }> = ({ onDete
       
       // Detect GPU capabilities
       const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
+      const glContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (glContext) {
         try {
+          // Cast to WebGLRenderingContext to access WebGL-specific methods
+          const gl = glContext as WebGLRenderingContext;
           const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
           if (debugInfo) {
             const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_GL);
