@@ -74,36 +74,42 @@ const AutoDetectOEMs: React.FC<{ onDetectionComplete?: () => void }> = ({ onDete
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (gl) {
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        if (debugInfo) {
-          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_GL);
-          if (renderer.includes('NVIDIA')) {
-            detectedSystems.push({
-              name: 'NVIDIA',
-              systemType: 'GPU',
-              confidence: 85,
-              description: 'NVIDIA Graphics Card detected'
-            });
-          } else if (renderer.includes('AMD') || renderer.includes('Radeon')) {
-            detectedSystems.push({
-              name: 'AMD',
-              systemType: 'GPU',
-              confidence: 85,
-              description: 'AMD Graphics Card detected'
-            });
-          } else if (renderer.includes('Intel')) {
-            detectedSystems.push({
-              name: 'Intel',
-              systemType: 'GPU',
-              confidence: 80,
-              description: 'Intel Integrated Graphics detected'
-            });
+        try {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_GL);
+            if (typeof renderer === 'string') {
+              if (renderer.includes('NVIDIA')) {
+                detectedSystems.push({
+                  name: 'NVIDIA',
+                  systemType: 'GPU',
+                  confidence: 85,
+                  description: 'NVIDIA Graphics Card detected'
+                });
+              } else if (renderer.includes('AMD') || renderer.includes('Radeon')) {
+                detectedSystems.push({
+                  name: 'AMD',
+                  systemType: 'GPU',
+                  confidence: 85,
+                  description: 'AMD Graphics Card detected'
+                });
+              } else if (renderer.includes('Intel')) {
+                detectedSystems.push({
+                  name: 'Intel',
+                  systemType: 'GPU',
+                  confidence: 80,
+                  description: 'Intel Integrated Graphics detected'
+                });
+              }
+            }
           }
+        } catch (error) {
+          console.log('GPU detection not available:', error);
         }
       }
       
       // Simulate memory detection
-      if ('memory' in performance) {
+      if ('memory' in performance && (performance as any).memory) {
         const memory = (performance as any).memory;
         if (memory.totalJSHeapSize > 1000000000) { // > 1GB
           detectedSystems.push({
