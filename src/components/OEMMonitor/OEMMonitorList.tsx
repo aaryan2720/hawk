@@ -14,6 +14,7 @@ import AddSourceDialog from './AddSourceDialog';
 import SourceCard from './SourceCard';
 import EditSourceForm from './EditSourceForm';
 import EmptyState from './EmptyState';
+import AutoDetectOEMs from './AutoDetectOEMs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -158,8 +159,15 @@ const OEMMonitorList: React.FC = () => {
     setSuggestedOEMs(prev => prev.filter(s => s.url !== suggestion.url));
   };
 
+  const handleDetectionComplete = () => {
+    loadSources(); // Refresh the sources list
+  };
+
   return (
     <div className="space-y-4">
+      {/* Auto-Detection Component */}
+      <AutoDetectOEMs onDetectionComplete={handleDetectionComplete} />
+      
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">OEM Websites Monitoring</h3>
         <div className="flex gap-2">
@@ -175,7 +183,7 @@ const OEMMonitorList: React.FC = () => {
             ) : (
               <Search className="h-3.5 w-3.5" />
             )}
-            Auto-Detect OEMs
+            Search OEMs
           </Button>
           <AddSourceDialog 
             isAddingSource={isAddingSource}

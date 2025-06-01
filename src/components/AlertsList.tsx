@@ -175,7 +175,9 @@ const AlertsList = () => {
     if (userOEMSources.length === 0) return true;
     
     // Check if alert is marked as user-filtered (from the new system)
-    if (alert.details?.userFiltered) return true;
+    if (alert.details && typeof alert.details === 'object' && 'userFiltered' in alert.details) {
+      return alert.details.userFiltered;
+    }
     
     // For existing alerts, apply OEM filtering
     const alertSystem = alert.system.toLowerCase();
