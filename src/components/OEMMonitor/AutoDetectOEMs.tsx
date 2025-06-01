@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +78,7 @@ const AutoDetectOEMs: React.FC<{ onDetectionComplete?: () => void }> = ({ onDete
           const gl = glContext as WebGLRenderingContext;
           const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
           if (debugInfo) {
-            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_GL);
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
             if (typeof renderer === 'string') {
               if (renderer.includes('NVIDIA')) {
                 detectedSystems.push({
