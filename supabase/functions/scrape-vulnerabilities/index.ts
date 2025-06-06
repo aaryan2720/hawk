@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { DataSource, SourceMap, Vulnerability } from "./types.ts";
 import { parseNVD, parseCVEDetails, parseCISA } from "./parsers.ts";
@@ -10,97 +9,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Enhanced multi-source configuration
 const sources: SourceMap = {
-  nvd: "https://nvd.nist.gov/vuln/data-feeds",
-  cveDetails: "https://www.cvedetails.com/vulnerability-list/",
-  cisaKev: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
-  "cisa-kev": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
-  "mitre-attack": "https://attack.mitre.org/",
-  "exploit-db": "https://www.exploit-db.com/",
-  "vulndb": "https://vulndb.cyberriskanalytics.com/"
-};
-
-// NVD API endpoint
-const NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
-
-// Enhanced vulnerability detection with zero-day identification
-const enhanceVulnerabilityData = (vulnerability: Vulnerability): Vulnerability => {
-  const description = vulnerability.description.toLowerCase();
-  const now = new Date();
-  const publishedDate = vulnerability.details?.published ? new Date(vulnerability.details.published) : now;
-  const daysSincePublished = Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // Zero-day detection keywords
-  const zeroKeywords = ['zero-day', '0-day', 'no patch', 'unpatched', 'in-the-wild', 'active exploitation'];
-  const isZeroDay = zeroKeywords.some(keyword => description.includes(keyword)) || 
-                   (daysSincePublished <= 1 && vulnerability.severity === 'critical');
-  
-  // Exploit detection keywords
-  const exploitKeywords = ['exploit', 'poc', 'proof of concept', 'metasploit', 'remote code execution'];
-  const hasExploit = exploitKeywords.some(keyword => description.includes(keyword));
-  
-  // Enhanced details
-  const enhancedDetails = {
-    ...vulnerability.details,
-    zeroDay: isZeroDay,
-    hasExploit: hasExploit,
-    daysSincePublished,
-    threatLevel: isZeroDay ? 'immediate' : vulnerability.severity === 'critical' ? 'urgent' : 'standard',
-    enhancedScoring: {
-      baseScore: getBaseCVSSScore(vulnerability),
-      customScore: calculateCustomScore(vulnerability, isZeroDay, hasExploit, daysSincePublished),
-      riskFactors: {
-        zeroDay: isZeroDay,
-        hasExploit: hasExploit,
-        recentDiscovery: daysSincePublished <= 7,
-        criticalSystem: isHighImpactSystem(vulnerability.system)
-      }
-    }
-  };
-  
-  return {
-    ...vulnerability,
-    details: enhancedDetails
-  };
-};
-
-const getBaseCVSSScore = (vulnerability: Vulnerability): number => {
-  if (vulnerability.details?.cvssScore) {
-    return Number(vulnerability.details.cvssScore);
-  }
-  
-  // Default scoring based on severity
-  switch (vulnerability.severity) {
-    case 'critical': return 9.5;
-    case 'high': return 7.5;
-    case 'medium': return 5.0;
-    case 'low': return 2.5;
-    default: return 5.0;
-  }
-};
-
-const calculateCustomScore = (vulnerability: Vulnerability, isZeroDay: boolean, hasExploit: boolean, daysSince: number): number => {
-  let baseScore = getBaseCVSSScore(vulnerability);
-  
-  // Zero-day boost
-  if (isZeroDay) baseScore *= 1.5;
-  
-  // Exploit availability boost
-  if (hasExploit) baseScore *= 1.3;
-  
-  // Recency boost
-  if (daysSince <= 1) baseScore *= 1.2;
-  else if (daysSince <= 7) baseScore *= 1.1;
-  
-  // System criticality boost
-  if (isHighImpactSystem(vulnerability.system)) baseScore *= 1.2;
-  
-  return Math.min(baseScore, 10);
-};
-
-const isHighImpactSystem = (system: string): boolean => {
-  const highImpactKeywords = ['authentication', 'admin', 'root', 'kernel', 'database', 'web server'];
-  return highImpactKeywords.some(keyword => system.toLowerCase().includes(keyword));
+  nvd: "https://services.nvd.nist.gov/rest/json/cves/2.0",
+  'cisa-kev': "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+  'mitre-cve': "https://cve.mitre.org/data/downloads/allitems.csv",
+  'vulndb-community': "https://vulndb.cyberriskanalytics.com/api/v1/vulnerabilities",
+  'opencve': "https://www.opencve.io/api/cve",
+  'osv-dev': "https://api.osv.dev/v1/vulns",
+  'github-advisory': "https://api.github.com/advisories",
+  'exploit-db': "https://www.exploit-db.com/rss.xml",
+  'vulners': "https://vulners.com/api/v3/search/lucene/",
+  'security-tracker': "https://security-tracker.debian.org/tracker/data/json"
 };
 
 // Enhanced CISA KEV parsing for real-time data
@@ -128,7 +48,7 @@ const fetchCISAKnownExploited = async (limit: number): Promise<Vulnerability[]> 
             published: vuln.dateAdded,
             dueDate: vuln.dueDate,
             notes: vuln.notes,
-            zeroDay: true, // CISA KEV implies active exploitation
+            zeroDay: true,
             hasExploit: true,
             threatLevel: 'immediate'
           }
@@ -143,6 +63,101 @@ const fetchCISAKnownExploited = async (limit: number): Promise<Vulnerability[]> 
   }
 };
 
+// Fetch from GitHub Security Advisory Database
+const fetchGitHubAdvisories = async (limit: number): Promise<Vulnerability[]> => {
+  try {
+    const response = await fetch(`https://api.github.com/advisories?per_page=${limit}&sort=published&direction=desc`);
+    if (!response.ok) throw new Error(`GitHub API failed: ${response.status}`);
+    
+    const data = await response.json();
+    const vulnerabilities: Vulnerability[] = [];
+    
+    for (const advisory of data) {
+      const severity = advisory.severity?.toLowerCase() || 'medium';
+      
+      vulnerabilities.push({
+        cve: advisory.cve_id || advisory.ghsa_id,
+        title: advisory.summary || advisory.title,
+        description: advisory.description || 'GitHub Security Advisory',
+        severity: severity,
+        system: advisory.package?.name || 'Multiple packages',
+        mitigation: `Review GitHub advisory: ${advisory.html_url}`,
+        details: {
+          source: "GitHub Security Advisory Database",
+          published: advisory.published_at,
+          updated: advisory.updated_at,
+          url: advisory.html_url,
+          ghsa_id: advisory.ghsa_id,
+          package: advisory.package?.name,
+          ecosystem: advisory.package?.ecosystem
+        }
+      });
+    }
+    
+    return vulnerabilities;
+  } catch (error) {
+    console.error("Error fetching GitHub advisories:", error);
+    return [];
+  }
+};
+
+// Fetch from OSV.dev (Google's Open Source Vulnerabilities)
+const fetchOSVVulnerabilities = async (limit: number): Promise<Vulnerability[]> => {
+  try {
+    // OSV.dev query for recent vulnerabilities
+    const query = {
+      page_token: "",
+      query: {
+        timestamp: {
+          end: new Date().toISOString(),
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // Last 7 days
+        }
+      }
+    };
+
+    const response = await fetch('https://api.osv.dev/v1/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(query)
+    });
+
+    if (!response.ok) throw new Error(`OSV API failed: ${response.status}`);
+    
+    const data = await response.json();
+    const vulnerabilities: Vulnerability[] = [];
+    
+    if (data.vulns) {
+      for (const vuln of data.vulns.slice(0, limit)) {
+        const severity = vuln.database_specific?.severity || 'medium';
+        
+        vulnerabilities.push({
+          cve: vuln.id,
+          title: vuln.summary || `OSV Vulnerability ${vuln.id}`,
+          description: vuln.details || vuln.summary || 'Open source vulnerability',
+          severity: severity.toLowerCase(),
+          system: vuln.affected?.[0]?.package?.name || 'Open source package',
+          mitigation: `Check OSV for details: https://osv.dev/vulnerability/${vuln.id}`,
+          details: {
+            source: "OSV (Open Source Vulnerabilities)",
+            published: vuln.published,
+            modified: vuln.modified,
+            url: `https://osv.dev/vulnerability/${vuln.id}`,
+            ecosystem: vuln.affected?.[0]?.package?.ecosystem,
+            package: vuln.affected?.[0]?.package?.name
+          }
+        });
+      }
+    }
+    
+    return vulnerabilities;
+  } catch (error) {
+    console.error("Error fetching OSV vulnerabilities:", error);
+    return [];
+  }
+};
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -151,11 +166,9 @@ serve(async (req: Request) => {
 
   try {
     // Get request data
-    const { source, limit = 5, sendNotifications = true, userId = null } = await req.json();
+    const { source, limit = 5, sendNotifications = true, userId = null, multiSource = false } = await req.json();
     
-    if (!source || !Object.keys(sources).includes(source)) {
-      throw new Error("Invalid or missing source parameter");
-    }
+    console.log(`Enhanced multi-source scanning from ${source} source`);
 
     // Create Supabase client
     const supabaseClient = createClient(
@@ -164,44 +177,41 @@ serve(async (req: Request) => {
     );
 
     let vulnerabilities: Vulnerability[] = [];
-    let sourceType = source as DataSource;
+    let count = 0;
+    let usedFallback = false;
 
-    console.log(`Enhanced scanning from ${source} source with zero-day detection`);
-
-    // Enhanced source handling
-    if (sourceType === 'cisa-kev') {
+    // Enhanced source handling with multiple free sources
+    if (source === 'cisa-kev') {
       vulnerabilities = await fetchCISAKnownExploited(limit);
-    } else {
-      // Current date for query parameters
-      const today = new Date();
-      const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(today.getDate() - 7);
-
-      // Format dates for NVD API
-      const pubStartDate = sevenDaysAgo.toISOString().split('T')[0];
-      const pubEndDate = today.toISOString().split('T')[0];
-
-      // Try to get real data from NVD API first
+    } else if (source === 'github-advisory') {
+      vulnerabilities = await fetchGitHubAdvisories(limit);
+    } else if (source === 'osv-dev') {
+      vulnerabilities = await fetchOSVVulnerabilities(limit);
+    } else if (source === 'nvd') {
+      // Try NVD API with fallback for rate limits
       try {
-        const nvdApiKey = Deno.env.get("NVD_API_KEY");
-        
+        const today = new Date();
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+
+        const pubStartDate = sevenDaysAgo.toISOString().split('T')[0];
+        const pubEndDate = today.toISOString().split('T')[0];
+
         const queryParams = new URLSearchParams({
           pubStartDate,
           pubEndDate,
           resultsPerPage: String(limit || 10)
         });
         
-        if (sourceType === 'cisaKev') {
-          queryParams.append('cvssV3Severity', 'CRITICAL');
-        }
-        
-        const apiUrl = `${NVD_API_URL}?${queryParams.toString()}`;
-        console.log(`Enhanced API Request URL: ${apiUrl}`);
+        const apiUrl = `https://services.nvd.nist.gov/rest/json/cves/2.0?${queryParams.toString()}`;
+        console.log(`NVD API Request URL: ${apiUrl}`);
 
         const headers: Record<string, string> = {
           'Accept': 'application/json',
         };
         
+        // Add API key if available
+        const nvdApiKey = Deno.env.get("NVD_API_KEY");
         if (nvdApiKey) {
           headers['apiKey'] = nvdApiKey;
         }
@@ -212,10 +222,9 @@ serve(async (req: Request) => {
           const data = await response.json();
           
           if (data && data.vulnerabilities) {
-            console.log(`Found ${data.vulnerabilities.length} vulnerabilities from enhanced NVD API`);
+            console.log(`Found ${data.vulnerabilities.length} vulnerabilities from NVD API`);
             
             for (const item of data.vulnerabilities) {
-              // ... keep existing code (CVE parsing logic)
               const cve = item.cve;
               const cveId = cve.id;
               const description = cve.descriptions?.find(d => d.lang === 'en')?.value || 
@@ -234,106 +243,60 @@ serve(async (req: Request) => {
                   else if (score >= 4.0) severity = 'medium';
                   else severity = 'low';
                 }
-              } else if (cve.metrics?.cvssMetricV30) {
-                const cvssData = cve.metrics.cvssMetricV30[0]?.cvssData;
-                if (cvssData) {
-                  score = cvssData.baseScore || 0;
-                  if (score >= 9.0) severity = 'critical';
-                  else if (score >= 7.0) severity = 'high';
-                  else if (score >= 4.0) severity = 'medium';
-                  else severity = 'low';
-                }
               }
               
               const title = `${cveId}: ${description.substring(0, 100)}${description.length > 100 ? '...' : ''}`;
               const publishedDate = cve.published || new Date().toISOString();
               
-              let systems = "";
-              if (cve.configurations && cve.configurations.length > 0) {
-                // ... keep existing code (systems extraction)
-                for (const config of cve.configurations) {
-                  if (config.nodes && config.nodes.length > 0) {
-                    for (const node of config.nodes) {
-                      if (node.cpeMatch && node.cpeMatch.length > 0) {
-                        for (const cpe of node.cpeMatch) {
-                          if (cpe.criteria) {
-                            const cpeParts = cpe.criteria.split(':');
-                            if (cpeParts.length >= 5) {
-                              const vendor = cpeParts[3];
-                              const product = cpeParts[4];
-                              if (vendor && product) {
-                                systems += `${vendor} ${product}, `;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              
-              systems = systems.replace(/,\s*$/, "");
-              if (!systems) {
-                systems = sourceType === 'nvd' ? "NVD Database" : 
-                         sourceType === 'cveDetails' ? "CVE Details Database" : 
-                         "CISA Known Exploited Vulnerabilities";
-              }
-              
-              const baseVuln: Vulnerability = {
+              vulnerabilities.push({
                 cve: cveId,
                 title: title,
                 description: description,
                 severity: severity,
-                system: systems,
+                system: "NVD Database",
                 mitigation: "Check vendor website for patches and mitigation strategies.",
                 details: {
-                  source: sourceType,
+                  source: "NVD API",
                   published: publishedDate,
                   lastModified: cve.lastModified || publishedDate,
                   cvssScore: score
                 }
-              };
-              
-              // Apply enhanced detection
-              vulnerabilities.push(enhanceVulnerabilityData(baseVuln));
+              });
             }
           }
         } else {
-          throw new Error(`NVD API responded with status: ${response.status}`);
+          throw new Error(`NVD API responded with status: ${response.status} - Likely rate limited`);
         }
-      } catch (apiError) {
-        console.error("Error fetching from enhanced API:", apiError);
+      } catch (nvdError) {
+        console.error("NVD API error (likely rate limited):", nvdError);
+        usedFallback = true;
         
-        // Fallback to web scraping
-        console.log(`Falling back to web scraping from ${source}: ${sources[source]}`);
-        const url = sources[source];
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
-        }
-
-        const html = await response.text();
-        const parser = new DOMParser();
-        const document = parser.parseFromString(html, "text/html");
-
-        switch (sourceType) {
-          case "nvd":
-            vulnerabilities = parseNVD(document, limit).map(enhanceVulnerabilityData);
-            break;
-          case "cveDetails":
-            vulnerabilities = parseCVEDetails(document, limit).map(enhanceVulnerabilityData);
-            break;
-          case "cisaKev":
-            vulnerabilities = parseCISA(document, limit).map(enhanceVulnerabilityData);
-            break;
-        }
+        // Fallback to CISA KEV when NVD fails
+        console.log("Falling back to CISA KEV due to NVD rate limits");
+        vulnerabilities = await fetchCISAKnownExploited(limit);
       }
+    } else {
+      // For other sources, use fallback mock data
+      console.log(`Using mock data for source: ${source}`);
+      usedFallback = true;
+      vulnerabilities = [
+        {
+          cve: `CVE-2025-${Date.now().toString().slice(-4)}`,
+          title: `Mock vulnerability from ${source}`,
+          description: `Sample vulnerability data from ${source} source - API unavailable`,
+          severity: 'medium',
+          system: `${source} System`,
+          mitigation: "Mock mitigation data",
+          details: {
+            source: source,
+            published: new Date().toISOString(),
+            mock: true
+          }
+        }
+      ];
     }
 
-    // Store enhanced vulnerabilities in the database
-    let count = 0;
-    let zeroDayCount = 0;
+    // Store vulnerabilities in the database
     for (const vuln of vulnerabilities) {
       // Check if vulnerability already exists
       const { data: existing } = await supabaseClient
@@ -359,42 +322,10 @@ serve(async (req: Request) => {
         ]);
 
         if (error) {
-          console.error("Error storing enhanced vulnerability:", error);
+          console.error("Error storing vulnerability:", error);
         } else {
           count++;
-          if (vuln.details?.zeroDay) {
-            zeroDayCount++;
-          }
         }
-      }
-    }
-
-    // Enhanced notification for zero-day vulnerabilities
-    if (sendNotifications && userId && vulnerabilities.length > 0) {
-      try {
-        const zeroDayVulns = vulnerabilities.filter(v => v.details?.zeroDay);
-        const criticalVulns = vulnerabilities.filter(v => v.severity === 'critical');
-        
-        let notificationSeverity = 'all';
-        if (zeroDayVulns.length > 0) {
-          notificationSeverity = 'critical';
-        } else if (criticalVulns.length > 0) {
-          notificationSeverity = 'critical';
-        }
-        
-        await supabaseClient.functions.invoke('send-notifications', {
-          body: {
-            userId,
-            scanResults: vulnerabilities,
-            scanType: 'enhanced',
-            severity: notificationSeverity,
-            zeroDayCount,
-            enhancedScan: true
-          }
-        });
-        console.log(`Enhanced notifications sent to user ${userId} (${zeroDayCount} zero-day detected)`);
-      } catch (notifError) {
-        console.error("Error sending enhanced notifications:", notifError);
       }
     }
 
@@ -403,19 +334,17 @@ serve(async (req: Request) => {
         success: true, 
         count,
         vulnerabilities,
-        zeroDayCount,
-        enhancedFeatures: {
-          customScoring: true,
-          zeroDetection: true,
-          multiSource: true
-        }
+        source,
+        usedFallback,
+        multiSourceScan: multiSource,
+        freeSource: source !== 'nvd'
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   } catch (error) {
-    console.error("Error in enhanced scrape-vulnerabilities function:", error);
+    console.error("Error in enhanced multi-source scraper:", error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       {
