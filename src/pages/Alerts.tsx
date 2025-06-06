@@ -33,7 +33,7 @@ const Alerts = () => {
         </div>
         
         <div className="mb-8">
-          <MultiSourceVulnerabilityScanner />
+          <MultiSourceVulnerabilityScanner showSourcesList={false} />
         </div>
         
         <div className="mb-8">
