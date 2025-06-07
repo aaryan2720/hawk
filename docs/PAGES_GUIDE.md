@@ -65,20 +65,40 @@ The sources list is hidden on this page to reduce clutter.
 
 ### `SystemMonitor.tsx`
 **Route**: `/system-monitor`  
-**Purpose**: System monitoring and OEM tracking
+**Purpose**: System monitoring and OEM tracking with multi-platform detection
 
 **Key Features**:
-- System health monitoring
-- OEM manufacturer tracking
-- Auto-detection of systems
-- Resource usage monitoring
-- Alert configuration
+- **Multi-platform OEM detection** - Windows, Linux, macOS, Android, Python
+- **Script generation and download** - Platform-specific detection scripts
+- **Automated system discovery** - JSON-based detection result processing
+- **OEM manufacturer tracking** - Monitor vulnerability sources from detected manufacturers
+- **Real-time system monitoring** - Health metrics and performance monitoring
+- **Manual vulnerability scanning** - Quick scan interface for immediate results
+
+**Tab Structure**:
+1. **System Monitor Tab** - `UserSystemMonitor` for system configuration
+2. **OEM Sources Tab** - `OEMMonitorList` with `SystemScriptGenerator` integration
+3. **Manual Scan Tab** - `VulnerabilityScraper` for immediate scanning
 
 **Components Used**:
 - `UserSystemMonitor` - Main monitoring interface
-- `OEMMonitorList` - OEM tracking
-- `AutoDetectOEMs` - Auto-detection
-- `VulnerabilityScraper` - Simple scanning
+- `OEMMonitorList` - OEM tracking with embedded script generator
+- `SystemScriptGenerator` - Multi-platform detection script generator
+- `VulnerabilityScraper` - Simple scanning interface
+
+**OEM Detection Workflow**:
+1. User downloads platform-specific script
+2. Script runs on target system and generates JSON
+3. User uploads JSON file to the platform
+4. System automatically extracts and adds OEM sources
+5. Continuous monitoring begins for detected manufacturers
+
+**Platform Support**:
+- **Windows**: Batch scripts using WMIC commands
+- **Linux/Unix**: Bash scripts with DMI and /proc parsing
+- **macOS**: Terminal scripts using system_profiler
+- **Android**: Termux-compatible scripts with getprop
+- **Cross-platform**: Python scripts for universal compatibility
 
 ### `ChatBot.tsx`
 **Route**: `/chatbot`  
@@ -190,6 +210,16 @@ The sources list is hidden on this page to reduce clutter.
 - Call-to-action buttons
 - Marketing content
 
+### `ScanHistory.tsx`
+**Route**: `/scan-history`  
+**Purpose**: Historical scan results and analysis
+
+**Key Features**:
+- Scan history timeline
+- Result comparisons
+- Export capabilities
+- Detailed scan reports
+
 ### `NotFound.tsx`
 **Route**: `*` (catch-all)  
 **Purpose**: 404 error page
@@ -236,10 +266,11 @@ Most application pages require authentication:
 - Dashboard
 - Alerts
 - Reports
-- System Monitor
+- System Monitor (with OEM detection)
 - Settings
 - Profile
 - ChatBot
+- Scan History
 
 ### Public Routes
 These routes are accessible without authentication:
@@ -256,11 +287,16 @@ These routes are accessible without authentication:
 Landing → Login/SignUp → Dashboard → Other Pages
 ```
 
+### System Monitor Workflow
+```
+System Monitor → Download Script → Run on Device → Upload Results → Auto-add OEMs
+```
+
 ### Page Relationships
 - **Dashboard** - Central hub linking to all other pages
 - **Alerts** - Links to detailed vulnerability reports
 - **Reports** - Provides detailed analysis from alerts
-- **System Monitor** - Monitors systems that generate alerts
+- **System Monitor** - Monitors systems and detects OEMs that generate alerts
 - **Settings** - Configures how all other pages behave
 
 ## Responsive Design
@@ -272,4 +308,4 @@ All pages are fully responsive with:
 - Touch-friendly interfaces
 - Optimized for tablets and mobile devices
 
-Last Updated: 2025-06-06
+Last Updated: 2025-06-07

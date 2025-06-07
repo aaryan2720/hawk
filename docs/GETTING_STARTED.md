@@ -1,3 +1,4 @@
+
 # Getting Started Guide
 
 ## Prerequisites
@@ -65,6 +66,9 @@ The application will be available at `http://localhost:8080`
 ```
 src/
 ├── components/     # Reusable UI components
+│   ├── OEMMonitor/ # OEM detection and monitoring
+│   ├── AutoMonitor/ # System monitoring
+│   └── ui/         # Base UI components
 ├── pages/         # Page components (routes)
 ├── hooks/         # Custom React hooks
 ├── utils/         # Utility functions
@@ -72,7 +76,32 @@ src/
 └── integrations/  # Third-party integrations
 ```
 
-### 2. Adding New Features
+### 2. Key Features Overview
+
+#### Multi-Platform OEM Detection
+The system includes comprehensive OEM detection capabilities:
+
+**SystemScriptGenerator Component** (`/src/components/OEMMonitor/SystemScriptGenerator.tsx`):
+- Generates platform-specific detection scripts
+- Supports Windows, Linux, macOS, Android, and Python
+- Creates consistent JSON output format
+- Handles script downloads and result uploads
+
+**Detection Workflow**:
+1. Navigate to System Monitor page
+2. Download platform-specific script
+3. Run script on target system
+4. Upload generated JSON file
+5. System automatically adds detected OEM sources
+
+#### Supported Platforms
+- **Windows (.bat)**: Uses WMIC commands for hardware detection
+- **Linux/Unix (.sh)**: Parses DMI information and /proc/cpuinfo
+- **macOS (.sh)**: Integrates with system_profiler
+- **Android Termux (.sh)**: Uses getprop for device information
+- **Python (.py)**: Cross-platform detection with Python 3.x
+
+### 3. Adding New Features
 
 #### Creating a New Component
 ```bash
@@ -139,7 +168,7 @@ const NewPage = () => {
 export default NewPage;
 ```
 
-### 3. Database Operations
+### 4. Database Operations
 
 #### Fetching Data
 ```tsx
@@ -176,7 +205,32 @@ const createAlert = async (alertData: any) => {
 };
 ```
 
-### 4. Adding UI Components
+### 5. Working with OEM Detection
+
+#### Using the SystemScriptGenerator
+```tsx
+import SystemScriptGenerator from '@/components/OEMMonitor/SystemScriptGenerator';
+
+const MyComponent = () => {
+  const handleDetectionComplete = () => {
+    // Handle successful OEM detection
+    console.log('OEM detection completed');
+  };
+
+  return (
+    <SystemScriptGenerator onDetectionComplete={handleDetectionComplete} />
+  );
+};
+```
+
+#### Processing Detection Results
+The SystemScriptGenerator automatically handles:
+- Script generation for multiple platforms
+- File downloads with appropriate extensions
+- JSON result processing and validation
+- OEM source creation and integration
+
+### 6. Adding UI Components
 
 #### Using Existing Components
 ```tsx
@@ -238,7 +292,28 @@ export const parseNewSource = (data: any): Vulnerability[] => {
 };
 ```
 
-### 2. Adding Real-time Features
+### 2. Extending OEM Detection
+
+#### Adding New Platform Support
+To add support for a new platform in SystemScriptGenerator:
+
+1. Add new script type to the `scriptTypes` array
+2. Implement platform-specific script generation function
+3. Add platform handling in the `generateScript` function
+4. Include platform-specific instructions
+
+```tsx
+// Example for new platform
+const generateNewPlatformScript = (): string => {
+  return `#!/bin/bash
+# New platform detection script
+echo "Detecting OEMs on new platform..."
+# Platform-specific detection logic
+`;
+};
+```
+
+### 3. Adding Real-time Features
 
 #### Subscribe to Database Changes
 ```tsx
@@ -261,7 +336,7 @@ useEffect(() => {
 }, [user.id]);
 ```
 
-### 3. Error Handling Patterns
+### 4. Error Handling Patterns
 
 #### Component Error Boundaries
 ```tsx
@@ -363,7 +438,13 @@ npm install
 - Check Supabase project status
 - Ensure database is accessible
 
-#### 4. Build Errors
+#### 4. OEM Detection Script Issues
+- Verify script has correct file extension
+- Check platform-specific requirements (e.g., Termux for Android)
+- Ensure JSON output format is correct
+- Test script manually before uploading results
+
+#### 5. Build Errors
 ```bash
 # Check for linting errors
 npm run lint
@@ -386,7 +467,8 @@ npm run lint:fix
 2. **Read Documentation**: Review all documentation files in `/docs`
 3. **Set Up Supabase**: Connect to the backend if not already done
 4. **Configure Environment**: Set up all required environment variables
-5. **Start Developing**: Begin with small changes and gradually work on larger features
+5. **Test OEM Detection**: Try the multi-platform detection scripts
+6. **Start Developing**: Begin with small changes and gradually work on larger features
 
 ## Best Practices
 
@@ -414,4 +496,4 @@ npm run lint:fix
 - Document breaking changes
 - Keep the documentation updated
 
-Last Updated: 2025-06-06
+Last Updated: 2025-06-07

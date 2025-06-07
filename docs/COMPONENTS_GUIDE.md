@@ -108,10 +108,53 @@ These are base components from shadcn/ui library:
 - Historical data visualization
 
 #### OEM Monitor Components (`/src/components/OEMMonitor/`)
-- **`OEMMonitorList.tsx`** - List of monitored OEM sources
-- **`AddSourceDialog.tsx`** - Add new OEM monitoring source
-- **`AutoDetectOEMs.tsx`** - Automatic OEM detection
-- **`SourceCard.tsx`** - Individual OEM source display
+
+##### `OEMMonitorList.tsx`
+- List of monitored OEM sources
+- Source management and configuration
+- Status indicators for each source
+
+##### `AddSourceDialog.tsx`
+- Add new OEM monitoring source
+- Form validation and source verification
+
+##### `AutoDetectOEMs.tsx`
+- Automatic OEM detection from system information
+- Integration with SystemScriptGenerator
+
+##### `SourceCard.tsx`
+- Individual OEM source display
+- Source status and metrics
+- Action buttons for management
+
+##### `SystemScriptGenerator.tsx`
+**Purpose**: Multi-platform system detection script generator
+**Key Features**:
+- **Multi-platform support**: Windows (.bat), Linux (.sh), macOS (.sh), Android Termux (.sh), Python (.py)
+- **Script generation**: Creates platform-specific detection scripts
+- **JSON output**: All scripts generate consistent JSON format with detected OEMs
+- **Upload processing**: Handles result file uploads and OEM extraction
+- **Auto-detection**: Detects system manufacturers, CPU vendors, and hardware components
+- **Error handling**: Robust error handling with guaranteed JSON output
+
+**Supported Platforms**:
+- **Windows Batch**: Double-click execution, uses WMIC commands
+- **Linux/Unix Bash**: DMI information extraction, /proc/cpuinfo parsing
+- **macOS Terminal**: system_profiler integration, Apple hardware detection
+- **Android (Termux)**: getprop commands for device information
+- **Cross-platform Python**: Works on any OS with Python 3.x
+
+**Detection Capabilities**:
+- System manufacturer and model
+- CPU vendor and model (Intel, AMD, Apple Silicon)
+- Device information (Android manufacturers)
+- Hardware confidence scoring
+- Platform-specific optimizations
+
+**Usage**:
+```tsx
+<SystemScriptGenerator onDetectionComplete={() => void} />
+```
 
 ### Dashboard Components
 
@@ -151,6 +194,7 @@ interface CallbackProps {
   onScanComplete?: () => void;
   onError?: (error: string) => void;
   onSuccess?: (data: any) => void;
+  onDetectionComplete?: () => void;
 }
 ```
 
@@ -203,4 +247,4 @@ All components follow accessibility best practices:
 - Screen reader compatibility
 - Focus management
 
-Last Updated: 2025-06-06
+Last Updated: 2025-06-07
