@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,12 +32,20 @@ const SystemScriptGenerator: React.FC<{ onDetectionComplete?: () => void }> = ({
 
   const scriptTypes: ScriptType[] = [
     {
+      id: 'windows-batch',
+      name: 'Windows Batch',
+      platform: 'Windows',
+      extension: '.bat',
+      icon: <Monitor className="h-5 w-5" />,
+      description: 'Simple Windows batch script'
+    },
+    {
       id: 'windows-powershell',
       name: 'Windows PowerShell',
       platform: 'Windows',
       extension: '.ps1',
       icon: <Monitor className="h-5 w-5" />,
-      description: 'Basic Windows system detection'
+      description: 'PowerShell script for Windows'
     },
     {
       id: 'linux-bash',
@@ -46,15 +53,7 @@ const SystemScriptGenerator: React.FC<{ onDetectionComplete?: () => void }> = ({
       platform: 'Linux',
       extension: '.sh',
       icon: <Terminal className="h-5 w-5" />,
-      description: 'Basic Linux system detection'
-    },
-    {
-      id: 'macos-bash',
-      name: 'macOS Bash',
-      platform: 'macOS',
-      extension: '.sh',
-      icon: <Monitor className="h-5 w-5" />,
-      description: 'Basic macOS system detection'
+      description: 'Bash script for Linux'
     },
     {
       id: 'cross-platform-python',
@@ -62,9 +61,87 @@ const SystemScriptGenerator: React.FC<{ onDetectionComplete?: () => void }> = ({
       platform: 'Cross-Platform',
       extension: '.py',
       icon: <FileText className="h-5 w-5" />,
-      description: 'Universal detection using Python'
+      description: 'Python script that works everywhere'
     }
   ];
+
+  const generateWindowsBatchScript = (): string => {
+    return `@echo off
+echo HAWK OEM Detection - Starting...
+echo.
+
+:: Create output file with basic structure
+echo { > hawk_oem_results.json
+echo   "timestamp": "%date% %time%", >> hawk_oem_results.json
+echo   "platform": "Windows", >> hawk_oem_results.json
+echo   "script_version": "1.0", >> hawk_oem_results.json
+echo   "detected_oems": [ >> hawk_oem_results.json
+
+:: Get system manufacturer
+for /f "tokens=2 delims==" %%i in ('wmic computersystem get manufacturer /value ^| find "="') do (
+    set "manufacturer=%%i"
+)
+
+:: Get system model
+for /f "tokens=2 delims==" %%i in ('wmic computersystem get model /value ^| find "="') do (
+    set "model=%%i"
+)
+
+:: Get CPU name
+for /f "tokens=2 delims==" %%i in ('wmic cpu get name /value ^| find "="') do (
+    set "cpu=%%i"
+)
+
+:: Add system info if available
+if defined manufacturer (
+    if not "%manufacturer%"=="To Be Filled By O.E.M." (
+        echo     { >> hawk_oem_results.json
+        echo       "name": "%manufacturer%", >> hawk_oem_results.json
+        echo       "category": "System", >> hawk_oem_results.json
+        echo       "model": "%model%", >> hawk_oem_results.json
+        echo       "confidence": 90 >> hawk_oem_results.json
+        echo     }, >> hawk_oem_results.json
+    )
+)
+
+:: Add CPU info if available
+if defined cpu (
+    echo "%cpu%" | findstr /i "intel" >nul
+    if not errorlevel 1 (
+        echo     { >> hawk_oem_results.json
+        echo       "name": "Intel", >> hawk_oem_results.json
+        echo       "category": "CPU", >> hawk_oem_results.json
+        echo       "model": "%cpu%", >> hawk_oem_results.json
+        echo       "confidence": 85 >> hawk_oem_results.json
+        echo     }, >> hawk_oem_results.json
+    )
+    
+    echo "%cpu%" | findstr /i "amd" >nul
+    if not errorlevel 1 (
+        echo     { >> hawk_oem_results.json
+        echo       "name": "AMD", >> hawk_oem_results.json
+        echo       "category": "CPU", >> hawk_oem_results.json
+        echo       "model": "%cpu%", >> hawk_oem_results.json
+        echo       "confidence": 85 >> hawk_oem_results.json
+        echo     }, >> hawk_oem_results.json
+    )
+)
+
+:: Close JSON structure (remove last comma and close)
+echo     {} >> hawk_oem_results.json
+echo   ] >> hawk_oem_results.json
+echo } >> hawk_oem_results.json
+
+:: Clean up the JSON (remove trailing comma before empty object)
+powershell -Command "(Get-Content hawk_oem_results.json) -replace ',\\s*\\{\\s*\\}', '' | Set-Content hawk_oem_results.json"
+
+echo.
+echo SUCCESS: Results saved to hawk_oem_results.json
+echo Upload this file to HAWK System Monitor
+echo.
+pause
+`;
+  };
 
   const generateWindowsPowerShellScript = (): string => {
     return `# HAWK OEM Detection Script
@@ -75,7 +152,7 @@ $results = @()
 # Get system info
 try {
     $computerSystem = Get-WmiObject -Class Win32_ComputerSystem -ErrorAction Stop
-    if ($computerSystem.Manufacturer) {
+    if ($computerSystem.Manufacturer -and $computerSystem.Manufacturer -ne "To Be Filled By O.E.M.") {
         $results += @{
             name = $computerSystem.Manufacturer
             category = "System"
@@ -134,85 +211,57 @@ Read-Host "Press Enter to exit"
 
   const generateLinuxBashScript = (): string => {
     return `#!/bin/bash
-# HAWK OEM Detection Script
-
 echo "HAWK OEM Detection - Starting..."
+
+# Create basic JSON structure
+cat > hawk_oem_results.json << 'EOF'
+{
+  "timestamp": "",
+  "platform": "Linux",
+  "script_version": "1.0",
+  "detected_oems": []
+}
+EOF
+
+# Update timestamp
+timestamp=$(date -Iseconds 2>/dev/null || date)
+sed -i "s/\"timestamp\": \"\"/\"timestamp\": \"$timestamp\"/" hawk_oem_results.json
 
 results="[]"
 
 # Get system vendor
 if [ -f /sys/class/dmi/id/sys_vendor ]; then
-    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\\0')
-    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\\0')
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\0')
+    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\0')
     if [ ! -z "$vendor" ] && [ "$vendor" != "To Be Filled By O.E.M." ]; then
-        results=$(echo "$results" | jq '. + [{"name": "'$vendor'", "category": "System", "model": "'$model'", "confidence": 90}]')
+        results="[{\"name\":\"$vendor\",\"category\":\"System\",\"model\":\"$model\",\"confidence\":90}]"
     fi
 fi
 
-# Get CPU info
+# Get CPU info - simple approach
 if [ -f /proc/cpuinfo ]; then
     if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
-        cpu_model=$(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^[ \\t]*//')
-        results=$(echo "$results" | jq '. + [{"name": "Intel", "category": "CPU", "model": "'$cpu_model'", "confidence": 85}]')
+        cpu_model=$(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^[ \t]*//')
+        if [ "$results" = "[]" ]; then
+            results="[{\"name\":\"Intel\",\"category\":\"CPU\",\"model\":\"$cpu_model\",\"confidence\":85}]"
+        else
+            results=$(echo "$results" | sed 's/]$/,{"name":"Intel","category":"CPU","model":"'$cpu_model'","confidence":85}]/')
+        fi
     elif grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
-        cpu_model=$(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^[ \\t]*//')
-        results=$(echo "$results" | jq '. + [{"name": "AMD", "category": "CPU", "model": "'$cpu_model'", "confidence": 85}]')
+        cpu_model=$(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^[ \t]*//')
+        if [ "$results" = "[]" ]; then
+            results="[{\"name\":\"AMD\",\"category\":\"CPU\",\"model\":\"$cpu_model\",\"confidence\":85}]"
+        else
+            results=$(echo "$results" | sed 's/]$/,{"name":"AMD","category":"CPU","model":"'$cpu_model'","confidence":85}]/')
+        fi
     fi
 fi
 
-# Create JSON output
-timestamp=$(date -Iseconds)
-cat > hawk_oem_results.json << EOF
-{
-  "timestamp": "$timestamp",
-  "platform": "Linux",
-  "script_version": "1.0",
-  "detected_oems": $results
-}
-EOF
+# Update the JSON file
+sed -i "s/\"detected_oems\": \[\]/\"detected_oems\": $results/" hawk_oem_results.json
 
 echo "SUCCESS: Results saved to hawk_oem_results.json"
-count=$(echo "$results" | jq 'length')
-echo "Found $count components"
-echo "Upload the hawk_oem_results.json file to HAWK"
-`;
-  };
-
-  const generateMacOSScript = (): string => {
-    return `#!/bin/bash
-# HAWK OEM Detection Script
-
-echo "HAWK OEM Detection - Starting..."
-
-results="[]"
-
-# Get system info
-model=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | cut -d: -f2 | sed 's/^[ \\t]*//')
-if [ ! -z "$model" ]; then
-    results=$(echo "$results" | jq '. + [{"name": "Apple", "category": "System", "model": "'$model'", "confidence": 95}]')
-fi
-
-# Get CPU info
-cpu=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Processor Name" | cut -d: -f2 | sed 's/^[ \\t]*//')
-if echo "$cpu" | grep -iq "intel"; then
-    results=$(echo "$results" | jq '. + [{"name": "Intel", "category": "CPU", "model": "'$cpu'", "confidence": 85}]')
-elif echo "$cpu" | grep -iq "apple"; then
-    results=$(echo "$results" | jq '. + [{"name": "Apple", "category": "CPU", "model": "'$cpu'", "confidence": 90}]')
-fi
-
-# Create JSON output
-timestamp=$(date -Iseconds)
-cat > hawk_oem_results.json << EOF
-{
-  "timestamp": "$timestamp",
-  "platform": "macOS",
-  "script_version": "1.0",
-  "detected_oems": $results
-}
-EOF
-
-echo "SUCCESS: Results saved to hawk_oem_results.json"
-count=$(echo "$results" | jq 'length')
+count=$(echo "$results" | grep -o "{" | wc -l)
 echo "Found $count components"
 echo "Upload the hawk_oem_results.json file to HAWK"
 `;
@@ -228,7 +277,7 @@ import os
 
 def run_cmd(cmd):
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
         return result.stdout.strip() if result.returncode == 0 else ""
     except:
         return ""
@@ -240,36 +289,41 @@ def detect_system():
     print(f"HAWK OEM Detection - {system}")
     
     if system == "Windows":
-        try:
-            import wmi
-            c = wmi.WMI()
-            for sys in c.Win32_ComputerSystem():
-                if sys.Manufacturer:
-                    results.append({
-                        "name": sys.Manufacturer,
-                        "category": "System", 
-                        "model": sys.Model or "",
-                        "confidence": 90
-                    })
-            for cpu in c.Win32_Processor():
-                if "Intel" in cpu.Name:
-                    results.append({
-                        "name": "Intel",
-                        "category": "CPU",
-                        "model": cpu.Name,
-                        "confidence": 85
-                    })
-                elif "AMD" in cpu.Name:
-                    results.append({
-                        "name": "AMD",
-                        "category": "CPU", 
-                        "model": cpu.Name,
-                        "confidence": 85
-                    })
-        except:
-            print("WMI not available, using basic detection")
+        # Get system info
+        manufacturer = run_cmd('wmic computersystem get manufacturer /value | findstr Manufacturer=')
+        if manufacturer and "=" in manufacturer:
+            mfg = manufacturer.split("=")[1].strip()
+            if mfg and mfg != "To Be Filled By O.E.M.":
+                model = run_cmd('wmic computersystem get model /value | findstr Model=')
+                model_name = model.split("=")[1].strip() if "=" in model else ""
+                results.append({
+                    "name": mfg,
+                    "category": "System",
+                    "model": model_name,
+                    "confidence": 90
+                })
+        
+        # Get CPU info
+        cpu = run_cmd('wmic cpu get name /value | findstr Name=')
+        if cpu and "=" in cpu:
+            cpu_name = cpu.split("=")[1].strip()
+            if "Intel" in cpu_name:
+                results.append({
+                    "name": "Intel",
+                    "category": "CPU",
+                    "model": cpu_name,
+                    "confidence": 85
+                })
+            elif "AMD" in cpu_name:
+                results.append({
+                    "name": "AMD",
+                    "category": "CPU",
+                    "model": cpu_name,
+                    "confidence": 85
+                })
             
     elif system == "Linux":
+        # Get system vendor
         vendor = run_cmd('cat /sys/class/dmi/id/sys_vendor 2>/dev/null')
         if vendor and vendor != "To Be Filled By O.E.M.":
             model = run_cmd('cat /sys/class/dmi/id/product_name 2>/dev/null')
@@ -280,6 +334,7 @@ def detect_system():
                 "confidence": 90
             })
         
+        # Get CPU info
         cpu_info = run_cmd('grep "model name" /proc/cpuinfo | head -1')
         if "Intel" in cpu_info:
             results.append({
@@ -290,13 +345,14 @@ def detect_system():
             })
         elif "AMD" in cpu_info:
             results.append({
-                "name": "AMD", 
+                "name": "AMD",
                 "category": "CPU",
                 "model": cpu_info.split(":")[-1].strip(),
                 "confidence": 85
             })
             
-    elif system == "Darwin":
+    elif system == "Darwin":  # macOS
+        # System info
         model = run_cmd('system_profiler SPHardwareDataType | grep "Model Name"')
         if model:
             results.append({
@@ -306,6 +362,7 @@ def detect_system():
                 "confidence": 95
             })
         
+        # CPU info
         cpu = run_cmd('system_profiler SPHardwareDataType | grep "Processor Name"')
         if cpu:
             cpu_name = cpu.split(":")[-1].strip()
@@ -346,7 +403,7 @@ def main():
         
     except Exception as e:
         print(f"Error: {e}")
-        # Create empty results file
+        # Always create a file, even on error
         output = {
             "timestamp": datetime.datetime.now().isoformat(),
             "platform": platform.system(),
@@ -356,6 +413,7 @@ def main():
         }
         with open("hawk_oem_results.json", "w") as f:
             json.dump(output, f, indent=2)
+        print("Created empty results file")
 
 if __name__ == "__main__":
     main()
@@ -364,12 +422,12 @@ if __name__ == "__main__":
 
   const generateScript = (scriptId: string): string => {
     switch (scriptId) {
+      case 'windows-batch':
+        return generateWindowsBatchScript();
       case 'windows-powershell':
         return generateWindowsPowerShellScript();
       case 'linux-bash':
         return generateLinuxBashScript();
-      case 'macos-bash':
-        return generateMacOSScript();
       case 'cross-platform-python':
         return generatePythonScript();
       default:
@@ -467,7 +525,7 @@ if __name__ == "__main__":
           System Detection Scripts
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Simple, reliable scripts to detect OEMs on your system
+          Download and run scripts to detect OEMs on your system
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -506,14 +564,28 @@ if __name__ == "__main__":
               <div>
                 <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Script Downloaded!</h4>
                 <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
-                  Run the script and upload the generated JSON file.
+                  {selectedScript === 'windows-batch' 
+                    ? 'Double-click the .bat file to run it. It will create hawk_oem_results.json automatically.'
+                    : 'Run the script and upload the generated JSON file.'
+                  }
                 </p>
                 <div className="text-xs text-blue-700 dark:text-blue-300">
                   <p><strong>Steps:</strong></p>
                   <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Run the script with admin/sudo permissions if needed</li>
-                    <li>Script will create "hawk_oem_results.json"</li>
-                    <li>Upload the JSON file below</li>
+                    {selectedScript === 'windows-batch' ? (
+                      <>
+                        <li>Double-click the downloaded .bat file</li>
+                        <li>Wait for it to complete (it will pause at the end)</li>
+                        <li>Look for "hawk_oem_results.json" in the same folder</li>
+                        <li>Upload the JSON file below</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>Run the script with admin/sudo permissions if needed</li>
+                        <li>Script will create "hawk_oem_results.json"</li>
+                        <li>Upload the JSON file below</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -592,10 +664,10 @@ if __name__ == "__main__":
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">Simple & Reliable</h4>
+              <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">Usage Tips</h4>
               <p className="text-xs text-amber-800 dark:text-amber-200">
-                These scripts are simplified for maximum compatibility and will always generate a JSON file, 
-                even if no components are detected.
+                The .bat file is the easiest option for Windows - just double-click to run. 
+                All scripts will create a JSON file even if no components are detected.
               </p>
             </div>
           </div>
