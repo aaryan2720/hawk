@@ -125,8 +125,9 @@ export class EnterpriseOEMService {
     totalPages: number;
   }> {
     try {
+      // Use type assertion to work with the new table until types are regenerated
       let query = supabase
-        .from('enterprise_oem_sources')
+        .from('enterprise_oem_sources' as any)
         .select('*', { count: 'exact' });
 
       // Apply filters
@@ -147,8 +148,27 @@ export class EnterpriseOEMService {
 
       if (error) throw error;
 
+      // Transform the data to match our interface
+      const sources = (data || []).map((source: any) => ({
+        id: source.id,
+        name: source.name,
+        type: source.type,
+        endpoint: source.endpoint,
+        category: source.category,
+        priority: source.priority,
+        region: source.region,
+        industry: source.industry,
+        authentication: source.authentication,
+        rateLimits: source.rate_limits,
+        processingConfig: source.processing_config,
+        monitoringConfig: source.monitoring_config,
+        lastProcessed: source.last_processed,
+        status: source.status,
+        metrics: source.metrics
+      }));
+
       return {
-        sources: data || [],
+        sources,
         total: count || 0,
         page,
         totalPages: Math.ceil((count || 0) / limit)
@@ -227,7 +247,7 @@ export class EnterpriseOEMService {
 
       // Get source configuration
       const { data: source } = await supabase
-        .from('enterprise_oem_sources')
+        .from('enterprise_oem_sources' as any)
         .select('*')
         .eq('id', job.sourceId)
         .single();
@@ -236,11 +256,30 @@ export class EnterpriseOEMService {
         throw new Error(`Source ${job.sourceId} not found`);
       }
 
+      // Transform source data
+      const transformedSource: EnterpriseOEMSource = {
+        id: source.id,
+        name: source.name,
+        type: source.type,
+        endpoint: source.endpoint,
+        category: source.category,
+        priority: source.priority,
+        region: source.region,
+        industry: source.industry,
+        authentication: source.authentication,
+        rateLimits: source.rate_limits,
+        processingConfig: source.processing_config,
+        monitoringConfig: source.monitoring_config,
+        lastProcessed: source.last_processed,
+        status: source.status,
+        metrics: source.metrics
+      };
+
       // Check rate limits
-      await this.enforceRateLimit(source);
+      await this.enforceRateLimit(transformedSource);
 
       // Process vulnerabilities based on source type
-      const results = await this.processSourceVulnerabilities(source);
+      const results = await this.processSourceVulnerabilities(transformedSource);
 
       // Update job with results
       job.status = 'completed';
@@ -248,7 +287,7 @@ export class EnterpriseOEMService {
       job.results = results;
 
       // Update source metrics
-      await this.updateSourceMetrics(source.id, results, true);
+      await this.updateSourceMetrics(transformedSource.id, results, true);
 
       console.log(`Job ${job.id} completed successfully:`, results);
     } catch (error) {
@@ -378,18 +417,30 @@ export class EnterpriseOEMService {
    */
   private async triggerEnterpriseNotifications(vulnerability: any, source: EnterpriseOEMSource): Promise<void> {
     try {
-      // Get notification rules
+      // Get notification rules using type assertion
       const { data: rules } = await supabase
-        .from('enterprise_notification_rules')
+        .from('enterprise_notification_rules' as any)
         .select('*')
         .eq('active', true);
 
       if (!rules) return;
 
       for (const rule of rules) {
+        // Transform rule data
+        const transformedRule: EnterpriseNotificationRule = {
+          id: rule.id,
+          organizationId: rule.organization_id,
+          name: rule.name,
+          conditions: rule.conditions,
+          channels: rule.channels,
+          escalation: rule.escalation,
+          schedule: rule.schedule,
+          rateLimit: rule.rate_limit
+        };
+
         // Check if vulnerability matches rule conditions
-        if (this.matchesNotificationRule(vulnerability, source, rule)) {
-          await this.executeNotificationRule(vulnerability, source, rule);
+        if (this.matchesNotificationRule(vulnerability, source, transformedRule)) {
+          await this.executeNotificationRule(vulnerability, source, transformedRule);
         }
       }
     } catch (error) {

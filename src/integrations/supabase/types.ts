@@ -57,6 +57,108 @@ export type Database = {
         }
         Relationships: []
       }
+      enterprise_notification_rules: {
+        Row: {
+          active: boolean
+          channels: Json
+          conditions: Json
+          created_at: string
+          escalation: Json
+          id: string
+          name: string
+          organization_id: string
+          rate_limit: Json
+          schedule: Json
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          channels?: Json
+          conditions?: Json
+          created_at?: string
+          escalation?: Json
+          id?: string
+          name: string
+          organization_id: string
+          rate_limit?: Json
+          schedule?: Json
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          channels?: Json
+          conditions?: Json
+          created_at?: string
+          escalation?: Json
+          id?: string
+          name?: string
+          organization_id?: string
+          rate_limit?: Json
+          schedule?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      enterprise_oem_sources: {
+        Row: {
+          authentication: Json | null
+          category: string
+          created_at: string
+          endpoint: string
+          id: string
+          industry: string[]
+          last_processed: string | null
+          metrics: Json
+          monitoring_config: Json
+          name: string
+          priority: string
+          processing_config: Json
+          rate_limits: Json
+          region: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          authentication?: Json | null
+          category: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          industry?: string[]
+          last_processed?: string | null
+          metrics?: Json
+          monitoring_config?: Json
+          name: string
+          priority: string
+          processing_config?: Json
+          rate_limits?: Json
+          region: string
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          authentication?: Json | null
+          category?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          industry?: string[]
+          last_processed?: string | null
+          metrics?: Json
+          monitoring_config?: Json
+          name?: string
+          priority?: string
+          processing_config?: Json
+          rate_limits?: Json
+          region?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           content: string
