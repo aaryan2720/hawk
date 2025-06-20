@@ -10,7 +10,7 @@ import VulnerabilityDistribution from '@/components/VulnerabilityDistribution';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Shield, Clock, Bell, Target, Activity, Zap } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -107,12 +107,12 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl shadow-xl">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-r-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl shadow-lg">
+            <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-r-transparent"></div>
           </div>
-          <div className="text-primary/70 font-medium">Loading Security Dashboard...</div>
+          <div className="text-primary/70 font-medium text-sm">Loading Security Dashboard...</div>
         </div>
       </div>
     );
@@ -125,197 +125,183 @@ const Dashboard = () => {
   const totalAlerts = severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
       <DashboardNav />
-      <main className="container mx-auto py-6 px-4 lg:px-8">
+      <main className="container mx-auto py-4 px-4 lg:px-6 space-y-4">
         
-        {/* Enhanced Header Section */}
-        <div className="mb-8 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-3xl blur-xl"></div>
-          <Card className="relative backdrop-blur-sm bg-white/90 border-0 shadow-2xl rounded-3xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-indigo-500/5"></div>
-            <CardContent className="relative p-8">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl">
-                      <Shield className="h-8 w-8 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent animate-fade-in">
-                        HAWK Security Dashboard
-                      </h1>
-                      <p className="text-lg text-gray-600 mt-2 animate-fade-in" style={{animationDelay: '0.1s'}}>
-                        Advanced real-time security monitoring and threat intelligence
-                      </p>
-                    </div>
-                  </div>
+        {/* Compact Header Section */}
+        <Card className="backdrop-blur-sm bg-white/95 border-0 shadow-lg rounded-xl overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
+                  <Shield className="h-5 w-5 text-white" />
                 </div>
-                
-                <div className="flex flex-wrap gap-3">
-                  <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 font-bold shadow-lg">
-                    <Activity className="h-4 w-4 mr-2 animate-pulse" />
-                    Live Monitoring
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 font-bold shadow-lg">
-                    <Zap className="h-4 w-4 mr-2" />
-                    AI-Powered
-                  </Badge>
-                  <Button 
-                    variant={showEnhancedScanner ? "default" : "outline"} 
-                    onClick={() => setShowEnhancedScanner(!showEnhancedScanner)}
-                    className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-lg border-0"
-                  >
-                    <Target className="h-4 w-4 mr-2" />
-                    Enhanced Scanner
-                  </Button>
+                <div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 bg-clip-text text-transparent">
+                    HAWK Security Dashboard
+                  </h1>
+                  <p className="text-xs text-gray-600">Real-time security monitoring</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-1 text-xs font-medium shadow-md">
+                  <Activity className="h-3 w-3 mr-1 animate-pulse" />
+                  Live
+                </Badge>
+                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 text-xs font-medium shadow-md">
+                  <Zap className="h-3 w-3 mr-1" />
+                  AI-Powered
+                </Badge>
+                <Button 
+                  variant={showEnhancedScanner ? "default" : "outline"} 
+                  onClick={() => setShowEnhancedScanner(!showEnhancedScanner)}
+                  size="sm"
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-md border-0 text-xs px-3 py-1"
+                >
+                  <Target className="h-3 w-3 mr-1" />
+                  Scanner
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         
         {/* Enhanced Scanner Section */}
         {showEnhancedScanner && (
-          <div className="mb-8 animate-slide-down">
+          <div className="animate-slide-down">
             <EnhancedVulnerabilityScanner />
           </div>
         )}
         
         {/* Critical Alerts Notification */}
         {showNotification && severityCounts.critical > 0 && (
-          <div className="mb-8 animate-slide-down">
-            <Alert className="glass-effect border-red-200 shadow-2xl rounded-2xl" variant="destructive">
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-red-500 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <AlertTitle className="text-lg font-bold">🚨 Critical Security Vulnerabilities Detected</AlertTitle>
-                  <AlertDescription className="mt-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <span className="text-red-800">
-                        There are <strong>{severityCounts.critical}</strong> critical vulnerabilities requiring immediate attention to prevent potential security breaches.
-                      </span>
-                      <div className="flex gap-2">
-                        <Link to="/alerts">
-                          <Button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg">
-                            View Critical Alerts
-                          </Button>
-                        </Link>
-                        <Button variant="outline" onClick={handleDismissNotification} className="border-red-300 text-red-600 hover:bg-red-50">
-                          Dismiss
-                        </Button>
-                      </div>
-                    </div>
-                  </AlertDescription>
-                </div>
+          <Alert className="backdrop-blur-sm bg-red-50/90 border-red-200 shadow-md rounded-lg" variant="destructive">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-red-500 rounded-md">
+                <AlertTriangle className="h-4 w-4 text-white" />
               </div>
-            </Alert>
-          </div>
+              <div className="flex-1">
+                <AlertTitle className="text-base font-semibold">🚨 Critical Vulnerabilities Detected</AlertTitle>
+                <AlertDescription className="mt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+                    <span className="text-red-800">
+                      <strong>{severityCounts.critical}</strong> critical vulnerabilities require immediate attention.
+                    </span>
+                    <div className="flex gap-2">
+                      <Link to="/alerts">
+                        <Button size="sm" className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md text-xs px-3 py-1">
+                          View Alerts
+                        </Button>
+                      </Link>
+                      <Button variant="outline" size="sm" onClick={handleDismissNotification} className="border-red-300 text-red-600 hover:bg-red-50 text-xs px-3 py-1">
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </div>
+            </div>
+          </Alert>
         )}
 
         {/* Last Scan Information */}
         {lastScanTime && (
-          <div className="mb-8 animate-slide-down" style={{animationDelay: '0.2s'}}>
-            <Alert className="glass-effect border-blue-200 shadow-lg rounded-xl">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Clock className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <AlertTitle className="font-semibold">Last Security Scan: {new Date(lastScanTime).toLocaleString()}</AlertTitle>
-                  <AlertDescription className="mt-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <span className="text-blue-800">Automatic vulnerability scans are configured to run every hour.</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleManualScan} className="border-blue-300 text-blue-600 hover:bg-blue-50">
-                          Run Manual Scan
-                        </Button>
-                        <Link to="/system-monitor">
-                          <Button variant="outline" size="sm" className="border-blue-300 text-blue-600 hover:bg-blue-50">
-                            Configure Monitoring
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </AlertDescription>
-                </div>
+          <Alert className="backdrop-blur-sm bg-blue-50/90 border-blue-200 shadow-md rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-blue-500 rounded-md">
+                <Clock className="h-4 w-4 text-white" />
               </div>
-            </Alert>
-          </div>
+              <div className="flex-1">
+                <AlertTitle className="font-medium text-sm">Last Scan: {new Date(lastScanTime).toLocaleString()}</AlertTitle>
+                <AlertDescription className="mt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+                    <span className="text-blue-800">Automatic scans run hourly with OEM filtering.</span>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" onClick={handleManualScan} className="border-blue-300 text-blue-600 hover:bg-blue-50 text-xs px-2 py-1 h-6">
+                        Scan Now
+                      </Button>
+                      <Link to="/system-monitor">
+                        <Button variant="outline" size="sm" className="border-blue-300 text-blue-600 hover:bg-blue-50 text-xs px-2 py-1 h-6">
+                          Configure
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </div>
+            </div>
+          </Alert>
         )}
         
-        {/* Main Dashboard Grid - Responsive Layout */}
-        <div className="space-y-8">
+        {/* Main Dashboard Grid - Compact Layout */}
+        <div className="space-y-4">
           
-          {/* Alert Status Summary - Full Width */}
-          <div className="animate-fade-in" style={{animationDelay: '0.3s'}}>
+          {/* Alert Status Summary - Compact */}
+          <div className="animate-fade-in">
             <AlertStatusSummary severityCounts={severityCounts} />
           </div>
           
-          {/* System Status and Charts Row */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-1 animate-fade-in" style={{animationDelay: '0.4s'}}>
+          {/* System Status and Charts Row - Tighter spacing */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-1 animate-fade-in">
               <StatusOverview />
             </div>
-            <div className="lg:col-span-2 animate-fade-in" style={{animationDelay: '0.5s'}}>
+            <div className="lg:col-span-2 animate-fade-in">
               <TrendChart />
             </div>
           </div>
           
-          {/* Analytics Row */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="animate-fade-in" style={{animationDelay: '0.6s'}}>
+          {/* Analytics Row - Compact */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="animate-fade-in">
               <VulnerabilityDistribution 
                 data={severityCounts} 
                 isLoading={isLoading}
               />
             </div>
-            <div className="animate-fade-in" style={{animationDelay: '0.7s'}}>
+            <div className="animate-fade-in">
               <RiskAnalyzer />
             </div>
           </div>
           
-          {/* Security Scanner Visual */}
-          <div className="animate-fade-in" style={{animationDelay: '0.8s'}}>
+          {/* Security Scanner Visual - Compact */}
+          <div className="animate-fade-in">
             <SecurityScannerVisual />
           </div>
 
-          {/* Quick Actions */}
-          <div className="animate-fade-in" style={{animationDelay: '0.9s'}}>
-            <Card className="glass-card border-0 shadow-xl rounded-2xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 gradient-text">
-                  <Bell className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>Configure and manage your security settings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3">
-                  <Link to="/settings">
-                    <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg">
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notification Settings
-                    </Button>
-                  </Link>
-                  <Link to="/system-monitor">
-                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                      <Shield className="h-4 w-4 mr-2" />
-                      System Monitor
-                    </Button>
-                  </Link>
-                  <Link to="/reports">
-                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                      <Activity className="h-4 w-4 mr-2" />
-                      Security Reports
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Quick Actions - Compact */}
+          <Card className="backdrop-blur-sm bg-white/95 border-0 shadow-lg rounded-xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-4 w-4" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                <Link to="/settings">
+                  <Button size="sm" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-md text-xs px-3 py-1.5">
+                    <Bell className="h-3 w-3 mr-1" />
+                    Notifications
+                  </Button>
+                </Link>
+                <Link to="/system-monitor">
+                  <Button variant="outline" size="sm" className="border-gray-300 hover:bg-gray-50 text-xs px-3 py-1.5">
+                    <Shield className="h-3 w-3 mr-1" />
+                    Monitor
+                  </Button>
+                </Link>
+                <Link to="/reports">
+                  <Button variant="outline" size="sm" className="border-gray-300 hover:bg-gray-50 text-xs px-3 py-1.5">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Reports
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
