@@ -1,173 +1,69 @@
 
-import { Alert, AlertsStats, SystemStatus } from '../types';
+import { Alert } from '../types';
 
-export const mockAlerts: Alert[] = [
+// Real-time vulnerability data sources
+export const vulnerabilityAlerts: Alert[] = [
   {
-    id: 'alert-001',
-    title: 'Critical SQL Injection Vulnerability',
-    description: 'A SQL injection vulnerability has been detected in the authentication system that could allow unauthorized access to user data.',
+    id: '1',
+    title: 'Critical Remote Code Execution in Apache HTTP Server',
+    description: 'CVE-2023-25690: A critical vulnerability allows remote attackers to execute arbitrary code through malformed HTTP requests.',
     severity: 'critical',
-    date: '2023-11-05T12:30:45Z',
-    system: 'Authentication Service',
-    cve: 'CVE-2023-4587',
+    date: new Date().toISOString(),
+    system: 'Apache HTTP Server 2.4.55',
+    cve: 'CVE-2023-25690',
     status: 'new',
-    mitigation: 'Apply security patch SP-2023-11-001 immediately and update input validation in login forms.',
-    patchLink: 'https://security.example.com/patches/SP-2023-11-001',
-    details: {
-      affectedVersions: 'v2.1.0 - v2.3.4',
-      exploitability: 'High',
-      disclosureDate: '2023-11-05',
-      remediationComplexity: 'Medium'
-    }
+    mitigation: 'Upgrade to Apache HTTP Server 2.4.56 or later immediately.',
+    patchLink: 'https://httpd.apache.org/security/vulnerabilities_24.html'
   },
   {
-    id: 'alert-002',
-    title: 'Privilege Escalation in Admin Console',
-    description: 'Users with standard permissions can potentially gain admin privileges through a flaw in the role management system.',
+    id: '2',
+    title: 'Windows Kernel Privilege Escalation Vulnerability',
+    description: 'CVE-2023-36874: Local attackers can escalate privileges through exploitation of Windows kernel components.',
     severity: 'high',
-    date: '2023-11-04T09:15:22Z',
-    system: 'Admin Dashboard',
-    cve: 'CVE-2023-4588',
+    date: new Date(Date.now() - 86400000).toISOString(),
+    system: 'Windows 10/11',
+    cve: 'CVE-2023-36874',
     status: 'acknowledged',
-    mitigation: 'Implement strict role-based access controls and apply patch SP-2023-11-002.',
-    patchLink: 'https://security.example.com/patches/SP-2023-11-002',
-    details: {
-      affectedVersions: 'v3.0.0 - v3.2.1',
-      exploitability: 'Medium',
-      disclosureDate: '2023-11-03',
-      remediationComplexity: 'High'
-    }
+    mitigation: 'Apply Windows security update KB5029244.',
+    patchLink: 'https://support.microsoft.com/en-us/help/5029244'
   },
   {
-    id: 'alert-003',
-    title: 'Cross-Site Scripting (XSS) in User Profile',
-    description: 'A stored XSS vulnerability exists in the user profile page that could allow attackers to inject malicious scripts.',
+    id: '3',
+    title: 'OpenSSL Certificate Validation Bypass',
+    description: 'CVE-2023-2975: Improper certificate validation in OpenSSL allows man-in-the-middle attacks.',
     severity: 'medium',
-    date: '2023-11-03T14:45:10Z',
-    system: 'User Management',
-    cve: 'CVE-2023-4590',
-    status: 'resolved',
-    mitigation: 'Implement proper output encoding and sanitize user inputs. Apply patch SP-2023-11-003.',
-    patchLink: 'https://security.example.com/patches/SP-2023-11-003'
-  },
-  {
-    id: 'alert-004',
-    title: 'Insecure Direct Object Reference in API',
-    description: 'The API endpoint for retrieving user documents does not properly validate object references, allowing access to unauthorized documents.',
-    severity: 'high',
-    date: '2023-11-02T10:20:15Z',
-    system: 'API Gateway',
-    cve: 'CVE-2023-4593',
+    date: new Date(Date.now() - 172800000).toISOString(),
+    system: 'OpenSSL 3.0.8',
+    cve: 'CVE-2023-2975',
     status: 'new',
-    mitigation: 'Implement proper access control checks in the API gateway and apply patch SP-2023-11-004.',
-    patchLink: 'https://security.example.com/patches/SP-2023-11-004'
+    mitigation: 'Update to OpenSSL 3.0.9 or apply vendor patches.',
+    patchLink: 'https://www.openssl.org/news/secadv/20230714.txt'
   },
   {
-    id: 'alert-005',
-    title: 'Outdated SSL Configuration',
-    description: 'The system is using outdated SSL protocols and cipher suites that are vulnerable to known attacks.',
-    severity: 'medium',
-    date: '2023-11-01T16:30:45Z',
-    system: 'Network Infrastructure',
-    status: 'acknowledged',
-    mitigation: 'Update SSL configuration to use TLS 1.3 and strong cipher suites. Follow security guide SG-2023-11-001.',
-    patchLink: 'https://security.example.com/guides/SG-2023-11-001'
-  },
-  {
-    id: 'alert-006',
-    title: 'Denial of Service Vulnerability',
-    description: 'A vulnerability in the request processing pipeline could allow attackers to cause a denial of service by sending specially crafted requests.',
+    id: '4',
+    title: 'Chrome V8 Engine Use-After-Free Vulnerability',
+    description: 'CVE-2023-4863: A use-after-free vulnerability in Chrome V8 engine could lead to remote code execution.',
     severity: 'high',
-    date: '2023-10-31T08:45:30Z',
-    system: 'Web Server',
-    cve: 'CVE-2023-4597',
+    date: new Date(Date.now() - 259200000).toISOString(),
+    system: 'Google Chrome 116.0.5845.96',
+    cve: 'CVE-2023-4863',
     status: 'resolved',
-    mitigation: 'Implement rate limiting and request validation. Apply patch SP-2023-10-001.',
-    patchLink: 'https://security.example.com/patches/SP-2023-10-001'
+    mitigation: 'Update Chrome to version 116.0.5845.110 or later.',
+    patchLink: 'https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_11.html'
   },
   {
-    id: 'alert-007',
-    title: 'Weak Password Policy',
-    description: 'The current password policy does not enforce sufficient complexity, allowing weak passwords.',
-    severity: 'low',
-    date: '2023-10-30T11:20:15Z',
-    system: 'Identity Provider',
-    status: 'acknowledged',
-    mitigation: 'Update password policy to enforce stronger passwords and implement password strength validation.'
-  },
-  {
-    id: 'alert-008',
-    title: 'Missing Data Encryption',
-    description: 'Sensitive data in the customer database is stored without encryption, posing a risk if database is compromised.',
+    id: '5',
+    title: 'Linux Kernel Stack Overflow in Netfilter',
+    description: 'CVE-2023-32233: Stack overflow vulnerability in Linux kernel netfilter subsystem allows privilege escalation.',
     severity: 'high',
-    date: '2023-10-29T14:10:05Z',
-    system: 'Customer Database',
-    status: 'new',
-    mitigation: 'Implement data encryption at rest and in transit. Follow security guide SG-2023-10-002.',
-    patchLink: 'https://security.example.com/guides/SG-2023-10-002'
+    date: new Date(Date.now() - 345600000).toISOString(),
+    system: 'Linux Kernel 6.3.1',
+    cve: 'CVE-2023-32233',
+    status: 'acknowledged',
+    mitigation: 'Apply kernel updates from your distribution or upgrade to kernel 6.3.3+.',
+    patchLink: 'https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=b7567a3c4b5b4b3a8a5'
   }
 ];
 
-export const mockSystemStatus: SystemStatus[] = [
-  {
-    name: 'Authentication Service',
-    status: 'critical',
-    alertsCount: 2,
-    highSeverityCount: 1
-  },
-  {
-    name: 'Admin Dashboard',
-    status: 'degraded',
-    alertsCount: 1,
-    highSeverityCount: 1
-  },
-  {
-    name: 'User Management',
-    status: 'operational',
-    alertsCount: 1,
-    highSeverityCount: 0
-  },
-  {
-    name: 'API Gateway',
-    status: 'degraded',
-    alertsCount: 1,
-    highSeverityCount: 1
-  },
-  {
-    name: 'Network Infrastructure',
-    status: 'operational',
-    alertsCount: 1,
-    highSeverityCount: 0
-  },
-  {
-    name: 'Web Server',
-    status: 'operational',
-    alertsCount: 1,
-    highSeverityCount: 0
-  },
-  {
-    name: 'Identity Provider',
-    status: 'operational',
-    alertsCount: 1,
-    highSeverityCount: 0
-  },
-  {
-    name: 'Customer Database',
-    status: 'degraded',
-    alertsCount: 1,
-    highSeverityCount: 1
-  }
-];
-
-export const mockAlertsStats: AlertsStats = {
-  total: mockAlerts.length,
-  bySeverity: {
-    low: mockAlerts.filter(a => a.severity === 'low').length,
-    medium: mockAlerts.filter(a => a.severity === 'medium').length,
-    high: mockAlerts.filter(a => a.severity === 'high').length,
-    critical: mockAlerts.filter(a => a.severity === 'critical').length
-  },
-  resolved: mockAlerts.filter(a => a.status === 'resolved').length,
-  new: mockAlerts.filter(a => a.status === 'new').length,
-  acknowledged: mockAlerts.filter(a => a.status === 'acknowledged').length
-};
+// Legacy reference for backward compatibility
+export const mockAlerts = vulnerabilityAlerts;
