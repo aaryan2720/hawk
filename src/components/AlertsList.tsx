@@ -36,6 +36,7 @@ const AlertsList = () => {
 
       if (error) throw error;
       setUserOEMSources(data || []);
+      console.log('User OEM sources loaded:', data?.map(oem => `${oem.name} (${oem.system_type})`));
     } catch (error) {
       console.error('Error fetching OEM sources:', error);
     }
@@ -171,34 +172,101 @@ const AlertsList = () => {
     };
   }, []);
 
-  // Apply OEM filtering - ENHANCED LOGIC
+  // Enhanced OEM filtering with better matching
   const oemFilteredAlerts = filteredAlerts.filter(alert => {
-    // If user has no OEM sources registered, show all alerts
-    if (userOEMSources.length === 0) return true;
+    // If user has no OEM sources registered, show message but no alerts
+    if (userOEMSources.length === 0) return false;
     
-    // Check if alert is marked as user-filtered (from the new system)
+    // Check if alert is marked as user-filtered (from enhanced system)
     if (alert.details && typeof alert.details === 'object' && 'userFiltered' in alert.details) {
       return alert.details.userFiltered;
     }
     
-    // Enhanced OEM filtering logic
+    // Enhanced OEM filtering with better matching
     const alertSystem = alert.system.toLowerCase();
     const alertDescription = alert.description.toLowerCase();
     const alertTitle = alert.title.toLowerCase();
+    const alertText = `${alertTitle} ${alertDescription} ${alertSystem}`;
     
     return userOEMSources.some(oemSource => {
       const oemName = oemSource.name.toLowerCase();
       const systemType = oemSource.system_type.toLowerCase();
       
-      // Check in system, description, and title
-      return alertSystem.includes(oemName) || 
-             alertDescription.includes(oemName) ||
-             alertTitle.includes(oemName) ||
-             alertSystem.includes(systemType) ||
-             alertDescription.includes(systemType) ||
-             alertTitle.includes(systemType);
+      // Direct name matching
+      if (alertText.includes(oemName) || alertText.includes(systemType)) {
+        return true;
+      }
+      
+      // Enhanced pattern matching for common OEM variations
+      const oemVariations = getOEMVariations(oemName);
+      const systemVariations = getSystemTypeVariations(systemType);
+      
+      return oemVariations.some(variation => alertText.includes(variation)) ||
+             systemVariations.some(variation => alertText.includes(variation)) ||
+             isProductFamilyMatch(alertText, oemName, systemType);
     });
   });
+
+  // Helper functions for enhanced OEM matching
+  const getOEMVariations = (oemName: string): string[] => {
+    const variations = [oemName];
+    
+    const aliases: Record<string, string[]> = {
+      'microsoft': ['windows', 'ms', 'msft', 'azure', 'office'],
+      'intel': ['cpu', 'processor', 'chipset'],
+      'amd': ['ryzen', 'radeon', 'epyc'],
+      'apple': ['macos', 'ios', 'safari'],
+      'google': ['chrome', 'android'],
+      'cisco': ['ios', 'nx-os', 'asa'],
+      'dell': ['emc', 'poweredge'],
+      'hp': ['hewlett', 'packard', 'enterprise'],
+      'vmware': ['vsphere', 'vcenter', 'esxi'],
+      'oracle': ['java', 'mysql', 'solaris']
+    };
+    
+    if (aliases[oemName]) {
+      variations.push(...aliases[oemName]);
+    }
+    
+    return variations;
+  };
+
+  const getSystemTypeVariations = (systemType: string): string[] => {
+    const variations = [systemType];
+    
+    const typeAliases: Record<string, string[]> = {
+      'operating system': ['os', 'kernel', 'system'],
+      'network': ['router', 'switch', 'firewall'],
+      'server': ['rack', 'blade', 'datacenter'],
+      'desktop': ['pc', 'workstation'],
+      'laptop': ['notebook', 'portable'],
+      'storage': ['san', 'nas', 'disk'],
+      'security': ['antivirus', 'endpoint'],
+      'database': ['sql', 'rdbms', 'db']
+    };
+    
+    if (typeAliases[systemType]) {
+      variations.push(...typeAliases[systemType]);
+    }
+    
+    return variations;
+  };
+
+  const isProductFamilyMatch = (alertText: string, oemName: string, systemType: string): boolean => {
+    const productPatterns: Record<string, string[]> = {
+      'microsoft': ['windows 10', 'windows 11', 'server 2019', 'server 2022'],
+      'intel': ['core i3', 'core i5', 'core i7', 'xeon'],
+      'amd': ['ryzen 3', 'ryzen 5', 'ryzen 7'],
+      'cisco': ['catalyst', 'nexus', 'meraki'],
+      'dell': ['poweredge r', 'latitude', 'optiplex']
+    };
+    
+    if (productPatterns[oemName]) {
+      return productPatterns[oemName].some(pattern => alertText.includes(pattern));
+    }
+    
+    return false;
+  };
 
   const getSeverityStats = () => {
     const stats = {
@@ -225,9 +293,9 @@ const AlertsList = () => {
                   <AlertCircle className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Active Security Alerts</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">OEM-Filtered Security Alerts</h2>
                   <p className="text-gray-600 mt-1">
-                    {oemFilteredAlerts.length} alerts • {userOEMSources.length} OEM sources monitored
+                    {oemFilteredAlerts.length} relevant alerts • {userOEMSources.length} OEM sources monitored
                   </p>
                 </div>
               </div>
@@ -268,7 +336,7 @@ const AlertsList = () => {
         </Card>
       </div>
 
-      {/* Enhanced OEM Filtering Info */}
+      {/* Enhanced OEM Filtering Status */}
       {userOEMSources.length > 0 ? (
         <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 shadow-md rounded-xl overflow-hidden">
           <CardContent className="p-6">
@@ -278,10 +346,11 @@ const AlertsList = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-emerald-900 mb-2">
-                  🎯 Smart OEM Filtering Active
+                  🎯 Enhanced OEM Filtering Active
                 </h3>
                 <p className="text-sm text-emerald-800 mb-3">
-                  Showing only alerts relevant to your registered devices. This reduces noise and focuses on vulnerabilities that actually affect your infrastructure.
+                  Advanced filtering ensures you only see vulnerabilities for your registered devices and their product families. 
+                  This includes variations, aliases, and related products from your OEMs.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {userOEMSources.map((oem, index) => (
@@ -304,10 +373,11 @@ const AlertsList = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-amber-900 mb-2">
-                  📢 All Alerts Visible
+                  📢 No OEM Sources Registered
                 </h3>
                 <p className="text-sm text-amber-800">
-                  You're seeing all alerts because no OEM sources are registered. Visit <strong>System Monitor</strong> to register your devices and get personalized, filtered alerts.
+                  To receive personalized, filtered alerts for your specific devices, please register your OEM sources in <strong>System Monitor</strong>. 
+                  This will enable precise filtering and reduce alert noise significantly.
                 </p>
               </div>
             </div>
@@ -330,8 +400,8 @@ const AlertsList = () => {
             <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl shadow-lg mb-4">
               <Loader className="h-8 w-8 text-white animate-spin" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Loading Security Alerts</h3>
-            <p className="text-gray-600 text-center">Fetching the latest vulnerability data from multiple sources...</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Loading OEM-Filtered Alerts</h3>
+            <p className="text-gray-600 text-center">Applying intelligent filtering based on your registered devices...</p>
           </CardContent>
         </Card>
       ) : oemFilteredAlerts.length > 0 ? (
@@ -358,19 +428,27 @@ const AlertsList = () => {
             <div className="p-4 bg-gradient-to-br from-gray-400 to-slate-500 rounded-2xl shadow-lg mb-6 w-fit mx-auto">
               <Filter className="h-10 w-10 text-white" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-3">No Matching Alerts Found</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-3">
+              {userOEMSources.length === 0 ? 'No OEM Sources Registered' : 'No Matching Alerts Found'}
+            </h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              No alerts match your current search criteria or OEM filtering settings. 
-              Try adjusting your filters or search terms.
+              {userOEMSources.length === 0 
+                ? 'Register your device OEMs in System Monitor to start receiving personalized, filtered security alerts.'
+                : 'No alerts match your current search criteria or registered OEM sources. Try adjusting your filters.'
+              }
             </p>
             <Button 
               onClick={() => {
-                setSearchQuery('');
-                setFilters({ severity: [], status: [] });
+                if (userOEMSources.length === 0) {
+                  window.location.href = '/system-monitor';
+                } else {
+                  setSearchQuery('');
+                  setFilters({ severity: [], status: [] });
+                }
               }}
               className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-md px-6 py-2 rounded-lg"
             >
-              Clear All Filters
+              {userOEMSources.length === 0 ? 'Add OEM Sources' : 'Clear All Filters'}
             </Button>
           </CardContent>
         </Card>

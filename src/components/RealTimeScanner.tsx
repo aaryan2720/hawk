@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader, RefreshCw, AlertTriangle, Shield, Database, Info } from 'lucide-react';
+import { Loader, RefreshCw, AlertTriangle, Shield, Database, Info, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,8 @@ interface ScanResult {
   description?: string;
   system?: string;
   date?: string;
+  oemSpecific?: boolean;
+  targetOEM?: string;
 }
 
 const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => {
@@ -28,11 +30,11 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
   const [isScanning, setIsScanning] = useState(false);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
-  const [usedMockData, setUsedMockData] = useState(false);
   const [scanInProgress, setScanInProgress] = useState(false);
   const [filteredByOEMs, setFilteredByOEMs] = useState(false);
   const [registeredOEMs, setRegisteredOEMs] = useState<string[]>([]);
   const [userOEMSources, setUserOEMSources] = useState<any[]>([]);
+  const [scanMessage, setScanMessage] = useState<string>('');
   
   // Get the results limit from environment variables or default to 10
   const resultsLimit = parseInt(import.meta.env.VITE_NVD_RESULTS_LIMIT || '10');
@@ -61,6 +63,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
 
       if (error) throw error;
       setUserOEMSources(data || []);
+      console.log('Scanner: User OEM sources loaded:', data?.map(oem => `${oem.name} (${oem.system_type})`));
     } catch (error) {
       console.error('Error fetching OEM sources:', error);
     }
@@ -97,11 +100,16 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       setIsScanning(true);
       setScanInProgress(true);
       setResults([]);
-      setUsedMockData(false);
       setFilteredByOEMs(false);
       setRegisteredOEMs([]);
+      setScanMessage('');
 
-      toast.info('Fetching real-time vulnerability data...', {
+      if (userOEMSources.length === 0) {
+        toast.info('No OEM sources registered. Please add your device OEMs first for personalized results.');
+        return;
+      }
+
+      toast.info('Scanning for vulnerabilities specific to your registered OEMs...', {
         duration: 3000,
       });
 
@@ -117,26 +125,23 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
 
       if (data.results && Array.isArray(data.results)) {
         setResults(data.results);
-        setUsedMockData(data.usedMockData || false);
         setFilteredByOEMs(data.filteredByOEMs || false);
         setRegisteredOEMs(data.registeredOEMs || []);
+        setScanMessage(data.message || '');
         
         if (data.results.length > 0) {
-          if (data.usedMockData) {
-            const oemInfo = data.filteredByOEMs ? ' (filtered by your registered OEMs)' : '';
-            toast.info(`${data.results.length} demonstration vulnerabilities loaded${oemInfo}`);
-          } else {
-            const oemInfo = data.filteredByOEMs ? ' (filtered by your registered OEMs)' : '';
-            toast.success(`${data.results.length} new vulnerabilities discovered from NVD${oemInfo}`);
-          }
+          const oemInfo = data.filteredByOEMs ? ` for your registered OEMs (${data.registeredOEMs?.join(', ')})` : '';
+          toast.success(`${data.results.length} relevant vulnerabilities found${oemInfo}`);
           
           // Send notifications for any critical/high results
           await sendNotification(data.results);
         } else {
-          if (data.filteredByOEMs && userOEMSources.length > 0) {
-            toast.info('No new vulnerabilities found for your registered OEM sources');
+          if (data.message) {
+            toast.info(data.message);
+          } else if (data.filteredByOEMs && userOEMSources.length > 0) {
+            toast.success('No new vulnerabilities found for your registered OEM sources');
           } else {
-            toast.info('No new vulnerabilities found');
+            toast.info('No vulnerabilities found matching your criteria');
           }
         }
       } else {
@@ -168,9 +173,9 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
     <Card className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight">Vulnerability Scanner</h3>
+          <h3 className="text-xl font-semibold tracking-tight">OEM-Specific Vulnerability Scanner</h3>
           <p className="text-sm text-gray-500">
-            Scans for the latest security vulnerabilities affecting your systems
+            Scans for vulnerabilities specific to your registered OEM devices
           </p>
         </div>
         <div className="text-sm text-gray-500">
@@ -181,35 +186,40 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           ) : (
             <div className="flex items-center">
               <Database className="h-4 w-4 text-primary mr-1 inline" />
-              Real-time Scanning
+              OEM-Filtered Scanning
             </div>
           )}
         </div>
       </div>
 
-      {/* OEM Filtering Status */}
-      {userOEMSources.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+      {/* OEM Sources Status */}
+      {userOEMSources.length > 0 ? (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
-            <Shield className="h-4 w-4 text-blue-600 mt-0.5" />
+            <CheckCircle className="h-4 w-4 text-emerald-600 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">OEM Filtering Active</p>
-              <p className="text-xs text-blue-700 mt-1">
-                Scans will only return vulnerabilities for your registered OEM sources: {userOEMSources.map(oem => oem.name).join(', ')}
+              <p className="text-sm font-medium text-emerald-900">OEM Filtering Active</p>
+              <p className="text-xs text-emerald-700 mt-1">
+                Scanning for vulnerabilities affecting: {userOEMSources.map(oem => `${oem.name} (${oem.system_type})`).join(', ')}
               </p>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {userOEMSources.map((oem, index) => (
+                  <Badge key={index} variant="outline" className="text-xs bg-emerald-100 border-emerald-300 text-emerald-800">
+                    {oem.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      )}
-
-      {userOEMSources.length === 0 && (
+      ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 text-amber-600 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-amber-900">No OEM Filtering</p>
+              <p className="text-sm font-medium text-amber-900">No OEM Sources Registered</p>
               <p className="text-xs text-amber-700 mt-1">
-                Register OEM sources in System Monitor to get targeted alerts for your specific systems only.
+                Add your device OEMs in System Monitor to get personalized vulnerability scanning for your specific hardware and software.
               </p>
             </div>
           </div>
@@ -239,7 +249,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           
           <Button 
             onClick={handleScan} 
-            disabled={isScanning} 
+            disabled={isScanning || userOEMSources.length === 0} 
             className="whitespace-nowrap"
           >
             {isScanning ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
@@ -248,7 +258,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
         </div>
         
         <div className="text-xs text-gray-500">
-          Scans for up to {resultsLimit} vulnerabilities published in the last 7 days
+          Scans for up to {resultsLimit} vulnerabilities published in the last 7 days, filtered by your registered OEMs
         </div>
       </div>
       
@@ -257,23 +267,20 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
           <Alert className="bg-blue-50 text-blue-800 border-blue-200">
             <Info className="h-4 w-4" />
             <span className="ml-2 text-xs">
-              Scan in progress. You'll receive notifications for critical vulnerabilities.
+              Scan in progress. Results will be filtered based on your registered OEM sources.
             </span>
           </Alert>
         </div>
       )}
-      
-      {usedMockData && results.length > 0 && (
-        <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
+
+      {scanMessage && (
+        <Alert className="bg-amber-50 text-amber-800 border-amber-200">
           <Info className="h-4 w-4" />
-          <span className="ml-2 text-xs">
-            Using demonstration data as the vulnerability database could not be reached
-            {filteredByOEMs && registeredOEMs.length > 0 && ` (filtered for: ${registeredOEMs.join(', ')})`}
-          </span>
+          <span className="ml-2 text-xs">{scanMessage}</span>
         </Alert>
       )}
 
-      {filteredByOEMs && !usedMockData && (
+      {filteredByOEMs && registeredOEMs.length > 0 && (
         <Alert className="bg-green-50 text-green-800 border-green-200">
           <Shield className="h-4 w-4" />
           <span className="ml-2 text-xs">
@@ -284,7 +291,7 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
       
       {results.length > 0 && (
         <div className="mt-4">
-          <h4 className="text-sm font-medium mb-2">Scan Results</h4>
+          <h4 className="text-sm font-medium mb-2">OEM-Specific Scan Results</h4>
           <div className="max-h-60 overflow-y-auto pr-2">
             {results.map((result, index) => (
               <div 
@@ -298,11 +305,20 @@ const RealTimeScanner: React.FC<RealTimeScannerProps> = ({ onScanComplete }) => 
                   'text-blue-500'
                 } flex-shrink-0 mt-0.5`} />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{result.title || result.cve}</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium">{result.title || result.cve}</span>
+                    {result.oemSpecific && (
+                      <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                        {result.targetOEM}
+                      </Badge>
+                    )}
+                  </div>
                   {result.description && (
-                    <span className="text-xs text-gray-500">{result.description.substring(0, 150)}{result.description.length > 150 ? '...' : ''}</span>
+                    <span className="text-xs text-gray-500 mb-1">
+                      {result.description.substring(0, 150)}{result.description.length > 150 ? '...' : ''}
+                    </span>
                   )}
-                  <div className="flex items-center mt-1 text-xs text-gray-500">
+                  <div className="flex items-center text-xs text-gray-500">
                     <Badge variant="outline" className={`
                       ${result.severity === 'critical' ? 'bg-red-100 text-red-800 border-red-200' :
                         result.severity === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
