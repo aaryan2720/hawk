@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import AlertCard from './AlertCard';
 import SearchFilters from './SearchFilters';
@@ -10,6 +9,67 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+
+// Helper functions for enhanced OEM matching - moved to top to avoid initialization errors
+const getOEMVariations = (oemName: string): string[] => {
+  const variations = [oemName];
+  
+  const aliases: Record<string, string[]> = {
+    'microsoft': ['windows', 'ms', 'msft', 'azure', 'office'],
+    'intel': ['cpu', 'processor', 'chipset'],
+    'amd': ['ryzen', 'radeon', 'epyc'],
+    'apple': ['macos', 'ios', 'safari'],
+    'google': ['chrome', 'android'],
+    'cisco': ['ios', 'nx-os', 'asa'],
+    'dell': ['emc', 'poweredge'],
+    'hp': ['hewlett', 'packard', 'enterprise'],
+    'vmware': ['vsphere', 'vcenter', 'esxi'],
+    'oracle': ['java', 'mysql', 'solaris']
+  };
+  
+  if (aliases[oemName]) {
+    variations.push(...aliases[oemName]);
+  }
+  
+  return variations;
+};
+
+const getSystemTypeVariations = (systemType: string): string[] => {
+  const variations = [systemType];
+  
+  const typeAliases: Record<string, string[]> = {
+    'operating system': ['os', 'kernel', 'system'],
+    'network': ['router', 'switch', 'firewall'],
+    'server': ['rack', 'blade', 'datacenter'],
+    'desktop': ['pc', 'workstation'],
+    'laptop': ['notebook', 'portable'],
+    'storage': ['san', 'nas', 'disk'],
+    'security': ['antivirus', 'endpoint'],
+    'database': ['sql', 'rdbms', 'db']
+  };
+  
+  if (typeAliases[systemType]) {
+    variations.push(...typeAliases[systemType]);
+  }
+  
+  return variations;
+};
+
+const isProductFamilyMatch = (alertText: string, oemName: string, systemType: string): boolean => {
+  const productPatterns: Record<string, string[]> = {
+    'microsoft': ['windows 10', 'windows 11', 'server 2019', 'server 2022'],
+    'intel': ['core i3', 'core i5', 'core i7', 'xeon'],
+    'amd': ['ryzen 3', 'ryzen 5', 'ryzen 7'],
+    'cisco': ['catalyst', 'nexus', 'meraki'],
+    'dell': ['poweredge r', 'latitude', 'optiplex']
+  };
+  
+  if (productPatterns[oemName]) {
+    return productPatterns[oemName].some(pattern => alertText.includes(pattern));
+  }
+  
+  return false;
+};
 
 const AlertsList = () => {
   const { user } = useAuth();
@@ -206,67 +266,6 @@ const AlertsList = () => {
              isProductFamilyMatch(alertText, oemName, systemType);
     });
   });
-
-  // Helper functions for enhanced OEM matching
-  const getOEMVariations = (oemName: string): string[] => {
-    const variations = [oemName];
-    
-    const aliases: Record<string, string[]> = {
-      'microsoft': ['windows', 'ms', 'msft', 'azure', 'office'],
-      'intel': ['cpu', 'processor', 'chipset'],
-      'amd': ['ryzen', 'radeon', 'epyc'],
-      'apple': ['macos', 'ios', 'safari'],
-      'google': ['chrome', 'android'],
-      'cisco': ['ios', 'nx-os', 'asa'],
-      'dell': ['emc', 'poweredge'],
-      'hp': ['hewlett', 'packard', 'enterprise'],
-      'vmware': ['vsphere', 'vcenter', 'esxi'],
-      'oracle': ['java', 'mysql', 'solaris']
-    };
-    
-    if (aliases[oemName]) {
-      variations.push(...aliases[oemName]);
-    }
-    
-    return variations;
-  };
-
-  const getSystemTypeVariations = (systemType: string): string[] => {
-    const variations = [systemType];
-    
-    const typeAliases: Record<string, string[]> = {
-      'operating system': ['os', 'kernel', 'system'],
-      'network': ['router', 'switch', 'firewall'],
-      'server': ['rack', 'blade', 'datacenter'],
-      'desktop': ['pc', 'workstation'],
-      'laptop': ['notebook', 'portable'],
-      'storage': ['san', 'nas', 'disk'],
-      'security': ['antivirus', 'endpoint'],
-      'database': ['sql', 'rdbms', 'db']
-    };
-    
-    if (typeAliases[systemType]) {
-      variations.push(...typeAliases[systemType]);
-    }
-    
-    return variations;
-  };
-
-  const isProductFamilyMatch = (alertText: string, oemName: string, systemType: string): boolean => {
-    const productPatterns: Record<string, string[]> = {
-      'microsoft': ['windows 10', 'windows 11', 'server 2019', 'server 2022'],
-      'intel': ['core i3', 'core i5', 'core i7', 'xeon'],
-      'amd': ['ryzen 3', 'ryzen 5', 'ryzen 7'],
-      'cisco': ['catalyst', 'nexus', 'meraki'],
-      'dell': ['poweredge r', 'latitude', 'optiplex']
-    };
-    
-    if (productPatterns[oemName]) {
-      return productPatterns[oemName].some(pattern => alertText.includes(pattern));
-    }
-    
-    return false;
-  };
 
   const getSeverityStats = () => {
     const stats = {
