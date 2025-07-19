@@ -1,157 +1,74 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { EmailService } from "../email-service.ts";
+import { MultiProviderEmailService } from "../multi-provider-email-service.ts";
+
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 export class AutoVerificationHandler {
   constructor(
     private supabase: ReturnType<typeof createClient>,
-    private emailService: EmailService
+    private emailService: MultiProviderEmailService
   ) {}
-
+  
   async handleAutoVerification(userId: string, email: string): Promise<Response> {
-    if (!email) {
-      throw new Error('Email is required for verification');
-    }
-    
-    console.log(`Auto-verifying email ${email} for user ${userId}`);
-    
     try {
-      // Get existing user system or create a new one
-      const { data: userSystem, error: userSystemError } = await this.supabase
-        .from('user_systems')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      console.log("=== Auto Verification Handler Started ===");
+      console.log("User ID:", userId);
+      console.log("Email:", email);
       
-      if (userSystemError) {
-        throw userSystemError;
+      if (!email) {
+        return new Response(
+          JSON.stringify({ error: "Email address is required" }),
+          { status: 400, headers: corsHeaders }
+        );
       }
       
-      let monitoringSettings = {};
-      let userSystemId = null;
-      
-      if (!userSystem) {
-        // Create a new user_system entry with auto-verified email
-        const { data: newSystem, error: createError } = await this.supabase
-          .from('user_systems')
-          .insert({
-            user_id: userId,
-            system_name: 'Default System',
-            monitoring_settings: {
-              notificationPreferences: {
-                emailEnabled: true,
-                emailAddress: email,
-                emailVerified: true, // Auto-verified
-                smsEnabled: false,
-                phoneNumber: '',
-                alertLevel: 'all'
-              }
-            }
-          })
-          .select()
-          .single();
-          
-        if (createError) {
-          throw createError;
-        }
-        
-        userSystemId = newSystem.id;
-        monitoringSettings = newSystem.monitoring_settings;
-      } else {
-        // Update the existing user_system entry
-        monitoringSettings = userSystem.monitoring_settings || {};
-        
-        if (typeof monitoringSettings === 'string') {
-          monitoringSettings = JSON.parse(monitoringSettings);
-        }
-        
-        // Initialize notification preferences if they don't exist
-        if (!monitoringSettings.notificationPreferences) {
-          monitoringSettings.notificationPreferences = {
-            emailEnabled: true,
-            emailAddress: email,
-            emailVerified: true, // Auto-verified
-            smsEnabled: false,
-            phoneNumber: '',
-            alertLevel: 'all'
-          };
-        } else {
-          // Update email address and auto-verify it
-          monitoringSettings.notificationPreferences.emailAddress = email;
-          monitoringSettings.notificationPreferences.emailVerified = true;
-        }
-        
-        // Remove any pending verification data
-        delete monitoringSettings.pendingVerification;
-        
-        const { error: updateError } = await this.supabase
-          .from('user_systems')
-          .update({ monitoring_settings: monitoringSettings })
-          .eq('id', userSystem.id);
-          
-        if (updateError) {
-          throw updateError;
-        }
-        
-        userSystemId = userSystem.id;
-      }
-      
-      // Create an in-app notification about the successful setup
-      await this.supabase.from('notifications').insert({
-        user_id: userId,
-        title: 'Email Notifications Set Up',
-        content: `Your email address (${email}) has been set up to receive security notifications.`,
-        type: 'system',
-        is_read: false
-      });
-      
-      // Send a welcome email
-      const { subject, html } = this.emailService.generateWelcomeEmail(email);
-      
+      // Send welcome email using multi-provider service
       try {
+        const { subject, html } = this.emailService.generateWelcomeEmail(email);
         const emailResult = await this.emailService.sendEmail(email, subject, html);
-        console.log(`Welcome email result:`, emailResult);
+        
+        console.log("Welcome email sent successfully via", emailResult.provider);
         
         return new Response(
           JSON.stringify({ 
-            success: true, 
-            message: 'Email auto-verified and welcome message sent',
-            userSystemId,
-            emailSent: emailResult.success
+            success: true,
+            email_sent: true,
+            provider_used: emailResult.provider,
+            message: "Welcome email sent successfully"
           }),
-          { 
-            status: 200, 
-            headers: { 
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-            } 
-          }
+          { status: 200, headers: corsHeaders }
         );
       } catch (emailError) {
         console.error("Failed to send welcome email:", emailError);
-        // Don't fail the entire operation if just the email fails
+        
         return new Response(
           JSON.stringify({ 
-            success: true, 
-            message: 'Email auto-verified but welcome message failed to send',
-            userSystemId,
-            emailSent: false,
-            emailError: emailError.message
+            success: false,
+            email_sent: false,
+            error: emailError.message,
+            message: "Failed to send welcome email"
           }),
-          { 
-            status: 200, 
-            headers: { 
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", 
-            } 
-          }
+          { status: 500, headers: corsHeaders }
         );
       }
     } catch (error) {
-      console.error('Error auto-verifying email:', error);
-      throw error;
+      console.error("=== Auto Verification Handler Error ===");
+      console.error("Error details:", error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: error.message || "Unknown error in auto verification handler"
+        }),
+        { 
+          status: 500, 
+          headers: corsHeaders 
+        }
+      );
     }
   }
 }

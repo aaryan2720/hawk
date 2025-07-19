@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { EmailService } from "./email-service.ts";
+import { MultiProviderEmailService } from "./multi-provider-email-service.ts";
 import { SMSService } from "./sms-service.ts";
 import { NotificationHandlers } from "./notification-handlers.ts";
 
@@ -45,16 +45,15 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     console.log("Supabase client created successfully");
     
-    // Initialize SendGrid with API key
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    console.log("SendGrid API key available:", Boolean(SENDGRID_API_KEY));
-    const emailService = new EmailService(SENDGRID_API_KEY);
+    // Initialize Multi-Provider Email Service
+    const emailService = new MultiProviderEmailService();
+    console.log("Multi-Provider Email Service initialized");
 
-    // Initialize SMS service (disabled)
+    // Initialize SMS service
     const smsService = new SMSService();
-    console.log("SMS Service initialized (disabled)");
+    console.log("SMS Service initialized");
     
-    // Create handlers instance with email service
+    // Create handlers instance with multi-provider email service
     const handlers = new NotificationHandlers(supabase, emailService, smsService);
     console.log("Notification handlers created");
     
