@@ -22,70 +22,75 @@ export class TestNotificationHandler {
       console.log("User ID:", userId);
       console.log("Request body:", JSON.stringify(body, null, 2));
       
-      // Get user settings
-      const { data: userSystem, error: settingsError } = await this.supabase
-        .from('user_systems')
-        .select('monitoring_settings')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // Get the email address directly from the request body first
+      let targetEmailAddress = body.email || '';
+      console.log("Email from request body:", targetEmailAddress);
       
-      if (settingsError && settingsError.code !== 'PGRST116') {
-        console.error("Error fetching user settings:", settingsError);
-        throw new Error("Failed to fetch user settings");
+      // If no email in request body, get from user settings
+      if (!targetEmailAddress) {
+        const { data: userSystem, error: settingsError } = await this.supabase
+          .from('user_systems')
+          .select('monitoring_settings')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (settingsError && settingsError.code !== 'PGRST116') {
+          console.error("Error fetching user settings:", settingsError);
+          throw new Error("Failed to fetch user settings");
+        }
+        
+        let notificationPreferences: any = {};
+        if (userSystem?.monitoring_settings) {
+          const monSettings = typeof userSystem.monitoring_settings === 'string' 
+            ? JSON.parse(userSystem.monitoring_settings) 
+            : userSystem.monitoring_settings;
+          notificationPreferences = monSettings.notificationPreferences || {};
+          targetEmailAddress = notificationPreferences.emailAddress || '';
+        }
       }
       
-      let notificationPreferences: any = {};
-      if (userSystem?.monitoring_settings) {
-        const monSettings = typeof userSystem.monitoring_settings === 'string' 
-          ? JSON.parse(userSystem.monitoring_settings) 
-          : userSystem.monitoring_settings;
-        notificationPreferences = monSettings.notificationPreferences || {};
-      }
-      
-      console.log("User notification preferences:", notificationPreferences);
+      console.log("Final target email address:", targetEmailAddress);
       
       const response: any = {
         success: true,
         email_sent: false,
         sms_sent: false,
-        provider_used: null
+        provider_used: null,
+        target_email: targetEmailAddress
       };
       
-      // Send email if enabled - use the email address from the form field
-      if (notificationPreferences.emailEnabled && notificationPreferences.emailAddress) {
+      // Send email if we have an email address
+      if (targetEmailAddress) {
         try {
-          console.log("Sending test email to:", notificationPreferences.emailAddress);
+          console.log("Sending test email to:", targetEmailAddress);
           const { subject, html } = this.emailService.generateTestEmail();
           const emailResult = await this.emailService.sendEmail(
-            notificationPreferences.emailAddress,
+            targetEmailAddress,
             subject,
             html
           );
           
           response.email_sent = true;
-          response.provider_used = "SMTP";
+          response.provider_used = emailResult.provider || "EmailService";
           response.email_details = emailResult;
-          response.email_sent_to = notificationPreferences.emailAddress;
-          console.log("Test email sent successfully via SMTP to:", notificationPreferences.emailAddress);
+          response.email_sent_to = targetEmailAddress;
+          console.log("Test email sent successfully to:", targetEmailAddress);
         } catch (emailError) {
           console.error("Failed to send test email:", emailError);
           response.email_error = emailError.message;
         }
       } else {
-        console.log("Email not enabled or no email address configured");
-        if (!notificationPreferences.emailEnabled) {
-          response.email_error = "Email notifications are disabled";
-        } else {
-          response.email_error = "No email address configured";
-        }
+        console.log("No email address configured for sending");
+        response.email_error = "No email address configured";
       }
       
-      // Send SMS if enabled
-      if (notificationPreferences.smsEnabled && notificationPreferences.phoneNumber) {
+      // Send SMS if phone number is provided
+      const phoneNumber = body.phone || '';
+      if (phoneNumber) {
         try {
-          console.log("Sending test SMS to:", notificationPreferences.phoneNumber);
+          console.log("Sending test SMS to:", phoneNumber);
           const smsResult = await this.smsService.sendSMS(
-            notificationPreferences.phoneNumber,
+            phoneNumber,
             "🚨 HAWK Security Test: Your SMS notifications are working! This is a test message to verify your notification settings."
           );
           
@@ -116,7 +121,8 @@ export class TestNotificationHandler {
               email_sent: response.email_sent,
               sms_sent: response.sms_sent,
               provider_used: response.provider_used,
-              email_sent_to: response.email_sent_to || null
+              email_sent_to: response.email_sent_to || null,
+              target_email: targetEmailAddress
             }
           });
         

@@ -31,7 +31,7 @@ export const useNotificationSettings = () => {
     defaultValues: {
       emailEnabled: true,
       smsEnabled: false,
-      emailAddress: '', // Start with empty string so user can edit
+      emailAddress: '',
       phoneNumber: '',
       alertLevel: 'critical',
       frequency: 'immediate',
@@ -78,8 +78,8 @@ export const useNotificationSettings = () => {
         if (monSettings.notificationPreferences) {
           console.log("Loaded settings:", monSettings.notificationPreferences);
           
-          // Use the saved email address if available, otherwise use user's auth email as fallback
-          const savedEmailAddress = monSettings.notificationPreferences.emailAddress || user.email || '';
+          // Always allow the user to edit the email address - don't override with user's auth email
+          const savedEmailAddress = monSettings.notificationPreferences.emailAddress || '';
           
           reset({
             emailEnabled: monSettings.notificationPreferences.emailEnabled ?? true,
@@ -89,7 +89,7 @@ export const useNotificationSettings = () => {
             alertLevel: monSettings.notificationPreferences.alertLevel || 'critical',
             frequency: monSettings.notificationPreferences.frequency || 'immediate',
             timeframe: monSettings.notificationPreferences.timeframe || 'any',
-            emailVerified: true // Always set to true
+            emailVerified: true
           });
         }
       } else {
@@ -104,7 +104,7 @@ export const useNotificationSettings = () => {
     }
   };
 
-  // Initialize with user's auth email but allow editing
+  // Only set the auth email as default if no email is already set
   useEffect(() => {
     if (user && !form.getValues().emailAddress) {
       setValue('emailAddress', user.email || '');
@@ -126,7 +126,7 @@ export const useNotificationSettings = () => {
         notificationPreferences: {
           emailEnabled: true,
           smsEnabled: false,
-          emailAddress: user.email || '', // Use auth email as default but allow changes
+          emailAddress: user.email || '',
           phoneNumber: '',
           alertLevel: 'critical',
           frequency: 'immediate',
@@ -187,12 +187,12 @@ export const useNotificationSettings = () => {
       const notificationPreferences = {
         emailEnabled: values.emailEnabled,
         smsEnabled: values.smsEnabled,
-        emailAddress: values.emailAddress, // Save whatever email the user entered
+        emailAddress: values.emailAddress, // Use the exact email from the form
         phoneNumber: values.phoneNumber,
         alertLevel: values.alertLevel,
         frequency: values.frequency,
         timeframe: values.timeframe,
-        emailVerified: true // Always set as verified
+        emailVerified: true
       };
       
       // Fix: Make sure monitoringSettings is always an object
@@ -240,7 +240,6 @@ export const useNotificationSettings = () => {
         if (updateError) throw updateError;
       }
       
-      // No need to send verification emails
       setEmailVerificationSent(false);
       
       setSaveSuccess(true);
