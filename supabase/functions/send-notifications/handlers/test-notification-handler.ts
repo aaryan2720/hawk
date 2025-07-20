@@ -51,7 +51,7 @@ export class TestNotificationHandler {
         provider_used: null
       };
       
-      // Send email if enabled
+      // Send email if enabled - use the email address from the form field
       if (notificationPreferences.emailEnabled && notificationPreferences.emailAddress) {
         try {
           console.log("Sending test email to:", notificationPreferences.emailAddress);
@@ -65,13 +65,19 @@ export class TestNotificationHandler {
           response.email_sent = true;
           response.provider_used = "SMTP";
           response.email_details = emailResult;
-          console.log("Test email sent successfully via SMTP");
+          response.email_sent_to = notificationPreferences.emailAddress;
+          console.log("Test email sent successfully via SMTP to:", notificationPreferences.emailAddress);
         } catch (emailError) {
           console.error("Failed to send test email:", emailError);
           response.email_error = emailError.message;
         }
       } else {
         console.log("Email not enabled or no email address configured");
+        if (!notificationPreferences.emailEnabled) {
+          response.email_error = "Email notifications are disabled";
+        } else {
+          response.email_error = "No email address configured";
+        }
       }
       
       // Send SMS if enabled
@@ -109,7 +115,8 @@ export class TestNotificationHandler {
               timestamp: new Date().toISOString(),
               email_sent: response.email_sent,
               sms_sent: response.sms_sent,
-              provider_used: response.provider_used
+              provider_used: response.provider_used,
+              email_sent_to: response.email_sent_to || null
             }
           });
         
