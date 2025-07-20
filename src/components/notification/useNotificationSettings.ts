@@ -31,12 +31,12 @@ export const useNotificationSettings = () => {
     defaultValues: {
       emailEnabled: true,
       smsEnabled: false,
-      emailAddress: user?.email || '',
+      emailAddress: '', // Start with empty string so user can edit
       phoneNumber: '',
       alertLevel: 'critical',
       frequency: 'immediate',
       timeframe: 'any',
-      emailVerified: true // Default to true for all emails
+      emailVerified: true
     }
   });
 
@@ -45,13 +45,6 @@ export const useNotificationSettings = () => {
   const smsEnabled = watch('smsEnabled');
   const emailAddress = watch('emailAddress');
   
-  // Fetch settings on component mount and when user changes
-  useEffect(() => {
-    if (user) {
-      fetchSettings();
-    }
-  }, [user]);
-
   // Auto-verify all emails - skip verification
   useEffect(() => {
     if (emailAddress) {
@@ -84,10 +77,14 @@ export const useNotificationSettings = () => {
         
         if (monSettings.notificationPreferences) {
           console.log("Loaded settings:", monSettings.notificationPreferences);
+          
+          // Use the saved email address if available, otherwise use user's auth email as fallback
+          const savedEmailAddress = monSettings.notificationPreferences.emailAddress || user.email || '';
+          
           reset({
             emailEnabled: monSettings.notificationPreferences.emailEnabled ?? true,
             smsEnabled: monSettings.notificationPreferences.smsEnabled ?? false,
-            emailAddress: monSettings.notificationPreferences.emailAddress || user.email || '',
+            emailAddress: savedEmailAddress,
             phoneNumber: monSettings.notificationPreferences.phoneNumber || '',
             alertLevel: monSettings.notificationPreferences.alertLevel || 'critical',
             frequency: monSettings.notificationPreferences.frequency || 'immediate',
@@ -107,6 +104,20 @@ export const useNotificationSettings = () => {
     }
   };
 
+  // Initialize with user's auth email but allow editing
+  useEffect(() => {
+    if (user && !form.getValues().emailAddress) {
+      setValue('emailAddress', user.email || '');
+    }
+  }, [user, form, setValue]);
+
+  // Fetch settings on component mount and when user changes
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+    }
+  }, [user]);
+
   const initializeDefaultSettings = async () => {
     if (!user) return;
     
@@ -115,7 +126,7 @@ export const useNotificationSettings = () => {
         notificationPreferences: {
           emailEnabled: true,
           smsEnabled: false,
-          emailAddress: user.email,
+          emailAddress: user.email || '', // Use auth email as default but allow changes
           phoneNumber: '',
           alertLevel: 'critical',
           frequency: 'immediate',
@@ -176,7 +187,7 @@ export const useNotificationSettings = () => {
       const notificationPreferences = {
         emailEnabled: values.emailEnabled,
         smsEnabled: values.smsEnabled,
-        emailAddress: values.emailAddress,
+        emailAddress: values.emailAddress, // Save whatever email the user entered
         phoneNumber: values.phoneNumber,
         alertLevel: values.alertLevel,
         frequency: values.frequency,
