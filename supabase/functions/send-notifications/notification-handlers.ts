@@ -1,6 +1,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { MultiProviderEmailService } from "./multi-provider-email-service.ts";
+import { SMTPEmailService } from "./smtp-email-service.ts";
 import { SMSService } from "./sms-service.ts";
 import { AutoVerificationHandler } from "./handlers/auto-verification-handler.ts";
 import { TestNotificationHandler } from "./handlers/test-notification-handler.ts";
@@ -14,7 +14,7 @@ export class NotificationHandlers {
   
   constructor(
     private supabase: ReturnType<typeof createClient>,
-    private emailService: MultiProviderEmailService,
+    private emailService: SMTPEmailService,
     private smsService: SMSService
   ) {
     this.autoVerificationHandler = new AutoVerificationHandler(supabase, emailService);

@@ -1,6 +1,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { MultiProviderEmailService } from "../multi-provider-email-service.ts";
+import { SMTPEmailService } from "../smtp-email-service.ts";
 
 const corsHeaders = {
   "Content-Type": "application/json",
@@ -11,7 +11,7 @@ const corsHeaders = {
 export class AutoVerificationHandler {
   constructor(
     private supabase: ReturnType<typeof createClient>,
-    private emailService: MultiProviderEmailService
+    private emailService: SMTPEmailService
   ) {}
   
   async handleAutoVerification(userId: string, email: string): Promise<Response> {
@@ -27,18 +27,18 @@ export class AutoVerificationHandler {
         );
       }
       
-      // Send welcome email using multi-provider service
+      // Send welcome email using SMTP service
       try {
         const { subject, html } = this.emailService.generateWelcomeEmail(email);
         const emailResult = await this.emailService.sendEmail(email, subject, html);
         
-        console.log("Welcome email sent successfully via", emailResult.provider);
+        console.log("Welcome email sent successfully via SMTP");
         
         return new Response(
           JSON.stringify({ 
             success: true,
             email_sent: true,
-            provider_used: emailResult.provider,
+            provider_used: "SMTP",
             message: "Welcome email sent successfully"
           }),
           { status: 200, headers: corsHeaders }

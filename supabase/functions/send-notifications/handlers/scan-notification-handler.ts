@@ -1,6 +1,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { MultiProviderEmailService } from "../multi-provider-email-service.ts";
+import { SMTPEmailService } from "../smtp-email-service.ts";
 import { SMSService } from "../sms-service.ts";
 
 const corsHeaders = {
@@ -12,7 +12,7 @@ const corsHeaders = {
 export class ScanNotificationHandler {
   constructor(
     private supabase: ReturnType<typeof createClient>,
-    private emailService: MultiProviderEmailService,
+    private emailService: SMTPEmailService,
     private smsService: SMSService
   ) {}
   
@@ -71,9 +71,9 @@ export class ScanNotificationHandler {
           );
           
           response.email_sent = true;
-          response.provider_used = emailResult.provider;
+          response.provider_used = "SMTP";
           response.email_details = emailResult;
-          console.log("Vulnerability alert email sent successfully via", emailResult.provider);
+          console.log("Vulnerability alert email sent successfully via SMTP");
         } catch (emailError) {
           console.error("Failed to send vulnerability alert email:", emailError);
           response.email_error = emailError.message;
