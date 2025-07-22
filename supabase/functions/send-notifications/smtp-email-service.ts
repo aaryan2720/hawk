@@ -35,17 +35,28 @@ export class SMTPEmailService {
         html: htmlContent,
       });
 
-      console.log("Resend email sent successfully:", result);
+      console.log("Resend email response:", result);
+      
+      // Check if Resend returned an error
+      if (result.error) {
+        console.error('Resend API error:', result.error);
+        throw new Error(`Resend API error: ${result.error.message}`);
+      }
+      
+      if (!result.data?.id) {
+        console.error('Resend returned no email ID');
+        throw new Error('Email sending failed - no confirmation ID received');
+      }
       
       return { 
         success: true, 
         provider: 'Resend', 
         result: {
-          messageId: result.data?.id || `resend-${Date.now()}`,
+          messageId: result.data.id,
           to,
           from: this.fallbackFrom,
           subject,
-          resendId: result.data?.id
+          resendId: result.data.id
         }
       };
     } catch (error) {
