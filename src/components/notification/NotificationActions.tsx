@@ -7,12 +7,16 @@ interface NotificationActionsProps {
   handleTestNotification: () => Promise<void>;
   isLoading: boolean;
   saveSuccess: boolean;
+  testResult?: any;
+  debug?: string | null;
 }
 
 const NotificationActions: React.FC<NotificationActionsProps> = ({
   handleTestNotification,
   isLoading,
-  saveSuccess
+  saveSuccess,
+  testResult,
+  debug
 }) => {
   return (
     <div className="flex justify-between pt-4">
@@ -47,6 +51,25 @@ const NotificationActions: React.FC<NotificationActionsProps> = ({
           </>
         )}
       </Button>
+      
+      {testResult && (
+        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-sm text-green-800">
+            Test notification sent successfully!
+          </p>
+        </div>
+      )}
+      
+      {debug && (
+        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <details className="text-sm">
+            <summary className="cursor-pointer text-gray-600 mb-2">Debug Info</summary>
+            <pre className="text-xs text-gray-500 overflow-auto max-h-40 p-2 bg-gray-100 rounded">
+              {debug}
+            </pre>
+          </details>
+        </div>
+      )}
     </div>
   );
 };

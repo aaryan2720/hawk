@@ -18,7 +18,7 @@ export class SMTPEmailService {
       throw new Error("RESEND_API_KEY environment variable is required");
     }
     this.resend = new Resend(apiKey);
-    this.fallbackFrom = Deno.env.get("SMTP_FROM") || "onboarding@resend.dev";
+    this.fallbackFrom = "onboarding@resend.dev"; // Use Resend's verified domain
   }
   
   public async sendEmail(to: string, subject: string, htmlContent: string): Promise<EmailResult> {
