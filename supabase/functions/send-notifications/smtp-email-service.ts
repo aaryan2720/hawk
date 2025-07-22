@@ -40,7 +40,7 @@ export class SMTPEmailService {
       // Check if Resend returned an error
       if (result.error) {
         console.error('Resend API error:', result.error);
-        throw new Error(`Resend API error: ${result.error.message}`);
+        throw new Error(`Resend API error: ${result.error.error || result.error.message || 'Unknown error'}`);
       }
       
       if (!result.data?.id) {
