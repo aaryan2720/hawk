@@ -1,6 +1,4 @@
 
-import { Resend } from "npm:resend@2.0.0";
-
 interface EmailResult {
   success: boolean;
   provider: string;
@@ -8,60 +6,73 @@ interface EmailResult {
 }
 
 export class SMTPEmailService {
-  private resend: Resend;
-  private fallbackFrom: string;
+  private serviceId: string;
+  private templateId: string;
+  private publicKey: string;
   
   constructor() {
-    console.log("SMTP Email Service initialized with Resend");
-    const apiKey = Deno.env.get("RESEND_API_KEY");
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY environment variable is required");
+    console.log("SMTP Email Service initialized with EmailJS");
+    this.serviceId = Deno.env.get("EMAILJS_SERVICE_ID") || "";
+    this.templateId = Deno.env.get("EMAILJS_TEMPLATE_ID") || "";
+    this.publicKey = Deno.env.get("EMAILJS_PUBLIC_KEY") || "";
+    
+    if (!this.serviceId || !this.templateId || !this.publicKey) {
+      throw new Error("EmailJS configuration missing. Please set EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, and EMAILJS_PUBLIC_KEY");
     }
-    this.resend = new Resend(apiKey);
-    this.fallbackFrom = "onboarding@resend.dev"; // Use Resend's verified domain
   }
   
   public async sendEmail(to: string, subject: string, htmlContent: string): Promise<EmailResult> {
-    console.log("=== RESEND EMAIL SERVICE ===");
-    console.log(`Sending email via Resend to: ${to}`);
+    console.log("=== EMAILJS EMAIL SERVICE ===");
+    console.log(`Sending email via EmailJS to: ${to}`);
     console.log(`Subject: ${subject}`);
-    console.log(`From: ${this.fallbackFrom}`);
 
     try {
-      const result = await this.resend.emails.send({
-        from: this.fallbackFrom,
-        to: [to],
-        subject: subject,
-        html: htmlContent,
+      const emailData = {
+        service_id: this.serviceId,
+        template_id: this.templateId,
+        user_id: this.publicKey,
+        template_params: {
+          to_email: to,
+          subject: subject,
+          html_content: htmlContent,
+          to_name: to.split('@')[0], // Extract name from email
+        }
+      };
+
+      console.log("Sending request to EmailJS API");
+      
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData)
       });
 
-      console.log("Resend email response:", result);
+      console.log("EmailJS response status:", response.status);
       
-      // Check if Resend returned an error
-      if (result.error) {
-        console.error('Resend API error:', result.error);
-        throw new Error(`Resend API error: ${result.error.error || result.error.message || 'Unknown error'}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('EmailJS API error:', errorText);
+        throw new Error(`EmailJS API error: ${response.status} - ${errorText}`);
       }
       
-      if (!result.data?.id) {
-        console.error('Resend returned no email ID');
-        throw new Error('Email sending failed - no confirmation ID received');
-      }
+      const result = await response.text();
+      console.log("EmailJS response:", result);
       
       return { 
         success: true, 
-        provider: 'Resend', 
+        provider: 'EmailJS', 
         result: {
-          messageId: result.data.id,
+          messageId: result,
           to,
-          from: this.fallbackFrom,
           subject,
-          resendId: result.data.id
+          status: response.status
         }
       };
     } catch (error) {
-      console.error('Resend email failed:', error);
-      throw new Error(`Resend email send failed: ${error.message}`);
+      console.error('EmailJS email failed:', error);
+      throw new Error(`EmailJS email send failed: ${error.message}`);
     }
   }
   
@@ -96,7 +107,7 @@ export class SMTPEmailService {
           <h2 style="color: #4F46E5; margin-top: 0; font-size: 18px;">Notification Details</h2>
           <p><strong>Type:</strong> Test</p>
           <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          <p><strong>Status:</strong> Successfully delivered via free email service</p>
+          <p><strong>Status:</strong> Successfully delivered via EmailJS</p>
         </div>
         <p>You are receiving this because you requested a test notification in your security settings.</p>
         <p>If you did not request this test, please review your notification settings in the HAWK Security dashboard.</p>
