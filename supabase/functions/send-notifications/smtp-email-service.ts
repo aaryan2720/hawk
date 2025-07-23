@@ -1,4 +1,3 @@
-
 interface EmailResult {
   success: boolean;
   provider: string;
@@ -11,7 +10,7 @@ export class SMTPEmailService {
   private publicKey: string;
   
   constructor() {
-    console.log("SMTP Email Service initialized with EmailJS (server-side workaround)");
+    console.log("SMTP Email Service initialized with EmailJS (server-side enabled)");
     this.serviceId = Deno.env.get("EMAILJS_SERVICE_ID") || "";
     this.templateId = Deno.env.get("EMAILJS_TEMPLATE_ID") || "";
     this.publicKey = Deno.env.get("EMAILJS_PUBLIC_KEY") || "";
@@ -22,35 +21,30 @@ export class SMTPEmailService {
   }
   
   public async sendEmail(to: string, subject: string, htmlContent: string): Promise<EmailResult> {
-    console.log("=== EMAILJS EMAIL SERVICE (Server-side) ===");
-    console.log(`Attempting to send email to: ${to}`);
+    console.log("=== EMAILJS EMAIL SERVICE ===");
+    console.log(`Sending email via EmailJS to: ${to}`);
     console.log(`Subject: ${subject}`);
 
     try {
-      // Use EmailJS REST API with proper headers for server-side usage
       const emailData = {
         service_id: this.serviceId,
         template_id: this.templateId,
         user_id: this.publicKey,
-        accessToken: this.publicKey, // Use public key as access token
         template_params: {
           to_email: to,
           subject: subject,
           html_content: htmlContent,
           to_name: to.split('@')[0], // Extract name from email
-          message: htmlContent // Alternative field name
+          message: htmlContent // Alternative field name for your template
         }
       };
 
-      console.log("Sending request to EmailJS API with server-side headers");
+      console.log("Sending request to EmailJS API");
       
       const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'HAWK-Security-Server/1.0',
-          'Origin': 'https://hawk-security.com',
-          'Referer': 'https://hawk-security.com'
         },
         body: JSON.stringify(emailData)
       });
@@ -60,10 +54,7 @@ export class SMTPEmailService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('EmailJS API error:', errorText);
-        
-        // If EmailJS fails, fallback to simple email logging
-        console.log("EmailJS failed, using fallback email simulation");
-        return this.simulateEmailSend(to, subject, htmlContent);
+        throw new Error(`EmailJS API error: ${response.status} - ${errorText}`);
       }
       
       const result = await response.text();
@@ -81,30 +72,8 @@ export class SMTPEmailService {
       };
     } catch (error) {
       console.error('EmailJS email failed:', error);
-      
-      // Fallback to email simulation for development/testing
-      console.log("Using fallback email simulation due to EmailJS limitations");
-      return this.simulateEmailSend(to, subject, htmlContent);
+      throw new Error(`EmailJS email send failed: ${error.message}`);
     }
-  }
-  
-  private simulateEmailSend(to: string, subject: string, htmlContent: string): EmailResult {
-    console.log("=== EMAIL SIMULATION ===");
-    console.log(`Simulated email to: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log("Email content preview:", htmlContent.substring(0, 100) + "...");
-    
-    return {
-      success: true,
-      provider: 'EmailSimulation',
-      result: {
-        messageId: `sim_${Date.now()}`,
-        to,
-        subject,
-        status: 'simulated',
-        note: 'Email was simulated due to EmailJS server-side limitations'
-      }
-    };
   }
   
   public generateWelcomeEmail(email: string): { subject: string, html: string } {
@@ -152,24 +121,6 @@ export class SMTPEmailService {
   }
   
   public generateVulnerabilityAlertEmail(severity: string, scanResults: any[]): { subject: string, html: string } {
-    // Format scan results for email
-    let vulnerabilitiesList = '';
-    if (Array.isArray(scanResults)) {
-      vulnerabilitiesList = scanResults.map(vuln => `
-        <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid ${vuln.severity === 'critical' ? '#dc2626' : vuln.severity === 'high' ? '#ea580c' : '#eab308'}; background-color: #f8fafc;">
-          <h3 style="margin-top: 0; margin-bottom: 5px; color: #1e293b;">${vuln.title || 'Untitled Vulnerability'}</h3>
-          <p style="margin-top: 0; color: #334155;">${vuln.description || 'No description provided'}</p>
-          <div style="font-size: 12px; color: #64748b;">
-            <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background-color: ${vuln.severity === 'critical' ? '#fee2e2' : vuln.severity === 'high' ? '#ffedd5' : '#fef9c3'}; color: ${vuln.severity === 'critical' ? '#b91c1c' : vuln.severity === 'high' ? '#c2410c' : '#a16207'}; margin-right: 8px;">${vuln.severity}</span>
-            ${vuln.system ? `<span>System: ${vuln.system}</span>` : ''}
-            ${vuln.cve ? `<span style="margin-left: 8px;">CVE: ${vuln.cve}</span>` : ''}
-          </div>
-        </div>
-      `).join('');
-    } else {
-      vulnerabilitiesList = '<p>Vulnerability details not available</p>';
-    }
-
     const emailSubject = `HAWK Security - ${severity.toUpperCase()} Vulnerability Alert`;
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -182,7 +133,17 @@ export class SMTPEmailService {
         </div>
         
         <h3 style="color: #4F46E5;">Vulnerability Details</h3>
-        ${vulnerabilitiesList}
+        ${scanResults && Array.isArray(scanResults) ? scanResults.map(vuln => `
+          <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid ${vuln.severity === 'critical' ? '#dc2626' : vuln.severity === 'high' ? '#ea580c' : '#eab308'}; background-color: #f8fafc;">
+            <h3 style="margin-top: 0; margin-bottom: 5px; color: #1e293b;">${vuln.title || 'Untitled Vulnerability'}</h3>
+            <p style="margin-top: 0; color: #334155;">${vuln.description || 'No description provided'}</p>
+            <div style="font-size: 12px; color: #64748b;">
+              <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background-color: ${vuln.severity === 'critical' ? '#fee2e2' : vuln.severity === 'high' ? '#ffedd5' : '#fef9c3'}; color: ${vuln.severity === 'critical' ? '#b91c1c' : vuln.severity === 'high' ? '#c2410c' : '#a16207'}; margin-right: 8px;">${vuln.severity}</span>
+              ${vuln.system ? `<span>System: ${vuln.system}</span>` : ''}
+              ${vuln.cve ? `<span style="margin-left: 8px;">CVE: ${vuln.cve}</span>` : ''}
+            </div>
+          </div>
+        `).join('') : '<p>Vulnerability details not available</p>'}
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${Deno.env.get("PUBLIC_URL") || "http://localhost:8080"}/alerts" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Details in Dashboard</a>
