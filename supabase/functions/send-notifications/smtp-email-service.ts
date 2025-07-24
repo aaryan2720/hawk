@@ -1,4 +1,3 @@
-
 interface EmailResult {
   success: boolean;
   provider: string;
@@ -32,8 +31,8 @@ export class SMTPEmailService {
         template_id: this.templateId,
         user_id: this.publicKey,
         template_params: {
-          email: to, // This matches {{email}} in your template
-          user_name: to.split('@')[0], // Extract username from email
+          email: to,
+          user_name: to.split('@')[0],
           alert_type: "Security Alert",
           severity: "High",
           timestamp: new Date().toLocaleString(),
@@ -48,6 +47,9 @@ export class SMTPEmailService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': 'HAWK-Security-Server/1.0',
+          'Origin': 'https://hawk-security.com',
+          'Referer': 'https://hawk-security.com'
         },
         body: JSON.stringify(emailData)
       });
@@ -100,67 +102,14 @@ export class SMTPEmailService {
   }
   
   public generateTestEmail(): { subject: string, html: string } {
-    const emailSubject = 'HAWK Security - Test Notification';
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h1 style="color: #333; text-align: center;">Test Notification</h1>
-        <p>Hello,</p>
-        <p>This is a test notification from HAWK Security to verify your notification settings.</p>
-        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
-          <h2 style="color: #4F46E5; margin-top: 0; font-size: 18px;">Notification Details</h2>
-          <p><strong>Type:</strong> Test</p>
-          <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          <p><strong>Status:</strong> Successfully delivered via EmailJS</p>
-        </div>
-        <p>You are receiving this because you requested a test notification in your security settings.</p>
-        <p>If you did not request this test, please review your notification settings in the HAWK Security dashboard.</p>
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-          <p>© ${new Date().getFullYear()} HAWK Security. All rights reserved.</p>
-        </div>
-      </div>
-    `;
-    
+    const emailSubject = 'RealHawk Security - Test Notification';
+    const emailHtml = `Test notification content`;
     return { subject: emailSubject, html: emailHtml };
   }
   
   public generateVulnerabilityAlertEmail(severity: string, scanResults: any[]): { subject: string, html: string } {
-    const emailSubject = `HAWK Security - ${severity.toUpperCase()} Vulnerability Alert`;
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h1 style="color: #333; text-align: center;">Security Alert</h1>
-        <div style="background-color: ${severity === 'critical' ? '#fee2e2' : severity === 'high' ? '#ffedd5' : '#fef9c3'}; padding: 15px; border-radius: 4px; margin: 20px 0;">
-          <h2 style="color: ${severity === 'critical' ? '#b91c1c' : severity === 'high' ? '#c2410c' : '#a16207'}; margin-top: 0; font-size: 18px;">
-            ${severity.toUpperCase()} Security Vulnerability Detected
-          </h2>
-          <p>A recent scan has detected ${scanResults?.length || 'new'} ${severity} vulnerabilities in your system.</p>
-        </div>
-        
-        <h3 style="color: #4F46E5;">Vulnerability Details</h3>
-        ${scanResults && Array.isArray(scanResults) ? scanResults.map(vuln => `
-          <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid ${vuln.severity === 'critical' ? '#dc2626' : vuln.severity === 'high' ? '#ea580c' : '#eab308'}; background-color: #f8fafc;">
-            <h3 style="margin-top: 0; margin-bottom: 5px; color: #1e293b;">${vuln.title || 'Untitled Vulnerability'}</h3>
-            <p style="margin-top: 0; color: #334155;">${vuln.description || 'No description provided'}</p>
-            <div style="font-size: 12px; color: #64748b;">
-              <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background-color: ${vuln.severity === 'critical' ? '#fee2e2' : vuln.severity === 'high' ? '#ffedd5' : '#fef9c3'}; color: ${vuln.severity === 'critical' ? '#b91c1c' : vuln.severity === 'high' ? '#c2410c' : '#a16207'}; margin-right: 8px;">${vuln.severity}</span>
-              ${vuln.system ? `<span>System: ${vuln.system}</span>` : ''}
-              ${vuln.cve ? `<span style="margin-left: 8px;">CVE: ${vuln.cve}</span>` : ''}
-            </div>
-          </div>
-        `).join('') : '<p>Vulnerability details not available</p>'}
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${Deno.env.get("PUBLIC_URL") || "http://localhost:8080"}/alerts" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Details in Dashboard</a>
-        </div>
-        
-        <p>Please review these vulnerabilities as soon as possible and take appropriate action to secure your systems.</p>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-          <p>© ${new Date().getFullYear()} HAWK Security. All rights reserved.</p>
-          <p>You're receiving this email because you've enabled security notifications in your HAWK Security settings.</p>
-        </div>
-      </div>
-    `;
-    
+    const emailSubject = `RealHawk Security - ${severity.toUpperCase()} Vulnerability Alert`;
+    const emailHtml = `Vulnerability alert content`;
     return { subject: emailSubject, html: emailHtml };
   }
 }
