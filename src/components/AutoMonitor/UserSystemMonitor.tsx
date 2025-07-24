@@ -82,6 +82,80 @@ const UserSystemMonitor: React.FC = () => {
     loadSettings();
   }, [user, connectionError]);
 
+  const triggerManualScan = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('Starting manual scan for user:', user.id);
+      
+      const { data: scanData, error: scanError } = await supabase.functions.invoke('real-time-scraper', {
+        body: { 
+          source: settings.criticalOnly ? 'critical' : 'all',
+          userId: user.id,
+          sendNotifications: true,
+          limit: 15
+        }
+      });
+
+      if (scanError) {
+        console.error('Scan error:', scanError);
+        throw scanError;
+      }
+
+      console.log('Scan completed:', scanData);
+      
+      if (scanData?.count > 0) {
+        console.log('Sending notification for vulnerabilities found:', scanData.count);
+        
+        try {
+          const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-notifications', {
+            body: {
+              type: 'scan',
+              userId: user.id,
+              scanResults: scanData.results || [],
+              scanType: 'manual',
+              severity: 'medium',
+              totalVulnerabilities: scanData.count
+            }
+          });
+
+          if (notificationError) {
+            console.error('Notification error:', notificationError);
+          } else {
+            console.log('Notification sent successfully:', notificationData);
+          }
+        } catch (notificationErr) {
+          console.error('Failed to send notification:', notificationErr);
+        }
+      }
+      
+      const now = new Date();
+      setSettings(prev => ({
+        ...prev,
+        lastScanTime: now.toISOString()
+      }));
+      
+      if (settings.autoScanEnabled) {
+        const nextScan = new Date(now);
+        nextScan.setHours(nextScan.getHours() + (settings.scanInterval || 24));
+        setNextScanTime(nextScan);
+      }
+      
+      await saveSettings();
+      
+      toast.success(`Manual scan completed: ${scanData?.count || 0} vulnerabilities found`, {
+        description: scanData?.count > 0 ? 'Notification email sent' : 'No vulnerabilities detected'
+      });
+      
+    } catch (error) {
+      console.error('Error running manual scan:', error);
+      toast.error('Failed to run vulnerability scan');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const saveSettings = async () => {
     if (!user) return;
     
@@ -137,43 +211,6 @@ const UserSystemMonitor: React.FC = () => {
       toast.error('Failed to save monitoring settings');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const triggerManualScan = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('real-time-scraper', {
-        body: { 
-          source: settings.criticalOnly ? 'critical' : 'all',
-          userId: user.id
-        }
-      });
-
-      if (error) throw error;
-      
-      const now = new Date();
-      setSettings(prev => ({
-        ...prev,
-        lastScanTime: now.toISOString()
-      }));
-      
-      if (settings.autoScanEnabled) {
-        const nextScan = new Date(now);
-        nextScan.setHours(nextScan.getHours() + (settings.scanInterval || 24));
-        setNextScanTime(nextScan);
-      }
-      
-      saveSettings();
-      
-      toast.success(`Scan completed: ${data.count} vulnerabilities found`);
-    } catch (error) {
-      console.error('Error running manual scan:', error);
-      toast.error('Failed to run vulnerability scan');
-    } finally {
-      setIsLoading(false);
     }
   };
 
