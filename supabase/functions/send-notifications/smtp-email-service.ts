@@ -1,3 +1,4 @@
+
 interface EmailResult {
   success: boolean;
   provider: string;
@@ -31,15 +32,17 @@ export class SMTPEmailService {
         template_id: this.templateId,
         user_id: this.publicKey,
         template_params: {
-          to_email: to,
-          subject: subject,
-          html_content: htmlContent,
-          to_name: to.split('@')[0], // Extract name from email
-          message: htmlContent // Alternative field name for your template
+          email: to, // This matches {{email}} in your template
+          user_name: to.split('@')[0], // Extract username from email
+          alert_type: "Security Alert",
+          severity: "High",
+          timestamp: new Date().toLocaleString(),
+          alert_details: "System security notification",
+          action_url: `${Deno.env.get("PUBLIC_URL") || "http://localhost:8080"}/alerts`
         }
       };
 
-      console.log("Sending request to EmailJS API");
+      console.log("Sending request to EmailJS API with template params:", emailData.template_params);
       
       const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
