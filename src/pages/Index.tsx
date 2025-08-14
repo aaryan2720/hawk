@@ -14,8 +14,13 @@ const Index = () => {
     );
   }
   
-  // Redirect based on authentication status
+  // Redirect based on authentication status and user type
   if (user) {
+    // Special redirect for architecture team
+    if (user.email === 'architecture@hawk.com') {
+      return <Navigate to="/architecture" replace />;
+    }
+    // Regular users go to dashboard
     return <Navigate to="/dashboard" replace />;
   } else {
     return <Navigate to="/" replace />;
