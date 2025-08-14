@@ -9,7 +9,11 @@ import UserFlowVisualization from '@/components/Architecture/UserFlowVisualizati
 import SystemArchitectureMap from '@/components/Architecture/SystemArchitectureMap';
 import RealTimeActivityDashboard from '@/components/Architecture/RealTimeActivityDashboard';
 import UserLevelIndicators from '@/components/Architecture/UserLevelIndicators';
-import { Activity, Users, Map, BarChart3 } from 'lucide-react';
+import ArchitectureMetrics from '@/components/Architecture/ArchitectureMetrics';
+import SystemDiagram from '@/components/Architecture/SystemDiagram';
+import RealTimeStats from '@/components/Architecture/RealTimeStats';
+import NetworkTrafficVisualization from '@/components/Architecture/NetworkTrafficVisualization';
+import { Activity, Users, Map, BarChart3, TrendingUp, Network } from 'lucide-react';
 
 const ArchitectureDashboard = () => {
   const { user, loading } = useAuth();
@@ -62,8 +66,18 @@ const ArchitectureDashboard = () => {
           </Badge>
         </div>
 
-        <Tabs defaultValue="flow" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        {/* Real-time Stats Overview */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Real-time System Metrics</h2>
+          <RealTimeStats />
+        </div>
+
+        <Tabs defaultValue="metrics" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="metrics" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Metrics
+            </TabsTrigger>
             <TabsTrigger value="flow" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               User Flow
@@ -76,11 +90,20 @@ const ArchitectureDashboard = () => {
               <BarChart3 className="h-4 w-4" />
               Live Activity
             </TabsTrigger>
+            <TabsTrigger value="network" className="flex items-center gap-2">
+              <Network className="h-4 w-4" />
+              Network
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               User Levels
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="metrics" className="space-y-6">
+            <ArchitectureMetrics />
+            <SystemDiagram />
+          </TabsContent>
 
           <TabsContent value="flow" className="space-y-6">
             <UserFlowVisualization />
@@ -92,6 +115,10 @@ const ArchitectureDashboard = () => {
 
           <TabsContent value="activity" className="space-y-6">
             <RealTimeActivityDashboard />
+          </TabsContent>
+
+          <TabsContent value="network" className="space-y-6">
+            <NetworkTrafficVisualization />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
