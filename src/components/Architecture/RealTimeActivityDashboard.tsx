@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,8 +43,22 @@ const RealTimeActivityDashboard = () => {
 
       if (error) throw error;
       
-      setSessions(data || []);
-      calculateStats(data || []);
+      // Transform the data to match our interface
+      const transformedData: SessionData[] = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        session_id: item.session_id,
+        current_page: item.current_page,
+        previous_page: item.previous_page,
+        action_type: item.action_type,
+        metadata: item.metadata,
+        user_agent: item.user_agent,
+        ip_address: item.ip_address ? String(item.ip_address) : null,
+        created_at: item.created_at
+      }));
+      
+      setSessions(transformedData);
+      calculateStats(transformedData);
     } catch (error) {
       console.error('Error fetching activity data:', error);
     } finally {

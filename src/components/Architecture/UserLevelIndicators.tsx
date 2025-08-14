@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,19 +37,34 @@ const UserLevelIndicators = () => {
         .from('profiles')
         .select('role, id');
 
-      const combinedData = [...(flowData || []), ...(profilesData || [])];
       const roleCount: Record<string, number> = {};
       const uniqueUsers = new Set<string>();
       
-      combinedData.forEach(item => {
-        const role = item.user_role || item.role || 'user';
-        const userId = item.user_id || item.id;
-        
-        if (userId) {
-          uniqueUsers.add(userId);
-          roleCount[role] = (roleCount[role] || 0) + 1;
-        }
-      });
+      // Process flow data
+      if (flowData) {
+        flowData.forEach(item => {
+          const role = item.user_role || 'user';
+          const userId = item.user_id;
+          
+          if (userId) {
+            uniqueUsers.add(userId);
+            roleCount[role] = (roleCount[role] || 0) + 1;
+          }
+        });
+      }
+
+      // Process profiles data
+      if (profilesData) {
+        profilesData.forEach(item => {
+          const role = item.role || 'user';
+          const userId = item.id;
+          
+          if (userId) {
+            uniqueUsers.add(userId);
+            roleCount[role] = (roleCount[role] || 0) + 1;
+          }
+        });
+      }
 
       const levels: UserLevel[] = [
         {
