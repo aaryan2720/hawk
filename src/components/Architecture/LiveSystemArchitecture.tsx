@@ -1,287 +1,45 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Database, Shield, Users, Bell, Activity, Zap, Globe, Lock, 
-  Server, Cloud, Monitor, Cpu, HardDrive, GitBranch, Network,
-  ArrowRight, Circle, TrendingUp, AlertTriangle
+  Users, Shield, Activity, Database, Server, 
+  Globe, Zap, Monitor, Network, AlertTriangle,
+  CheckCircle, XCircle, Clock
 } from 'lucide-react';
 
-interface UserDot {
+interface UserActivity {
   id: string;
-  x: number;
-  y: number;
-  targetX: number;
-  targetY: number;
-  color: string;
-  role: string;
-  currentPage: string;
-  sessionId: string;
-  velocity: { x: number; y: number };
-  lastUpdate: number;
-  isActive: boolean;
+  user_id: string | null;
+  session_id: string;
+  current_page: string;
+  action_type: string;
+  created_at: string;
+  user_role: string;
+  metadata: any;
 }
 
-interface SystemMetrics {
-  activeUsers: number;
-  totalSessions: number;
-  apiRequests: number;
-  systemLoad: number;
-  responseTime: number;
-  errorRate: number;
-  uptime: number;
-}
-
-interface ArchitectureNode {
-  id: string;
-  name: string;
-  type: 'frontend' | 'backend' | 'database' | 'security' | 'external' | 'monitoring';
-  icon: any;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  status: 'healthy' | 'warning' | 'critical';
-  color: string;
-  connections: string[];
-  metrics: {
-    cpu: number;
-    memory: number;
-    requests: number;
-    latency: number;
-    errors: number;
-  };
-  description: string;
+interface SystemStats {
+  totalUsers: number;
+  activeConnections: number;
+  systemHealth: 'healthy' | 'warning' | 'critical';
+  usersByRole: Record<string, number>;
+  networkTraffic: number;
+  databaseQueries: number;
 }
 
 const LiveSystemArchitecture = () => {
-  const [userDots, setUserDots] = useState<UserDot[]>([]);
-  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
-    activeUsers: 0,
-    totalSessions: 0,
-    apiRequests: 0,
-    systemLoad: 0,
-    responseTime: 0,
-    errorRate: 0,
-    uptime: 99.9
+  const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
+  const [systemStats, setSystemStats] = useState<SystemStats>({
+    totalUsers: 0,
+    activeConnections: 0,
+    systemHealth: 'healthy',
+    usersByRole: {},
+    networkTraffic: 0,
+    databaseQueries: 0
   });
-  const svgRef = useRef<SVGSVGElement>(null);
-  const animationRef = useRef<number>();
-
-  const architectureNodes: ArchitectureNode[] = [
-    {
-      id: 'client',
-      name: 'Client Applications',
-      type: 'frontend',
-      icon: Globe,
-      x: 150,
-      y: 100,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#3b82f6',
-      connections: ['auth-gateway', 'cdn'],
-      metrics: { cpu: 45, memory: 62, requests: 1250, latency: 120, errors: 2 },
-      description: 'React Frontend & Mobile Apps'
-    },
-    {
-      id: 'cdn',
-      name: 'CDN & Load Balancer',
-      type: 'external',
-      icon: Network,
-      x: 150,
-      y: 280,
-      width: 180,
-      height: 80,
-      status: 'healthy',
-      color: '#10b981',
-      connections: ['api-gateway'],
-      metrics: { cpu: 15, memory: 25, requests: 3500, latency: 45, errors: 0 },
-      description: 'Content Delivery & Traffic Distribution'
-    },
-    {
-      id: 'auth-gateway',
-      name: 'Authentication Gateway',
-      type: 'security',
-      icon: Lock,
-      x: 450,
-      y: 100,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#ef4444',
-      connections: ['user-service', 'api-gateway'],
-      metrics: { cpu: 23, memory: 34, requests: 890, latency: 85, errors: 1 },
-      description: 'Supabase Auth & JWT Management'
-    },
-    {
-      id: 'api-gateway',
-      name: 'API Gateway',
-      type: 'backend',
-      icon: Server,
-      x: 450,
-      y: 280,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#8b5cf6',
-      connections: ['microservices', 'database', 'cache'],
-      metrics: { cpu: 67, memory: 78, requests: 3200, latency: 95, errors: 5 },
-      description: 'Request Routing & Rate Limiting'
-    },
-    {
-      id: 'microservices',
-      name: 'Microservices Cluster',
-      type: 'backend',
-      icon: GitBranch,
-      x: 750,
-      y: 100,
-      width: 200,
-      height: 180,
-      status: 'warning',
-      color: '#f59e0b',
-      connections: ['database', 'message-queue', 'external-apis'],
-      metrics: { cpu: 78, memory: 85, requests: 2800, latency: 150, errors: 12 },
-      description: 'Scanner, Analyzer & Notification Services'
-    },
-    {
-      id: 'database',
-      name: 'PostgreSQL Cluster',
-      type: 'database',
-      icon: Database,
-      x: 450,
-      y: 450,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#06b6d4',
-      connections: ['cache', 'backup'],
-      metrics: { cpu: 56, memory: 82, requests: 2100, latency: 45, errors: 0 },
-      description: 'Primary Database & Replicas'
-    },
-    {
-      id: 'cache',
-      name: 'Redis Cache',
-      type: 'database',
-      icon: Zap,
-      x: 150,
-      y: 450,
-      width: 180,
-      height: 80,
-      status: 'healthy',
-      color: '#f97316',
-      connections: ['api-gateway'],
-      metrics: { cpu: 22, memory: 55, requests: 8900, latency: 5, errors: 0 },
-      description: 'Session & Query Caching'
-    },
-    {
-      id: 'message-queue',
-      name: 'Message Queue',
-      type: 'backend',
-      icon: Activity,
-      x: 750,
-      y: 320,
-      width: 200,
-      height: 80,
-      status: 'healthy',
-      color: '#ec4899',
-      connections: ['notification-service', 'external-apis'],
-      metrics: { cpu: 34, memory: 45, requests: 1500, latency: 25, errors: 0 },
-      description: 'Event Processing & Pub/Sub'
-    },
-    {
-      id: 'notification-service',
-      name: 'Notification Hub',
-      type: 'backend',
-      icon: Bell,
-      x: 1050,
-      y: 200,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#8b5cf6',
-      connections: ['external-apis'],
-      metrics: { cpu: 45, memory: 38, requests: 1100, latency: 110, errors: 2 },
-      description: 'Email, SMS & Push Notifications'
-    },
-    {
-      id: 'user-service',
-      name: 'User Management',
-      type: 'backend',
-      icon: Users,
-      x: 750,
-      y: 450,
-      width: 180,
-      height: 120,
-      status: 'healthy',
-      color: '#059669',
-      connections: ['database'],
-      metrics: { cpu: 29, memory: 41, requests: 690, latency: 75, errors: 1 },
-      description: 'Profile & Permission Management'
-    },
-    {
-      id: 'monitoring',
-      name: 'Monitoring & Logging',
-      type: 'monitoring',
-      icon: Monitor,
-      x: 150,
-      y: 600,
-      width: 200,
-      height: 100,
-      status: 'healthy',
-      color: '#10b981',
-      connections: [],
-      metrics: { cpu: 15, memory: 28, requests: 120, latency: 50, errors: 0 },
-      description: 'System Metrics & Log Aggregation'
-    },
-    {
-      id: 'security-scanner',
-      name: 'Security Scanner',
-      type: 'security',
-      icon: Shield,
-      x: 450,
-      y: 600,
-      width: 180,
-      height: 100,
-      status: 'healthy',
-      color: '#dc2626',
-      connections: ['external-apis'],
-      metrics: { cpu: 65, memory: 70, requests: 450, latency: 200, errors: 3 },
-      description: 'Vulnerability Detection & Analysis'
-    },
-    {
-      id: 'external-apis',
-      name: 'External APIs',
-      type: 'external',
-      icon: Cloud,
-      x: 1050,
-      y: 450,
-      width: 180,
-      height: 120,
-      status: 'warning',
-      color: '#6366f1',
-      connections: [],
-      metrics: { cpu: 12, memory: 25, requests: 340, latency: 800, errors: 8 },
-      description: 'CVE Database, Threat Intel & OEM Sources'
-    },
-    {
-      id: 'backup',
-      name: 'Backup & Recovery',
-      type: 'database',
-      icon: HardDrive,
-      x: 750,
-      y: 600,
-      width: 180,
-      height: 100,
-      status: 'healthy',
-      color: '#7c3aed',
-      connections: [],
-      metrics: { cpu: 8, memory: 15, requests: 50, latency: 30, errors: 0 },
-      description: 'Data Backup & Disaster Recovery'
-    }
-  ];
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchRealTimeData();
@@ -289,99 +47,62 @@ const LiveSystemArchitecture = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    animateUserDots();
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [userDots]);
-
   const fetchRealTimeData = async () => {
     try {
-      console.log('Fetching real-time architecture data...');
-
-      // Get active user flows
-      const { data: flowData, error: flowError } = await supabase
-        .from('user_flow_tracking')
+      // Fetch recent user activities (last 5 minutes)
+      const { data: activities, error } = await supabase
+        .from('architecture_sessions')
         .select('*')
-        .eq('status', 'active')
-        .gte('last_activity', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-        .order('last_activity', { ascending: false });
+        .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      if (flowError) {
-        console.error('Error fetching flow data:', flowError);
+      if (error) {
+        console.error('Error fetching activities:', error);
         return;
       }
 
-      // Get recent sessions
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('architecture_sessions')
-        .select('*')
-        .gte('created_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false });
+      const processedActivities = (activities || []).map(activity => ({
+        ...activity,
+        user_id: activity.user_id || 'anonymous',
+        user_role: getUserRole(activity.user_id) || 'user'
+      }));
 
-      if (sessionError) {
-        console.error('Error fetching session data:', sessionError);
-      }
+      setUserActivities(processedActivities);
 
-      const flows = flowData || [];
-      const sessions = sessionData || [];
+      // Calculate system stats
+      const uniqueUsers = new Set(processedActivities.map(a => a.user_id).filter(Boolean)).size;
+      const usersByRole = processedActivities.reduce((acc, activity) => {
+        acc[activity.user_role] = (acc[activity.user_role] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-      console.log(`Fetched ${flows.length} flows and ${sessions.length} sessions`);
+      const networkTraffic = Math.floor(Math.random() * 1000) + 500;
+      const databaseQueries = processedActivities.length * 2;
+      const systemHealth = networkTraffic > 800 ? 'warning' : networkTraffic > 900 ? 'critical' : 'healthy';
 
-      // Update system metrics
-      const uniqueUsers = new Set(flows.map(f => f.user_id).filter(Boolean)).size;
-      const totalSessions = new Set(sessions.map(s => s.session_id)).size;
-      
-      setSystemMetrics({
-        activeUsers: uniqueUsers,
-        totalSessions,
-        apiRequests: sessions.length * 15,
-        systemLoad: Math.min(45 + (sessions.length * 2), 85),
-        responseTime: 80 + Math.random() * 40,
-        errorRate: Math.max(0, Math.random() * 2),
-        uptime: 99.8 + Math.random() * 0.2
+      setSystemStats({
+        totalUsers: uniqueUsers,
+        activeConnections: processedActivities.length,
+        systemHealth,
+        usersByRole,
+        networkTraffic,
+        databaseQueries
       });
 
-      // Create user dots from real data
-      const newUserDots: UserDot[] = flows.map((flow) => {
-        const currentPage = flow.flow_path[flow.flow_path.length - 1] || '/';
-        const targetNode = getNodeForPage(currentPage);
-        const roleColor = getRoleColor(flow.user_role);
-        const existingDot = userDots.find(dot => dot.id === flow.user_id);
-        
-        return {
-          id: flow.user_id || 'anonymous',
-          x: existingDot?.x || Math.random() * 800 + 200,
-          y: existingDot?.y || Math.random() * 400 + 150,
-          targetX: targetNode.x + targetNode.width / 2 + (Math.random() - 0.5) * 100,
-          targetY: targetNode.y + targetNode.height / 2 + (Math.random() - 0.5) * 80,
-          color: roleColor,
-          role: flow.user_role,
-          currentPage,
-          sessionId: flow.session_id,
-          velocity: existingDot?.velocity || { x: 0, y: 0 },
-          lastUpdate: Date.now(),
-          isActive: new Date(flow.last_activity).getTime() > Date.now() - 60000
-        };
-      });
-
-      setUserDots(newUserDots);
-
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error fetching real-time data:', error);
+      console.error('Error in fetchRealTimeData:', error);
+      setIsLoading(false);
     }
   };
 
-  const getNodeForPage = (page: string) => {
-    if (page.includes('auth') || page.includes('login')) return architectureNodes.find(n => n.id === 'auth-gateway') || architectureNodes[0];
-    if (page.includes('dashboard')) return architectureNodes.find(n => n.id === 'client') || architectureNodes[0];
-    if (page.includes('alerts')) return architectureNodes.find(n => n.id === 'notification-service') || architectureNodes[0];
-    if (page.includes('scanner') || page.includes('vulnerability')) return architectureNodes.find(n => n.id === 'security-scanner') || architectureNodes[0];
-    if (page.includes('architecture')) return architectureNodes.find(n => n.id === 'monitoring') || architectureNodes[0];
-    return architectureNodes[Math.floor(Math.random() * architectureNodes.length)];
+  const getUserRole = (userId: string | null) => {
+    if (!userId) return 'user';
+    if (userId.includes('architecture')) return 'architecture';
+    if (userId.includes('admin')) return 'admin';
+    if (userId.includes('premium')) return 'premium';
+    return 'user';
   };
 
   const getRoleColor = (role: string) => {
@@ -393,286 +114,265 @@ const LiveSystemArchitecture = () => {
     }
   };
 
-  const animateUserDots = () => {
-    const animate = () => {
-      setUserDots(prevDots => 
-        prevDots.map(dot => {
-          const now = Date.now();
-          const dt = Math.min(now - dot.lastUpdate, 100) / 1000;
-          
-          const dx = dot.targetX - dot.x;
-          const dy = dot.targetY - dot.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance < 20) {
-            // Reached target, pick new target
-            const newNode = architectureNodes[Math.floor(Math.random() * architectureNodes.length)];
-            return {
-              ...dot,
-              targetX: newNode.x + newNode.width / 2 + (Math.random() - 0.5) * 100,
-              targetY: newNode.y + newNode.height / 2 + (Math.random() - 0.5) * 80,
-              lastUpdate: now
-            };
-          }
-          
-          // Smooth movement
-          const speed = 60; // pixels per second
-          const moveX = (dx / distance) * speed * dt;
-          const moveY = (dy / distance) * speed * dt;
-          
-          return {
-            ...dot,
-            x: dot.x + moveX,
-            y: dot.y + moveY,
-            lastUpdate: now
-          };
-        })
-      );
-      
-      animationRef.current = requestAnimationFrame(animate);
-    };
-    
-    animationRef.current = requestAnimationFrame(animate);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy': return '#10b981';
-      case 'warning': return '#f59e0b';
-      case 'critical': return '#ef4444';
-      default: return '#6b7280';
+  const getSystemHealthColor = (health: string) => {
+    switch (health) {
+      case 'healthy': return 'text-green-600';
+      case 'warning': return 'text-yellow-600';
+      case 'critical': return 'text-red-600';
+      default: return 'text-gray-600';
     }
   };
 
-  const getConnectionPath = (from: ArchitectureNode, to: ArchitectureNode) => {
-    const fromX = from.x + from.width / 2;
-    const fromY = from.y + from.height / 2;
-    const toX = to.x + to.width / 2;
-    const toY = to.y + to.height / 2;
-    
-    const midX = (fromX + toX) / 2;
-    const midY = (fromY + toY) / 2;
-    
-    return `M ${fromX} ${fromY} Q ${midX} ${midY} ${toX} ${toY}`;
+  const getSystemHealthIcon = (health: string) => {
+    switch (health) {
+      case 'healthy': return <CheckCircle className="h-4 w-4" />;
+      case 'warning': return <AlertTriangle className="h-4 w-4" />;
+      case 'critical': return <XCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
   };
 
+  if (isLoading) {
+    return (
+      <div className="h-full bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading live architecture...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-background via-muted/20 to-background overflow-hidden">
-      {/* Header Stats */}
-      <div className="absolute top-4 left-4 right-4 z-20">
-        <div className="flex items-center justify-between bg-background/95 backdrop-blur-sm border rounded-lg p-4 shadow-lg">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-green-500 animate-pulse" />
-              <span className="font-semibold">HAWK Live Architecture</span>
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <Badge variant="outline" className="bg-green-50 text-green-700">
-                <Circle className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-                {systemMetrics.activeUsers} Active Users
-              </Badge>
-              <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                <Server className="w-3 h-3 mr-1" />
-                {systemMetrics.totalSessions} Sessions
-              </Badge>
-              <Badge variant="outline" className="bg-purple-50 text-purple-700">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                {systemMetrics.apiRequests} Req/min
-              </Badge>
-              <Badge variant="outline" className="bg-orange-50 text-orange-700">
-                <Cpu className="w-3 h-3 mr-1" />
-                {systemMetrics.systemLoad}% Load
+    <div className="h-full bg-slate-900 text-white overflow-hidden relative">
+      {/* Fixed Live User Activity Bar - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-slate-200 flex items-center gap-2">
+              <Activity className="h-4 w-4 animate-pulse text-green-400" />
+              Live User Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Regular</span>
+              <Badge variant="outline" className="bg-green-900/50 text-green-300 border-green-600">
+                ({systemStats.usersByRole.user || 0})
               </Badge>
             </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span>Uptime: {systemMetrics.uptime.toFixed(1)}%</span>
-            <span>•</span>
-            <span>RT: {Math.round(systemMetrics.responseTime)}ms</span>
-            <span>•</span>
-            <span className={systemMetrics.errorRate > 1 ? 'text-red-500' : 'text-green-500'}>
-              Errors: {systemMetrics.errorRate.toFixed(1)}%
-            </span>
-          </div>
-        </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Premium</span>
+              <Badge variant="outline" className="bg-blue-900/50 text-blue-300 border-blue-600">
+                ({systemStats.usersByRole.premium || 0})
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Admin</span>
+              <Badge variant="outline" className="bg-red-900/50 text-red-300 border-red-600">
+                ({systemStats.usersByRole.admin || 0})
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Architecture</span>
+              <Badge variant="outline" className="bg-purple-900/50 text-purple-300 border-purple-600">
+                ({systemStats.usersByRole.architecture || 0})
+              </Badge>
+            </div>
+            <div className="border-t border-slate-700 pt-2 mt-2">
+              <div className={`flex items-center gap-2 text-xs ${getSystemHealthColor(systemStats.systemHealth)}`}>
+                {getSystemHealthIcon(systemStats.systemHealth)}
+                <span className="capitalize">{systemStats.systemHealth}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Architecture Diagram */}
-      <div className="pt-20 h-full overflow-auto">
-        <svg
-          ref={svgRef}
-          className="w-full min-w-[1400px] min-h-[800px]"
-          viewBox="0 0 1400 800"
-          style={{ background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" xmlns="http://www.w3.org/2000/svg"%3E%3Cdefs%3E%3Cpattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"%3E%3Cpath d="M 40 0 L 0 0 0 40" fill="none" stroke="%23f1f5f9" stroke-width="1"/%3E%3C/pattern%3E%3C/defs%3E%3Crect width="100%25" height="100%25" fill="url(%23grid)"/%3E%3C/svg%3E")' }}
-        >
-          {/* Connection Lines - Made More Visible */}
-          {architectureNodes.map(node => 
-            node.connections.map(connectionId => {
-              const targetNode = architectureNodes.find(n => n.id === connectionId);
-              if (!targetNode) return null;
-              
-              return (
-                <g key={`${node.id}-${connectionId}`}>
-                  <path
-                    d={getConnectionPath(node, targetNode)}
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="3"
-                    fill="none"
-                    strokeDasharray="12,6"
-                    opacity="0.8"
-                    className="animate-pulse"
-                  />
-                  {/* Data flow animation */}
-                  <circle r="6" fill="hsl(var(--primary))" opacity="0.9">
-                    <animateMotion
-                      dur={`${3 + Math.random() * 2}s`}
-                      repeatCount="indefinite"
-                      path={getConnectionPath(node, targetNode)}
-                    />
-                  </circle>
-                </g>
-              );
-            })
-          )}
+      {/* System Architecture Diagram */}
+      <svg viewBox="0 0 1200 800" className="w-full h-full">
+        {/* Background Grid */}
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" strokeWidth="1" opacity="0.3"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
 
-          {/* Architecture Nodes */}
-          {architectureNodes.map(node => {
-            const IconComponent = node.icon;
-            return (
-              <g key={node.id}>
-                {/* Node Background with Enhanced Visibility */}
-                <rect
-                  x={node.x}
-                  y={node.y}
-                  width={node.width}
-                  height={node.height}
-                  fill="white"
-                  stroke={getStatusColor(node.status)}
-                  strokeWidth="3"
-                  rx="12"
-                  className="drop-shadow-xl"
-                  style={{ filter: 'drop-shadow(0 10px 15px -3px rgb(0 0 0 / 0.1))' }}
-                />
-                
-                {/* Status Indicator */}
-                <circle
-                  cx={node.x + node.width - 15}
-                  cy={node.y + 15}
-                  r="8"
-                  fill={getStatusColor(node.status)}
-                  className="animate-pulse"
-                />
-                
-                {/* Node Content */}
-                <foreignObject x={node.x + 10} y={node.y + 10} width={node.width - 20} height={node.height - 20}>
-                  <div className="h-full flex flex-col justify-between p-2 text-foreground">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg" style={{ backgroundColor: `${node.color}20`, color: node.color }}>
-                        <IconComponent className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm text-foreground truncate">{node.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{node.description}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                      <div className="flex justify-between">
-                        <span>CPU:</span>
-                        <span className={node.metrics.cpu > 80 ? 'text-red-500 font-bold' : node.metrics.cpu > 60 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
-                          {node.metrics.cpu}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Mem:</span>
-                        <span className={node.metrics.memory > 80 ? 'text-red-500 font-bold' : node.metrics.memory > 60 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
-                          {node.metrics.memory}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Req/m:</span>
-                        <span className="text-blue-600 font-medium">{node.metrics.requests}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Lat:</span>
-                        <span className={node.metrics.latency > 200 ? 'text-red-500 font-bold' : node.metrics.latency > 100 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
-                          {node.metrics.latency}ms
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </foreignObject>
-              </g>
-            );
-          })}
+        {/* Data Flow Lines with Animation */}
+        <defs>
+          <linearGradient id="dataFlow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0"/>
+            <stop offset="50%" stopColor="#10b981" stopOpacity="1"/>
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
 
-          {/* Real User Dots - Enhanced Visibility */}
-          {userDots.map(dot => (
-            <g key={dot.id}>
-              <circle
-                cx={dot.x}
-                cy={dot.y}
-                r="10"
-                fill={dot.color}
-                stroke="white"
-                strokeWidth="2"
-                className="drop-shadow-lg animate-pulse"
-                opacity={dot.isActive ? 1 : 0.6}
-              />
-              <circle
-                cx={dot.x}
-                cy={dot.y}
-                r="20"
-                fill={dot.color}
+        {/* Enhanced Connection Lines */}
+        <g stroke="#10b981" strokeWidth="3" fill="none" opacity="0.8">
+          <line x1="200" y1="150" x2="400" y2="150">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite"/>
+          </line>
+          <line x1="400" y1="150" x2="600" y2="150">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+          </line>
+          <line x1="600" y1="150" x2="800" y2="150">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="1s"/>
+          </line>
+          <line x1="200" y1="300" x2="400" y2="300">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="1.5s"/>
+          </line>
+          <line x1="400" y1="300" x2="600" y2="300">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="2s"/>
+          </line>
+          <line x1="300" y1="200" x2="300" y2="250">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite"/>
+          </line>
+          <line x1="500" y1="200" x2="500" y2="250">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+          </line>
+          <line x1="700" y1="200" x2="700" y2="250">
+            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="1s"/>
+          </line>
+        </g>
+
+        {/* System Components */}
+        <g>
+          {/* Frontend Layer */}
+          <rect x="150" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#3b82f6" strokeWidth="2"/>
+          <text x="200" y="135" textAnchor="middle" fill="#3b82f6" fontSize="12" fontWeight="bold">Frontend</text>
+          <text x="200" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">React/Vite</text>
+
+          {/* API Gateway */}
+          <rect x="350" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#10b981" strokeWidth="2"/>
+          <text x="400" y="135" textAnchor="middle" fill="#10b981" fontSize="12" fontWeight="bold">API Gateway</text>
+          <text x="400" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">Supabase</text>
+
+          {/* Backend Services */}
+          <rect x="550" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#f59e0b" strokeWidth="2"/>
+          <text x="600" y="135" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold">Backend</text>
+          <text x="600" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">Edge Functions</text>
+
+          {/* Database */}
+          <rect x="750" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#8b5cf6" strokeWidth="2"/>
+          <text x="800" y="135" textAnchor="middle" fill="#8b5cf6" fontSize="12" fontWeight="bold">Database</text>
+          <text x="800" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">PostgreSQL</text>
+
+          {/* Authentication */}
+          <rect x="150" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#ef4444" strokeWidth="2"/>
+          <text x="200" y="285" textAnchor="middle" fill="#ef4444" fontSize="12" fontWeight="bold">Auth</text>
+          <text x="200" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">Supabase Auth</text>
+
+          {/* Real-time */}
+          <rect x="350" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#06b6d4" strokeWidth="2"/>
+          <text x="400" y="285" textAnchor="middle" fill="#06b6d4" fontSize="12" fontWeight="bold">Real-time</text>
+          <text x="400" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">WebSockets</text>
+
+          {/* Monitoring */}
+          <rect x="550" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#ec4899" strokeWidth="2"/>
+          <text x="600" y="285" textAnchor="middle" fill="#ec4899" fontSize="12" fontWeight="bold">Monitoring</text>
+          <text x="600" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">Architecture</text>
+        </g>
+
+        {/* Live User Dots */}
+        {userActivities.slice(0, 20).map((activity, index) => {
+          const x = 100 + (index % 10) * 100 + Math.random() * 50;
+          const y = 400 + Math.floor(index / 10) * 100 + Math.random() * 50;
+          const color = getRoleColor(activity.user_role);
+          
+          return (
+            <g key={activity.id}>
+              <circle 
+                cx={x} 
+                cy={y} 
+                r="4" 
+                fill={color}
+                opacity="0.8"
+              >
+                <animate attributeName="r" values="4;8;4" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/>
+              </circle>
+              <circle 
+                cx={x} 
+                cy={y} 
+                r="8" 
+                fill="none" 
+                stroke={color} 
+                strokeWidth="1"
                 opacity="0.3"
-                className="animate-ping"
-              />
-              <title>{`${dot.role} user on ${dot.currentPage} (${dot.id.slice(0, 8)})`}</title>
+              >
+                <animate attributeName="r" values="8;16;8" dur="3s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.3;0;0.3" dur="3s" repeatCount="indefinite"/>
+              </circle>
             </g>
-          ))}
-        </svg>
-      </div>
+          );
+        })}
 
-      {/* Legend - Fixed Position */}
-      <div className="absolute bottom-4 left-4 right-4 z-20">
-        <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <h3 className="font-semibold text-sm">Live User Activity</h3>
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
-                  <span>Regular ({userDots.filter(d => d.role === 'user').length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse border-2 border-white"></div>
-                  <span>Premium ({userDots.filter(d => d.role === 'premium').length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white"></div>
-                  <span>Admin ({userDots.filter(d => d.role === 'admin').length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-purple-500 rounded-full animate-pulse border-2 border-white"></div>
-                  <span>Architecture ({userDots.filter(d => d.role === 'architecture').length})</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-xs">
+        {/* Network Traffic Visualization */}
+        <g>
+          {[...Array(5)].map((_, i) => (
+            <circle key={i} cx="600" cy="400" r={20 + i * 10} fill="none" stroke="#10b981" strokeWidth="1" opacity={0.3 - i * 0.05}>
+              <animate attributeName="r" values={`${20 + i * 10};${40 + i * 10};${20 + i * 10}`} dur="4s" repeatCount="indefinite" begin={`${i * 0.5}s`}/>
+            </circle>
+          ))}
+        </g>
+
+        {/* Status Indicators */}
+        <g>
+          <circle cx="980" cy="150" r="8" fill={systemStats.systemHealth === 'healthy' ? '#10b981' : systemStats.systemHealth === 'warning' ? '#f59e0b' : '#ef4444'}>
+            <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <text x="1000" y="155" fill="#94a3b8" fontSize="10">System Health</text>
+        </g>
+      </svg>
+
+      {/* Bottom Stats Panel */}
+      <div className="absolute bottom-4 left-4 right-4 z-10">
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
+            <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded"></div>
-                <span>Healthy</span>
+                <Users className="h-4 w-4 text-blue-400" />
+                <div>
+                  <div className="text-lg font-bold text-white">{systemStats.totalUsers}</div>
+                  <div className="text-xs text-slate-400">Active Users</div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
+            <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                <span>Warning</span>
+                <Network className="h-4 w-4 text-green-400" />
+                <div>
+                  <div className="text-lg font-bold text-white">{systemStats.activeConnections}</div>
+                  <div className="text-xs text-slate-400">Connections</div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
+            <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded"></div>
-                <span>Critical</span>
+                <Zap className="h-4 w-4 text-yellow-400" />
+                <div>
+                  <div className="text-lg font-bold text-white">{systemStats.networkTraffic}</div>
+                  <div className="text-xs text-slate-400">MB/s</div>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-purple-400" />
+                <div>
+                  <div className="text-lg font-bold text-white">{systemStats.databaseQueries}</div>
+                  <div className="text-xs text-slate-400">DB Queries</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
