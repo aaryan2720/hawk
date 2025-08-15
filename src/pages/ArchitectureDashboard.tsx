@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,7 +12,9 @@ import ArchitectureMetrics from '@/components/Architecture/ArchitectureMetrics';
 import SystemDiagram from '@/components/Architecture/SystemDiagram';
 import RealTimeStats from '@/components/Architecture/RealTimeStats';
 import NetworkTrafficVisualization from '@/components/Architecture/NetworkTrafficVisualization';
-import { Activity, Users, Map, BarChart3, TrendingUp, Network } from 'lucide-react';
+import InteractiveSystemDiagram from '@/components/Architecture/InteractiveSystemDiagram';
+import RealTimeUserActivity from '@/components/Architecture/RealTimeUserActivity';
+import { Activity, Users, Map, BarChart3, TrendingUp, Network, Zap } from 'lucide-react';
 
 const ArchitectureDashboard = () => {
   const { user, loading } = useAuth();
@@ -72,8 +73,12 @@ const ArchitectureDashboard = () => {
           <RealTimeStats />
         </div>
 
-        <Tabs defaultValue="metrics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs defaultValue="interactive" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="interactive" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Live System
+            </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Metrics
@@ -99,6 +104,11 @@ const ArchitectureDashboard = () => {
               User Levels
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="interactive" className="space-y-6">
+            <InteractiveSystemDiagram />
+            <RealTimeUserActivity />
+          </TabsContent>
 
           <TabsContent value="metrics" className="space-y-6">
             <ArchitectureMetrics />
