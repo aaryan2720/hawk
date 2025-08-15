@@ -6,22 +6,26 @@ import { useArchitectureTracking } from '@/hooks/useArchitectureTracking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import UserFlowVisualization from '@/components/Architecture/UserFlowVisualization';
 import SystemArchitectureMap from '@/components/Architecture/SystemArchitectureMap';
 import RealTimeActivityDashboard from '@/components/Architecture/RealTimeActivityDashboard';
 import UserLevelIndicators from '@/components/Architecture/UserLevelIndicators';
 import ArchitectureMetrics from '@/components/Architecture/ArchitectureMetrics';
 import SystemDiagram from '@/components/Architecture/SystemDiagram';
-import RealTimeStats from '@/components/Architecture/RealTimeStats';
 import NetworkTrafficVisualization from '@/components/Architecture/NetworkTrafficVisualization';
-import InteractiveSystemDiagram from '@/components/Architecture/InteractiveSystemDiagram';
-import RealTimeUserActivity from '@/components/Architecture/RealTimeUserActivity';
-import { Activity, Users, Map, BarChart3, TrendingUp, Network, Zap } from 'lucide-react';
+import LiveSystemArchitecture from '@/components/Architecture/LiveSystemArchitecture';
+import RealTimeUserTracker from '@/components/Architecture/RealTimeUserTracker';
+import { 
+  Activity, Users, Map, BarChart3, TrendingUp, Network, Zap, 
+  Maximize2, Minimize2, Monitor, Shield
+} from 'lucide-react';
 
 const ArchitectureDashboard = () => {
   const { user, loading } = useAuth();
   const { trackAction } = useArchitectureTracking();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (user && user.email === 'architecture@hawk.com') {
@@ -39,6 +43,14 @@ const ArchitectureDashboard = () => {
     trackAction('tab_change', {
       tab: tabValue,
       dashboard: 'architecture',
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+    trackAction('fullscreen_toggle', {
+      fullscreen: !isFullScreen,
       timestamp: new Date().toISOString()
     });
   };
@@ -78,6 +90,24 @@ const ArchitectureDashboard = () => {
     );
   }
 
+  // Full screen live architecture view
+  if (isFullScreen) {
+    return (
+      <div className="relative">
+        <Button
+          onClick={toggleFullScreen}
+          className="absolute top-4 right-4 z-30"
+          variant="outline"
+          size="sm"
+        >
+          <Minimize2 className="h-4 w-4 mr-2" />
+          Exit Full Screen
+        </Button>
+        <LiveSystemArchitecture />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="container mx-auto space-y-6">
@@ -87,7 +117,7 @@ const ArchitectureDashboard = () => {
               <Activity className="h-8 w-8 text-primary animate-pulse" />
               HAWK Architecture Dashboard
             </h1>
-            <p className="text-muted-foreground">Real-time system architecture and user flow visualization</p>
+            <p className="text-muted-foreground">Real-time system architecture and user flow monitoring</p>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="outline" className="bg-green-50 text-green-700">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
@@ -98,25 +128,26 @@ const ArchitectureDashboard = () => {
               </Badge>
             </div>
           </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            Architecture Team Access
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button onClick={toggleFullScreen} variant="outline" size="sm">
+              <Maximize2 className="h-4 w-4 mr-2" />
+              Full Screen View
+            </Button>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+              Architecture Team Access
+            </Badge>
+          </div>
         </div>
 
-        {/* Real-time Stats Overview */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-500" />
-            Real-time System Metrics
-          </h2>
-          <RealTimeStats />
-        </div>
-
-        <Tabs defaultValue="interactive" className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="interactive" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
+        <Tabs defaultValue="live-architecture" className="space-y-6" onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="live-architecture" className="flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
               Live System
+            </TabsTrigger>
+            <TabsTrigger value="user-tracking" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              User Tracking
             </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -138,17 +169,20 @@ const ArchitectureDashboard = () => {
               <Network className="h-4 w-4" />
               Network
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            <TabsTrigger value="levels" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
               User Levels
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="interactive" className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              <InteractiveSystemDiagram />
-              <RealTimeUserActivity />
+          <TabsContent value="live-architecture" className="space-y-6">
+            <div className="h-[600px] border rounded-lg overflow-hidden">
+              <LiveSystemArchitecture />
             </div>
+          </TabsContent>
+
+          <TabsContent value="user-tracking" className="space-y-6">
+            <RealTimeUserTracker />
           </TabsContent>
 
           <TabsContent value="metrics" className="space-y-6">
@@ -172,7 +206,7 @@ const ArchitectureDashboard = () => {
             <NetworkTrafficVisualization />
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-6">
+          <TabsContent value="levels" className="space-y-6">
             <UserLevelIndicators />
           </TabsContent>
         </Tabs>
