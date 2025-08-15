@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,7 @@ import {
 
 interface UserSession {
   id: string;
-  user_id: string;
+  user_id: string | null;
   session_id: string;
   current_page: string;
   action_type: string;
@@ -24,7 +23,7 @@ interface UserSession {
 
 interface UserFlow {
   id: string;
-  user_id: string;
+  user_id: string | null;
   session_id: string;
   flow_path: string[];
   current_level: number;
@@ -97,11 +96,13 @@ const RealTimeUserTracker = () => {
 
       console.log(`Processing ${sessions.length} sessions and ${flows.length} flows`);
 
-      // Enhance sessions with user roles from flows
-      const enhancedSessions = sessions.map(session => {
+      // Enhance sessions with user roles from flows and handle null values
+      const enhancedSessions: UserSession[] = sessions.map(session => {
         const userFlow = flows.find(flow => flow.user_id === session.user_id);
         return {
           ...session,
+          user_id: session.user_id || 'anonymous',
+          ip_address: session.ip_address ? String(session.ip_address) : null,
           user_role: userFlow?.user_role || getUserRoleFromUserId(session.user_id) || 'user'
         };
       });
@@ -117,7 +118,8 @@ const RealTimeUserTracker = () => {
     }
   };
 
-  const getUserRoleFromUserId = (userId: string) => {
+  const getUserRoleFromUserId = (userId: string | null) => {
+    if (!userId) return 'user';
     // Fallback role detection based on user ID patterns
     if (userId.includes('architecture')) return 'architecture';
     if (userId.includes('admin')) return 'admin';
@@ -134,7 +136,7 @@ const RealTimeUserTracker = () => {
     const recentSessions = sessions.filter(s => 
       new Date(s.created_at).getTime() > fiveMinutesAgo
     );
-    const totalActiveUsers = new Set(recentSessions.map(s => s.user_id)).size;
+    const totalActiveUsers = new Set(recentSessions.map(s => s.user_id).filter(Boolean)).size;
 
     // Calculate unique sessions
     const uniqueSessions = new Set(sessions.map(s => s.session_id)).size;
@@ -407,8 +409,8 @@ const RealTimeUserTracker = () => {
         </Card>
       </div>
 
-      {/* Recent Activity Stream */}
-      <Card>
+      {/* Recent Activity Stream - Fixed position */}
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-green-500 animate-pulse" />
@@ -438,7 +440,7 @@ const RealTimeUserTracker = () => {
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                        <span>User: {action.user_id.slice(0, 8)}...</span>
+                        <span>User: {action.user_id ? action.user_id.slice(0, 8) : 'anonymous'}...</span>
                         <span>•</span>
                         <span>Session: {action.session_id.slice(0, 6)}...</span>
                         {action.user_agent && (

@@ -332,7 +332,7 @@ const LiveSystemArchitecture = () => {
       console.log(`Fetched ${flows.length} flows and ${sessions.length} sessions`);
 
       // Update system metrics
-      const uniqueUsers = new Set(flows.map(f => f.user_id)).size;
+      const uniqueUsers = new Set(flows.map(f => f.user_id).filter(Boolean)).size;
       const totalSessions = new Set(sessions.map(s => s.session_id)).size;
       
       setSystemMetrics({
@@ -353,7 +353,7 @@ const LiveSystemArchitecture = () => {
         const existingDot = userDots.find(dot => dot.id === flow.user_id);
         
         return {
-          id: flow.user_id,
+          id: flow.user_id || 'anonymous',
           x: existingDot?.x || Math.random() * 800 + 200,
           y: existingDot?.y || Math.random() * 400 + 150,
           targetX: targetNode.x + targetNode.width / 2 + (Math.random() - 0.5) * 100,
@@ -505,7 +505,7 @@ const LiveSystemArchitecture = () => {
           viewBox="0 0 1400 800"
           style={{ background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" xmlns="http://www.w3.org/2000/svg"%3E%3Cdefs%3E%3Cpattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"%3E%3Cpath d="M 40 0 L 0 0 0 40" fill="none" stroke="%23f1f5f9" stroke-width="1"/%3E%3C/pattern%3E%3C/defs%3E%3Crect width="100%25" height="100%25" fill="url(%23grid)"/%3E%3C/svg%3E")' }}
         >
-          {/* Connection Lines */}
+          {/* Connection Lines - Made More Visible */}
           {architectureNodes.map(node => 
             node.connections.map(connectionId => {
               const targetNode = architectureNodes.find(n => n.id === connectionId);
@@ -515,14 +515,15 @@ const LiveSystemArchitecture = () => {
                 <g key={`${node.id}-${connectionId}`}>
                   <path
                     d={getConnectionPath(node, targetNode)}
-                    stroke="hsl(var(--border))"
-                    strokeWidth="2"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="3"
                     fill="none"
-                    strokeDasharray="8,4"
-                    opacity="0.6"
+                    strokeDasharray="12,6"
+                    opacity="0.8"
+                    className="animate-pulse"
                   />
                   {/* Data flow animation */}
-                  <circle r="4" fill="hsl(var(--primary))" opacity="0.8">
+                  <circle r="6" fill="hsl(var(--primary))" opacity="0.9">
                     <animateMotion
                       dur={`${3 + Math.random() * 2}s`}
                       repeatCount="indefinite"
@@ -539,7 +540,7 @@ const LiveSystemArchitecture = () => {
             const IconComponent = node.icon;
             return (
               <g key={node.id}>
-                {/* Node Background */}
+                {/* Node Background with Enhanced Visibility */}
                 <rect
                   x={node.x}
                   y={node.y}
@@ -547,23 +548,24 @@ const LiveSystemArchitecture = () => {
                   height={node.height}
                   fill="white"
                   stroke={getStatusColor(node.status)}
-                  strokeWidth="2"
+                  strokeWidth="3"
                   rx="12"
-                  className="drop-shadow-lg"
+                  className="drop-shadow-xl"
+                  style={{ filter: 'drop-shadow(0 10px 15px -3px rgb(0 0 0 / 0.1))' }}
                 />
                 
                 {/* Status Indicator */}
                 <circle
                   cx={node.x + node.width - 15}
                   cy={node.y + 15}
-                  r="6"
+                  r="8"
                   fill={getStatusColor(node.status)}
                   className="animate-pulse"
                 />
                 
                 {/* Node Content */}
                 <foreignObject x={node.x + 10} y={node.y + 10} width={node.width - 20} height={node.height - 20}>
-                  <div className="h-full flex flex-col justify-between p-2">
+                  <div className="h-full flex flex-col justify-between p-2 text-foreground">
                     <div className="flex items-start gap-3">
                       <div className="p-2 rounded-lg" style={{ backgroundColor: `${node.color}20`, color: node.color }}>
                         <IconComponent className="h-6 w-6" />
@@ -574,26 +576,26 @@ const LiveSystemArchitecture = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
                       <div className="flex justify-between">
                         <span>CPU:</span>
-                        <span className={node.metrics.cpu > 80 ? 'text-red-500' : node.metrics.cpu > 60 ? 'text-yellow-600' : 'text-green-600'}>
+                        <span className={node.metrics.cpu > 80 ? 'text-red-500 font-bold' : node.metrics.cpu > 60 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
                           {node.metrics.cpu}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Mem:</span>
-                        <span className={node.metrics.memory > 80 ? 'text-red-500' : node.metrics.memory > 60 ? 'text-yellow-600' : 'text-green-600'}>
+                        <span className={node.metrics.memory > 80 ? 'text-red-500 font-bold' : node.metrics.memory > 60 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
                           {node.metrics.memory}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Req/m:</span>
-                        <span className="text-blue-600">{node.metrics.requests}</span>
+                        <span className="text-blue-600 font-medium">{node.metrics.requests}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Lat:</span>
-                        <span className={node.metrics.latency > 200 ? 'text-red-500' : node.metrics.latency > 100 ? 'text-yellow-600' : 'text-green-600'}>
+                        <span className={node.metrics.latency > 200 ? 'text-red-500 font-bold' : node.metrics.latency > 100 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
                           {node.metrics.latency}ms
                         </span>
                       </div>
@@ -604,21 +606,23 @@ const LiveSystemArchitecture = () => {
             );
           })}
 
-          {/* Real User Dots */}
+          {/* Real User Dots - Enhanced Visibility */}
           {userDots.map(dot => (
             <g key={dot.id}>
               <circle
                 cx={dot.x}
                 cy={dot.y}
-                r="8"
+                r="10"
                 fill={dot.color}
+                stroke="white"
+                strokeWidth="2"
                 className="drop-shadow-lg animate-pulse"
                 opacity={dot.isActive ? 1 : 0.6}
               />
               <circle
                 cx={dot.x}
                 cy={dot.y}
-                r="16"
+                r="20"
                 fill={dot.color}
                 opacity="0.3"
                 className="animate-ping"
@@ -629,7 +633,7 @@ const LiveSystemArchitecture = () => {
         </svg>
       </div>
 
-      {/* Legend */}
+      {/* Legend - Fixed Position */}
       <div className="absolute bottom-4 left-4 right-4 z-20">
         <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -637,19 +641,19 @@ const LiveSystemArchitecture = () => {
               <h3 className="font-semibold text-sm">Live User Activity</h3>
               <div className="flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
                   <span>Regular ({userDots.filter(d => d.role === 'user').length})</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse border-2 border-white"></div>
                   <span>Premium ({userDots.filter(d => d.role === 'premium').length})</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white"></div>
                   <span>Admin ({userDots.filter(d => d.role === 'admin').length})</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                  <div className="w-4 h-4 bg-purple-500 rounded-full animate-pulse border-2 border-white"></div>
                   <span>Architecture ({userDots.filter(d => d.role === 'architecture').length})</span>
                 </div>
               </div>
