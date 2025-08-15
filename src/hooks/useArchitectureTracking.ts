@@ -15,9 +15,11 @@ export const useArchitectureTracking = () => {
       const sessionId = sessionStorage.getItem('session_id') || generateSessionId();
       sessionStorage.setItem('session_id', sessionId);
 
-      // Track session activity
+      console.log('Tracking user activity:', user.id, location.pathname);
+
       try {
-        await supabase.from('architecture_sessions').insert({
+        // Track session activity with more detailed metadata
+        const { error: sessionError } = await supabase.from('architecture_sessions').insert({
           user_id: user.id,
           session_id: sessionId,
           current_page: location.pathname,
@@ -26,35 +28,58 @@ export const useArchitectureTracking = () => {
           metadata: {
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
-            referrer: document.referrer
+            referrer: document.referrer,
+            windowSize: {
+              width: window.innerWidth,
+              height: window.innerHeight
+            },
+            screenSize: {
+              width: screen.width,
+              height: screen.height
+            }
           },
           user_agent: navigator.userAgent,
           ip_address: await getClientIP()
         });
 
-        // Update user flow tracking
-        const { data: existingFlow } = await supabase
+        if (sessionError) {
+          console.error('Error inserting session:', sessionError);
+          return;
+        }
+
+        // Update user flow tracking with real-time data
+        const { data: existingFlow, error: flowSelectError } = await supabase
           .from('user_flow_tracking')
           .select('*')
           .eq('user_id', user.id)
           .eq('session_id', sessionId)
-          .single();
+          .maybeSingle();
+
+        if (flowSelectError) {
+          console.error('Error fetching existing flow:', flowSelectError);
+          return;
+        }
 
         const currentPath = [...(existingFlow?.flow_path || []), location.pathname];
         const userRole = getUserRole(user);
 
         if (existingFlow) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('user_flow_tracking')
             .update({
               flow_path: currentPath,
               current_level: currentPath.length,
               user_role: userRole,
-              last_activity: new Date().toISOString()
+              last_activity: new Date().toISOString(),
+              status: 'active'
             })
             .eq('id', existingFlow.id);
+
+          if (updateError) {
+            console.error('Error updating flow:', updateError);
+          }
         } else {
-          await supabase.from('user_flow_tracking').insert({
+          const { error: insertError } = await supabase.from('user_flow_tracking').insert({
             user_id: user.id,
             session_id: sessionId,
             flow_path: currentPath,
@@ -63,9 +88,14 @@ export const useArchitectureTracking = () => {
             status: 'active',
             last_activity: new Date().toISOString()
           });
+
+          if (insertError) {
+            console.error('Error inserting flow:', insertError);
+          }
         }
 
         sessionStorage.setItem('previous_page', location.pathname);
+        console.log('Successfully tracked user activity');
       } catch (error) {
         console.error('Error tracking architecture activity:', error);
       }
@@ -79,8 +109,10 @@ export const useArchitectureTracking = () => {
 
     const sessionId = sessionStorage.getItem('session_id') || generateSessionId();
     
+    console.log('Tracking action:', actionType, metadata);
+    
     try {
-      await supabase.from('architecture_sessions').insert({
+      const { error } = await supabase.from('architecture_sessions').insert({
         user_id: user.id,
         session_id: sessionId,
         current_page: location.pathname,
@@ -92,6 +124,12 @@ export const useArchitectureTracking = () => {
         },
         user_agent: navigator.userAgent
       });
+
+      if (error) {
+        console.error('Error tracking action:', error);
+      } else {
+        console.log('Successfully tracked action:', actionType);
+      }
     } catch (error) {
       console.error('Error tracking action:', error);
     }
@@ -107,6 +145,7 @@ const generateSessionId = () => {
 const getUserRole = (user: any) => {
   if (user.email === 'architecture@hawk.com') return 'architecture';
   if (user.email?.includes('admin')) return 'admin';
+  if (user.email?.includes('premium')) return 'premium';
   return 'user';
 };
 

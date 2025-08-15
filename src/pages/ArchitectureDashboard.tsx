@@ -1,6 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useArchitectureTracking } from '@/hooks/useArchitectureTracking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,18 +20,36 @@ import { Activity, Users, Map, BarChart3, TrendingUp, Network, Zap } from 'lucid
 
 const ArchitectureDashboard = () => {
   const { user, loading } = useAuth();
+  const { trackAction } = useArchitectureTracking();
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     if (user && user.email === 'architecture@hawk.com') {
       setIsAuthorized(true);
+      // Track that architecture dashboard was accessed
+      trackAction('dashboard_access', {
+        dashboard: 'architecture',
+        timestamp: new Date().toISOString()
+      });
     }
-  }, [user]);
+  }, [user, trackAction]);
+
+  // Track tab changes
+  const handleTabChange = (tabValue: string) => {
+    trackAction('tab_change', {
+      tab: tabValue,
+      dashboard: 'architecture',
+      timestamp: new Date().toISOString()
+    });
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading Architecture Dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -43,11 +63,15 @@ const ArchitectureDashboard = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96">
           <CardHeader>
-            <CardTitle className="text-destructive">Access Denied</CardTitle>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Access Denied
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Only architecture@hawk.com can access this dashboard.</p>
-            <p className="text-sm text-muted-foreground mt-2">Current user: {user.email}</p>
+            <p className="mb-2">Only <code>architecture@hawk.com</code> can access this dashboard.</p>
+            <p className="text-sm text-muted-foreground">Current user: <code>{user.email}</code></p>
+            <p className="text-xs text-muted-foreground mt-4">This dashboard contains sensitive system architecture information.</p>
           </CardContent>
         </Card>
       </div>
@@ -59,21 +83,36 @@ const ArchitectureDashboard = () => {
       <div className="container mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">HAWK Architecture Dashboard</h1>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Activity className="h-8 w-8 text-primary animate-pulse" />
+              HAWK Architecture Dashboard
+            </h1>
             <p className="text-muted-foreground">Real-time system architecture and user flow visualization</p>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                Live Data Active
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Last Updated: {new Date().toLocaleTimeString()}
+              </Badge>
+            </div>
           </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary">
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
             Architecture Team Access
           </Badge>
         </div>
 
         {/* Real-time Stats Overview */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Real-time System Metrics</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-blue-500" />
+            Real-time System Metrics
+          </h2>
           <RealTimeStats />
         </div>
 
-        <Tabs defaultValue="interactive" className="space-y-6">
+        <Tabs defaultValue="interactive" className="space-y-6" onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="interactive" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
@@ -106,8 +145,10 @@ const ArchitectureDashboard = () => {
           </TabsList>
 
           <TabsContent value="interactive" className="space-y-6">
-            <InteractiveSystemDiagram />
-            <RealTimeUserActivity />
+            <div className="grid grid-cols-1 gap-6">
+              <InteractiveSystemDiagram />
+              <RealTimeUserActivity />
+            </div>
           </TabsContent>
 
           <TabsContent value="metrics" className="space-y-6">
