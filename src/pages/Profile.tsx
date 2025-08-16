@@ -1,50 +1,29 @@
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
-import { User, Shield, Settings, Bell, CreditCard, ArrowLeft } from 'lucide-react';
+import { User, Shield, Settings, Bell, CreditCard, ArrowLeft, Crown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import DashboardNav from '@/components/DashboardNav';
 import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const { user } = useAuth();
+  const { profile, loading: roleLoading, userRole, subscriptionPlan, isHawkDomain } = useUserRole();
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('account');
 
   useEffect(() => {
-    const getProfile = async () => {
-      setLoading(true);
-      try {
-        if (!user) throw new Error("No user found.");
-
-        let { data, error, status } = await supabase
-          .from('profiles')
-          .select(`role`)
-          .eq('id', user.id)
-          .single();
-
-        if (error && status !== 406) {
-          throw error;
-        }
-
-        if (data) {
-          setRole(data.role);
-        }
-      } catch (error: any) {
-        console.error(error);
-        toast.error(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getProfile();
-  }, [user]);
+    if (!roleLoading) {
+      setLoading(false);
+    }
+  }, [roleLoading]);
 
   if (!user) {
     return (
@@ -63,6 +42,34 @@ const Profile = () => {
     );
   }
 
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'architecture':
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><Crown className="h-3 w-3 mr-1" />Architecture</Badge>;
+      case 'admin':
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200"><Shield className="h-3 w-3 mr-1" />Admin</Badge>;
+      case 'premium':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Premium</Badge>;
+      case 'basic':
+        return <Badge variant="outline">Basic</Badge>;
+      default:
+        return <Badge variant="outline">{role}</Badge>;
+    }
+  };
+
+  const getPlanBadge = (plan: string) => {
+    switch (plan) {
+      case 'company':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Company</Badge>;
+      case 'premium':
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Premium</Badge>;
+      case 'basic':
+        return <Badge variant="outline">Basic</Badge>;
+      default:
+        return <Badge variant="outline">{plan}</Badge>;
+    }
+  };
+
   return (
     <>
       <DashboardNav />
@@ -77,8 +84,21 @@ const Profile = () => {
         </div>
         
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg p-8 mb-8 shadow-lg">
-          <h1 className="text-3xl font-bold mb-2">My Account</h1>
-          <p className="text-blue-100">Manage your account settings and subscription</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">My Account</h1>
+              <p className="text-blue-100">Manage your account settings and subscription</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              {getRoleBadge(userRole)}
+              {getPlanBadge(subscriptionPlan)}
+              {isHawkDomain() && (
+                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                  HAWK Domain
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -144,22 +164,46 @@ const Profile = () => {
                         <p className="text-lg">{user.email}</p>
                       </div>
                       
-                      {user.user_metadata?.full_name && (
+                      {profile?.full_name && (
                         <div>
                           <label className="block text-sm font-medium text-gray-500 mb-1">Full Name</label>
-                          <p className="text-lg">{user.user_metadata.full_name}</p>
+                          <p className="text-lg">{profile.full_name}</p>
                         </div>
                       )}
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">Account Type</label>
-                        <p className="text-lg capitalize">{role || 'Standard User'}</p>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">User Role</label>
+                        <div className="flex items-center gap-2">
+                          {getRoleBadge(userRole)}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Subscription Plan</label>
+                        <div className="flex items-center gap-2">
+                          {getPlanBadge(subscriptionPlan)}
+                        </div>
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Member Since</label>
                         <p className="text-lg">{new Date(user.created_at).toLocaleDateString()}</p>
                       </div>
+
+                      {profile?.organization && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 mb-1">Organization</label>
+                          <p className="text-lg">{profile.organization}</p>
+                        </div>
+                      )}
+
+                      {isHawkDomain() && (
+                        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <p className="text-sm text-yellow-800">
+                            <strong>HAWK Domain Access:</strong> You have premium features and architecture team access.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -179,11 +223,7 @@ const Profile = () => {
             
             {activeTab === 'subscription' && (
               <div className="space-y-8">
-                <Card className="p-8">
-                  <h2 className="text-2xl font-semibold mb-6">Subscription Management</h2>
-                  <Separator className="mb-6" />
-                  <SubscriptionPlans currentUserRole={role || 'user'} />
-                </Card>
+                <SubscriptionPlans />
               </div>
             )}
             
@@ -192,7 +232,6 @@ const Profile = () => {
                 <h2 className="text-2xl font-semibold mb-6">Security Settings</h2>
                 <Separator className="mb-6" />
                 <p className="text-gray-500 mb-4">Manage your security preferences and account protection.</p>
-                {/* Security settings would go here */}
                 <Button className="mt-4">Change Password</Button>
               </Card>
             )}
@@ -202,7 +241,6 @@ const Profile = () => {
                 <h2 className="text-2xl font-semibold mb-6">Notification Preferences</h2>
                 <Separator className="mb-6" />
                 <p className="text-gray-500 mb-4">Control how you receive alerts and updates.</p>
-                {/* Notification settings would go here */}
               </Card>
             )}
             
@@ -211,7 +249,6 @@ const Profile = () => {
                 <h2 className="text-2xl font-semibold mb-6">General Settings</h2>
                 <Separator className="mb-6" />
                 <p className="text-gray-500 mb-4">Customize your account experience.</p>
-                {/* General settings would go here */}
               </Card>
             )}
           </div>
