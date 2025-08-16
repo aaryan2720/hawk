@@ -55,7 +55,7 @@ const LiveSystemArchitecture = () => {
         .select('*')
         .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) {
         console.error('Error fetching activities:', error);
@@ -116,10 +116,10 @@ const LiveSystemArchitecture = () => {
 
   const getSystemHealthColor = (health: string) => {
     switch (health) {
-      case 'healthy': return 'text-green-600';
-      case 'warning': return 'text-yellow-600';
-      case 'critical': return 'text-red-600';
-      default: return 'text-gray-600';
+      case 'healthy': return 'text-green-400';
+      case 'warning': return 'text-yellow-400';
+      case 'critical': return 'text-red-400';
+      default: return 'text-gray-400';
     }
   };
 
@@ -134,241 +134,320 @@ const LiveSystemArchitecture = () => {
 
   if (isLoading) {
     return (
-      <div className="h-full bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading live architecture...</div>
+      <div className="h-full bg-gradient-to-br from-slate-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-400 mx-auto mb-4"></div>
+          <div className="text-white text-lg">Loading Live Architecture...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-slate-900 text-white overflow-hidden relative">
-      {/* Fixed Live User Activity Bar - Top Right */}
-      <div className="absolute top-4 right-4 z-20">
-        <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-200 flex items-center gap-2">
-              <Activity className="h-4 w-4 animate-pulse text-green-400" />
+    <div className="h-full bg-gradient-to-br from-slate-950 to-slate-900 text-white overflow-hidden relative">
+      {/* Live User Activity Panel - Fixed Top Right */}
+      <div className="absolute top-6 right-6 z-30 w-72">
+        <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-white flex items-center gap-3">
+              <Activity className="h-5 w-5 animate-pulse text-green-400" />
               Live User Activity
+              <Badge variant="outline" className="bg-green-900/30 text-green-300 border-green-500">
+                {systemStats.totalUsers} active
+              </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Regular</span>
-              <Badge variant="outline" className="bg-green-900/50 text-green-300 border-green-600">
-                ({systemStats.usersByRole.user || 0})
-              </Badge>
+          <CardContent className="pt-0 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between text-sm bg-slate-700/50 p-2 rounded">
+                <span className="text-slate-300">Regular</span>
+                <Badge variant="outline" className="bg-green-900/50 text-green-300 border-green-500 text-xs">
+                  {systemStats.usersByRole.user || 0}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm bg-slate-700/50 p-2 rounded">
+                <span className="text-slate-300">Premium</span>
+                <Badge variant="outline" className="bg-blue-900/50 text-blue-300 border-blue-500 text-xs">
+                  {systemStats.usersByRole.premium || 0}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm bg-slate-700/50 p-2 rounded">
+                <span className="text-slate-300">Admin</span>
+                <Badge variant="outline" className="bg-red-900/50 text-red-300 border-red-500 text-xs">
+                  {systemStats.usersByRole.admin || 0}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm bg-slate-700/50 p-2 rounded">
+                <span className="text-slate-300">Architecture</span>
+                <Badge variant="outline" className="bg-purple-900/50 text-purple-300 border-purple-500 text-xs">
+                  {systemStats.usersByRole.architecture || 0}
+                </Badge>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Premium</span>
-              <Badge variant="outline" className="bg-blue-900/50 text-blue-300 border-blue-600">
-                ({systemStats.usersByRole.premium || 0})
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Admin</span>
-              <Badge variant="outline" className="bg-red-900/50 text-red-300 border-red-600">
-                ({systemStats.usersByRole.admin || 0})
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Architecture</span>
-              <Badge variant="outline" className="bg-purple-900/50 text-purple-300 border-purple-600">
-                ({systemStats.usersByRole.architecture || 0})
-              </Badge>
-            </div>
-            <div className="border-t border-slate-700 pt-2 mt-2">
-              <div className={`flex items-center gap-2 text-xs ${getSystemHealthColor(systemStats.systemHealth)}`}>
+            <div className="border-t border-slate-600 pt-3">
+              <div className={`flex items-center gap-2 text-sm font-medium ${getSystemHealthColor(systemStats.systemHealth)}`}>
                 {getSystemHealthIcon(systemStats.systemHealth)}
-                <span className="capitalize">{systemStats.systemHealth}</span>
+                <span className="capitalize">System {systemStats.systemHealth}</span>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* System Architecture Diagram */}
-      <svg viewBox="0 0 1200 800" className="w-full h-full">
-        {/* Background Grid */}
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" strokeWidth="1" opacity="0.3"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-
-        {/* Data Flow Lines with Animation */}
-        <defs>
-          <linearGradient id="dataFlow" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0"/>
-            <stop offset="50%" stopColor="#10b981" stopOpacity="1"/>
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-
-        {/* Enhanced Connection Lines */}
-        <g stroke="#10b981" strokeWidth="3" fill="none" opacity="0.8">
-          <line x1="200" y1="150" x2="400" y2="150">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite"/>
-          </line>
-          <line x1="400" y1="150" x2="600" y2="150">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="0.5s"/>
-          </line>
-          <line x1="600" y1="150" x2="800" y2="150">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="1s"/>
-          </line>
-          <line x1="200" y1="300" x2="400" y2="300">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="1.5s"/>
-          </line>
-          <line x1="400" y1="300" x2="600" y2="300">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="2s" repeatCount="indefinite" begin="2s"/>
-          </line>
-          <line x1="300" y1="200" x2="300" y2="250">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite"/>
-          </line>
-          <line x1="500" y1="200" x2="500" y2="250">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
-          </line>
-          <line x1="700" y1="200" x2="700" y2="250">
-            <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="1s"/>
-          </line>
-        </g>
-
-        {/* System Components */}
-        <g>
-          {/* Frontend Layer */}
-          <rect x="150" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#3b82f6" strokeWidth="2"/>
-          <text x="200" y="135" textAnchor="middle" fill="#3b82f6" fontSize="12" fontWeight="bold">Frontend</text>
-          <text x="200" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">React/Vite</text>
-
-          {/* API Gateway */}
-          <rect x="350" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#10b981" strokeWidth="2"/>
-          <text x="400" y="135" textAnchor="middle" fill="#10b981" fontSize="12" fontWeight="bold">API Gateway</text>
-          <text x="400" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">Supabase</text>
-
-          {/* Backend Services */}
-          <rect x="550" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#f59e0b" strokeWidth="2"/>
-          <text x="600" y="135" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold">Backend</text>
-          <text x="600" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">Edge Functions</text>
-
-          {/* Database */}
-          <rect x="750" y="100" width="100" height="80" rx="10" fill="#1e293b" stroke="#8b5cf6" strokeWidth="2"/>
-          <text x="800" y="135" textAnchor="middle" fill="#8b5cf6" fontSize="12" fontWeight="bold">Database</text>
-          <text x="800" y="155" textAnchor="middle" fill="#94a3b8" fontSize="10">PostgreSQL</text>
-
-          {/* Authentication */}
-          <rect x="150" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#ef4444" strokeWidth="2"/>
-          <text x="200" y="285" textAnchor="middle" fill="#ef4444" fontSize="12" fontWeight="bold">Auth</text>
-          <text x="200" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">Supabase Auth</text>
-
-          {/* Real-time */}
-          <rect x="350" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#06b6d4" strokeWidth="2"/>
-          <text x="400" y="285" textAnchor="middle" fill="#06b6d4" fontSize="12" fontWeight="bold">Real-time</text>
-          <text x="400" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">WebSockets</text>
-
-          {/* Monitoring */}
-          <rect x="550" y="250" width="100" height="80" rx="10" fill="#1e293b" stroke="#ec4899" strokeWidth="2"/>
-          <text x="600" y="285" textAnchor="middle" fill="#ec4899" fontSize="12" fontWeight="bold">Monitoring</text>
-          <text x="600" y="305" textAnchor="middle" fill="#94a3b8" fontSize="10">Architecture</text>
-        </g>
-
-        {/* Live User Dots */}
-        {userActivities.slice(0, 20).map((activity, index) => {
-          const x = 100 + (index % 10) * 100 + Math.random() * 50;
-          const y = 400 + Math.floor(index / 10) * 100 + Math.random() * 50;
-          const color = getRoleColor(activity.user_role);
+      {/* Main Architecture Diagram */}
+      <div className="absolute inset-0 overflow-hidden">
+        <svg viewBox="0 0 1400 900" className="w-full h-full">
+          {/* Enhanced Background Grid */}
+          <defs>
+            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#334155" strokeWidth="1" opacity="0.3"/>
+            </pattern>
+            <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0"/>
+              <stop offset="50%" stopColor="#10b981" stopOpacity="1"/>
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           
-          return (
-            <g key={activity.id}>
-              <circle 
-                cx={x} 
-                cy={y} 
-                r="4" 
-                fill={color}
-                opacity="0.8"
-              >
-                <animate attributeName="r" values="4;8;4" dur="2s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/>
-              </circle>
-              <circle 
-                cx={x} 
-                cy={y} 
-                r="8" 
-                fill="none" 
-                stroke={color} 
-                strokeWidth="1"
-                opacity="0.3"
-              >
-                <animate attributeName="r" values="8;16;8" dur="3s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.3;0;0.3" dur="3s" repeatCount="indefinite"/>
-              </circle>
-            </g>
-          );
-        })}
+          <rect width="100%" height="100%" fill="url(#grid)" />
 
-        {/* Network Traffic Visualization */}
-        <g>
-          {[...Array(5)].map((_, i) => (
-            <circle key={i} cx="600" cy="400" r={20 + i * 10} fill="none" stroke="#10b981" strokeWidth="1" opacity={0.3 - i * 0.05}>
-              <animate attributeName="r" values={`${20 + i * 10};${40 + i * 10};${20 + i * 10}`} dur="4s" repeatCount="indefinite" begin={`${i * 0.5}s`}/>
+          {/* Enhanced Data Flow Lines with Glow Effect */}
+          <g stroke="#10b981" strokeWidth="4" fill="none" opacity="0.9" filter="url(#glow)">
+            {/* Horizontal connections */}
+            <line x1="250" y1="200" x2="450" y2="200">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite"/>
+            </line>
+            <line x1="450" y1="200" x2="650" y2="200">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+            </line>
+            <line x1="650" y1="200" x2="850" y2="200">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="1s"/>
+            </line>
+            <line x1="850" y1="200" x2="1050" y2="200">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="1.5s"/>
+            </line>
+            
+            {/* Lower tier connections */}
+            <line x1="250" y1="400" x2="450" y2="400">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="2s"/>
+            </line>
+            <line x1="450" y1="400" x2="650" y2="400">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="2.5s"/>
+            </line>
+            <line x1="650" y1="400" x2="850" y2="400">
+              <animate attributeName="stroke-dasharray" values="0,30;30,0" dur="2s" repeatCount="indefinite" begin="3s"/>
+            </line>
+            
+            {/* Vertical connections */}
+            <line x1="350" y1="280" x2="350" y2="320">
+              <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite"/>
+            </line>
+            <line x1="550" y1="280" x2="550" y2="320">
+              <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+            </line>
+            <line x1="750" y1="280" x2="750" y2="320">
+              <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="1s"/>
+            </line>
+            <line x1="950" y1="280" x2="950" y2="320">
+              <animate attributeName="stroke-dasharray" values="0,20;20,0" dur="1.5s" repeatCount="indefinite" begin="1.5s"/>
+            </line>
+          </g>
+
+          {/* Enhanced System Components with Glow */}
+          <g filter="url(#glow)">
+            {/* Frontend Layer */}
+            <rect x="200" y="150" width="140" height="100" rx="15" fill="#1e293b" stroke="#3b82f6" strokeWidth="3"/>
+            <circle cx="270" cy="185" r="8" fill="#3b82f6">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
             </circle>
-          ))}
-        </g>
+            <text x="270" y="210" textAnchor="middle" fill="#3b82f6" fontSize="16" fontWeight="bold">Frontend</text>
+            <text x="270" y="230" textAnchor="middle" fill="#94a3b8" fontSize="12">React/Vite</text>
 
-        {/* Status Indicators */}
-        <g>
-          <circle cx="980" cy="150" r="8" fill={systemStats.systemHealth === 'healthy' ? '#10b981' : systemStats.systemHealth === 'warning' ? '#f59e0b' : '#ef4444'}>
-            <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <text x="1000" y="155" fill="#94a3b8" fontSize="10">System Health</text>
-        </g>
-      </svg>
+            {/* API Gateway */}
+            <rect x="400" y="150" width="140" height="100" rx="15" fill="#1e293b" stroke="#10b981" strokeWidth="3"/>
+            <circle cx="470" cy="185" r="8" fill="#10b981">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+            </circle>
+            <text x="470" y="210" textAnchor="middle" fill="#10b981" fontSize="16" fontWeight="bold">API Gateway</text>
+            <text x="470" y="230" textAnchor="middle" fill="#94a3b8" fontSize="12">Supabase</text>
 
-      {/* Bottom Stats Panel */}
-      <div className="absolute bottom-4 left-4 right-4 z-10">
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-400" />
+            {/* Backend Services */}
+            <rect x="600" y="150" width="140" height="100" rx="15" fill="#1e293b" stroke="#f59e0b" strokeWidth="3"/>
+            <circle cx="670" cy="185" r="8" fill="#f59e0b">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="1s"/>
+            </circle>
+            <text x="670" y="210" textAnchor="middle" fill="#f59e0b" fontSize="16" fontWeight="bold">Backend</text>
+            <text x="670" y="230" textAnchor="middle" fill="#94a3b8" fontSize="12">Edge Functions</text>
+
+            {/* Database */}
+            <rect x="800" y="150" width="140" height="100" rx="15" fill="#1e293b" stroke="#8b5cf6" strokeWidth="3"/>
+            <circle cx="870" cy="185" r="8" fill="#8b5cf6">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="1.5s"/>
+            </circle>
+            <text x="870" y="210" textAnchor="middle" fill="#8b5cf6" fontSize="16" fontWeight="bold">Database</text>
+            <text x="870" y="230" textAnchor="middle" fill="#94a3b8" fontSize="12">PostgreSQL</text>
+
+            {/* Monitoring */}
+            <rect x="1000" y="150" width="140" height="100" rx="15" fill="#1e293b" stroke="#06b6d4" strokeWidth="3"/>
+            <circle cx="1070" cy="185" r="8" fill="#06b6d4">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="2s"/>
+            </circle>
+            <text x="1070" y="210" textAnchor="middle" fill="#06b6d4" fontSize="16" fontWeight="bold">Monitoring</text>
+            <text x="1070" y="230" textAnchor="middle" fill="#94a3b8" fontSize="12">Real-time</text>
+
+            {/* Second Row */}
+            {/* Authentication */}
+            <rect x="200" y="350" width="140" height="100" rx="15" fill="#1e293b" stroke="#ef4444" strokeWidth="3"/>
+            <circle cx="270" cy="385" r="8" fill="#ef4444">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="2.5s"/>
+            </circle>
+            <text x="270" y="410" textAnchor="middle" fill="#ef4444" fontSize="16" fontWeight="bold">Auth</text>
+            <text x="270" y="430" textAnchor="middle" fill="#94a3b8" fontSize="12">Supabase Auth</text>
+
+            {/* Real-time Engine */}
+            <rect x="400" y="350" width="140" height="100" rx="15" fill="#1e293b" stroke="#06b6d4" strokeWidth="3"/>
+            <circle cx="470" cy="385" r="8" fill="#06b6d4">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="3s"/>
+            </circle>
+            <text x="470" y="410" textAnchor="middle" fill="#06b6d4" fontSize="16" fontWeight="bold">Real-time</text>
+            <text x="470" y="430" textAnchor="middle" fill="#94a3b8" fontSize="12">WebSockets</text>
+
+            {/* Security */}
+            <rect x="600" y="350" width="140" height="100" rx="15" fill="#1e293b" stroke="#ec4899" strokeWidth="3"/>
+            <circle cx="670" cy="385" r="8" fill="#ec4899">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="3.5s"/>
+            </circle>
+            <text x="670" y="410" textAnchor="middle" fill="#ec4899" fontSize="16" fontWeight="bold">Security</text>
+            <text x="670" y="430" textAnchor="middle" fill="#94a3b8" fontSize="12">Vulnerability</text>
+
+            {/* Analytics */}
+            <rect x="800" y="350" width="140" height="100" rx="15" fill="#1e293b" stroke="#84cc16" strokeWidth="3"/>
+            <circle cx="870" cy="385" r="8" fill="#84cc16">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="4s"/>
+            </circle>
+            <text x="870" y="410" textAnchor="middle" fill="#84cc16" fontSize="16" fontWeight="bold">Analytics</text>
+            <text x="870" y="430" textAnchor="middle" fill="#94a3b8" fontSize="12">Tracking</text>
+          </g>
+
+          {/* Enhanced Live User Dots */}
+          {userActivities.slice(0, 30).map((activity, index) => {
+            const x = 150 + (index % 12) * 100 + Math.random() * 40;
+            const y = 550 + Math.floor(index / 12) * 80 + Math.random() * 40;
+            const color = getRoleColor(activity.user_role);
+            
+            return (
+              <g key={activity.id}>
+                <circle 
+                  cx={x} 
+                  cy={y} 
+                  r="6" 
+                  fill={color}
+                  opacity="0.9"
+                  filter="url(#glow)"
+                >
+                  <animate attributeName="r" values="6;12;6" dur="3s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.9;1;0.9" dur="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle 
+                  cx={x} 
+                  cy={y} 
+                  r="12" 
+                  fill="none" 
+                  stroke={color} 
+                  strokeWidth="2"
+                  opacity="0.4"
+                >
+                  <animate attributeName="r" values="12;24;12" dur="4s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.4;0;0.4" dur="4s" repeatCount="indefinite"/>
+                </circle>
+              </g>
+            );
+          })}
+
+          {/* Enhanced Network Traffic Visualization */}
+          <g>
+            {[...Array(7)].map((_, i) => (
+              <circle key={i} cx="700" cy="650" r={30 + i * 15} fill="none" stroke="#10b981" strokeWidth="2" opacity={0.4 - i * 0.05}>
+                <animate attributeName="r" values={`${30 + i * 15};${60 + i * 15};${30 + i * 15}`} dur="5s" repeatCount="indefinite" begin={`${i * 0.7}s`}/>
+              </circle>
+            ))}
+          </g>
+
+          {/* System Health Indicator */}
+          <g>
+            <circle cx="1250" cy="200" r="12" fill={systemStats.systemHealth === 'healthy' ? '#10b981' : systemStats.systemHealth === 'warning' ? '#f59e0b' : '#ef4444'} filter="url(#glow)">
+              <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <text x="1280" y="208" fill="#94a3b8" fontSize="14" fontWeight="bold">System Health</text>
+          </g>
+        </svg>
+      </div>
+
+      {/* Enhanced Bottom Stats Panel */}
+      <div className="absolute bottom-6 left-6 right-6 z-20">
+        <div className="grid grid-cols-5 gap-4">
+          <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Users className="h-6 w-6 text-blue-400" />
                 <div>
-                  <div className="text-lg font-bold text-white">{systemStats.totalUsers}</div>
-                  <div className="text-xs text-slate-400">Active Users</div>
+                  <div className="text-2xl font-bold text-white">{systemStats.totalUsers}</div>
+                  <div className="text-sm text-slate-400">Active Users</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2">
-                <Network className="h-4 w-4 text-green-400" />
+          <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Network className="h-6 w-6 text-green-400" />
                 <div>
-                  <div className="text-lg font-bold text-white">{systemStats.activeConnections}</div>
-                  <div className="text-xs text-slate-400">Connections</div>
+                  <div className="text-2xl font-bold text-white">{systemStats.activeConnections}</div>
+                  <div className="text-sm text-slate-400">Connections</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-400" />
+          <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Zap className="h-6 w-6 text-yellow-400" />
                 <div>
-                  <div className="text-lg font-bold text-white">{systemStats.networkTraffic}</div>
-                  <div className="text-xs text-slate-400">MB/s</div>
+                  <div className="text-2xl font-bold text-white">{systemStats.networkTraffic}</div>
+                  <div className="text-sm text-slate-400">MB/s Traffic</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/90 border-slate-700 backdrop-blur-sm">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-purple-400" />
+          <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Database className="h-6 w-6 text-purple-400" />
                 <div>
-                  <div className="text-lg font-bold text-white">{systemStats.databaseQueries}</div>
-                  <div className="text-xs text-slate-400">DB Queries</div>
+                  <div className="text-2xl font-bold text-white">{systemStats.databaseQueries}</div>
+                  <div className="text-sm text-slate-400">DB Queries</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/95 border-slate-600 backdrop-blur-md shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Monitor className="h-6 w-6 text-cyan-400" />
+                <div>
+                  <div className="text-2xl font-bold text-white">99.9%</div>
+                  <div className="text-sm text-slate-400">Uptime</div>
                 </div>
               </div>
             </CardContent>
