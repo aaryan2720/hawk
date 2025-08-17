@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, Shield, Crown, Settings, Circle } from 'lucide-react';
+import { Users, Shield, Crown, Settings, Circle, Activity, TrendingUp } from 'lucide-react';
 
 interface UserLevel {
   role: string;
@@ -11,60 +11,65 @@ interface UserLevel {
   icon: React.ElementType;
   color: string;
   bgColor: string;
+  borderColor: string;
 }
 
 const UserLevelIndicators = () => {
   const [userLevels, setUserLevels] = useState<UserLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [activeUsers, setActiveUsers] = useState(0);
 
   useEffect(() => {
     fetchUserLevelData();
-    const interval = setInterval(fetchUserLevelData, 10000); // Refresh every 10 seconds
+    const interval = setInterval(fetchUserLevelData, 5000); // Refresh every 5 seconds for real-time data
     return () => clearInterval(interval);
   }, []);
 
   const fetchUserLevelData = async () => {
     try {
-      // Get user flow data to analyze roles
-      const { data: flowData } = await supabase
-        .from('user_flow_tracking')
-        .select('user_role, user_id')
-        .eq('status', 'active');
+      console.log('Fetching real-time user level data...');
 
-      // Get profiles data
-      const { data: profilesData } = await supabase
+      // Get unique users from profiles table (this is the source of truth for roles)
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('role, id');
+        .select('id, user_role, subscription_plan');
 
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return;
+      }
+
+      // Get active users from recent flow tracking (last 10 minutes)
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: activeFlowData, error: flowError } = await supabase
+        .from('user_flow_tracking')
+        .select('user_id')
+        .eq('status', 'active')
+        .gte('last_activity', tenMinutesAgo);
+
+      if (flowError) {
+        console.error('Error fetching active users:', flowError);
+      }
+
+      const activeUserIds = new Set(activeFlowData?.map(item => item.user_id) || []);
       const roleCount: Record<string, number> = {};
       const uniqueUsers = new Set<string>();
       
-      // Process flow data
-      if (flowData) {
-        flowData.forEach(item => {
-          const role = item.user_role || 'user';
-          const userId = item.user_id;
-          
-          if (userId) {
-            uniqueUsers.add(userId);
+      // Process profiles data for accurate role counts
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          if (profile.id) {
+            uniqueUsers.add(profile.id);
+            const role = profile.user_role || 'user';
             roleCount[role] = (roleCount[role] || 0) + 1;
           }
         });
       }
 
-      // Process profiles data
-      if (profilesData) {
-        profilesData.forEach(item => {
-          const role = item.role || 'user';
-          const userId = item.id;
-          
-          if (userId) {
-            uniqueUsers.add(userId);
-            roleCount[role] = (roleCount[role] || 0) + 1;
-          }
-        });
-      }
+      console.log('Role distribution:', roleCount);
+      console.log('Total unique users:', uniqueUsers.size);
+      console.log('Active users:', activeUserIds.size);
 
       const levels: UserLevel[] = [
         {
@@ -72,37 +77,42 @@ const UserLevelIndicators = () => {
           count: roleCount.user || 0,
           description: 'Regular users with basic access',
           icon: Users,
-          color: 'text-green-500',
-          bgColor: 'bg-green-50'
+          color: 'text-emerald-600',
+          bgColor: 'bg-gradient-to-br from-emerald-50 to-green-100',
+          borderColor: 'border-emerald-200 hover:border-emerald-300'
         },
         {
           role: 'premium',
           count: roleCount.premium || 0,
           description: 'Premium users with enhanced features',
           icon: Crown,
-          color: 'text-blue-500',
-          bgColor: 'bg-blue-50'
+          color: 'text-blue-600',
+          bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-100',
+          borderColor: 'border-blue-200 hover:border-blue-300'
         },
         {
           role: 'admin',
           count: roleCount.admin || 0,
           description: 'Administrators with full system access',
           icon: Shield,
-          color: 'text-red-500',
-          bgColor: 'bg-red-50'
+          color: 'text-red-600',
+          bgColor: 'bg-gradient-to-br from-red-50 to-rose-100',
+          borderColor: 'border-red-200 hover:border-red-300'
         },
         {
           role: 'architecture',
           count: roleCount.architecture || 0,
           description: 'Architecture team with system oversight',
           icon: Settings,
-          color: 'text-purple-500',
-          bgColor: 'bg-purple-50'
+          color: 'text-purple-600',
+          bgColor: 'bg-gradient-to-br from-purple-50 to-violet-100',
+          borderColor: 'border-purple-200 hover:border-purple-300'
         }
       ];
 
       setUserLevels(levels);
       setTotalUsers(uniqueUsers.size);
+      setActiveUsers(activeUserIds.size);
     } catch (error) {
       console.error('Error fetching user level data:', error);
     } finally {
@@ -139,9 +149,9 @@ const UserLevelIndicators = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {[...Array(4)].map((_, i) => (
-          <Card key={i}>
+          <Card key={i} className="animate-pulse">
             <CardContent className="p-6">
-              <div className="animate-pulse space-y-4">
+              <div className="space-y-4">
                 <div className="h-8 bg-muted rounded"></div>
                 <div className="h-4 bg-muted rounded"></div>
                 <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -155,38 +165,68 @@ const UserLevelIndicators = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gradient-to-r from-slate-50 to-gray-100 border-2">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>User Level Distribution</span>
-            <Badge variant="outline">Total Users: {totalUsers}</Badge>
+            <div className="flex items-center gap-3">
+              <Activity className="h-6 w-6 text-primary animate-pulse" />
+              <span className="text-xl">Real-Time User Distribution</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                <Circle className="h-3 w-3 mr-1 animate-pulse" />
+                Live Data
+              </Badge>
+              <Badge variant="outline" className="text-sm">
+                Total: {totalUsers} users
+              </Badge>
+              <Badge variant="outline" className="text-sm bg-blue-50 text-blue-700">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                Active: {activeUsers}
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {userLevels.map((level) => {
               const IconComponent = level.icon;
               const percentage = totalUsers > 0 ? ((level.count / totalUsers) * 100).toFixed(1) : '0';
               
               return (
-                <Card key={level.role} className={`${level.bgColor} border-2 hover:shadow-lg transition-shadow`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <IconComponent className={`h-8 w-8 ${level.color}`} />
-                      <Circle className={`h-4 w-4 ${level.color} animate-pulse`} />
+                <Card 
+                  key={level.role} 
+                  className={`${level.bgColor} ${level.borderColor} border-2 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden`}
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 opacity-10">
+                    <IconComponent className="w-full h-full" />
+                  </div>
+                  <CardContent className="p-6 relative z-10">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`p-3 rounded-full bg-white/70 ${level.color}`}>
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold">{level.count}</div>
+                        <div className="text-xs text-muted-foreground font-medium">
+                          {percentage}% of total
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Badge variant="default" className="capitalize">
+                        <Badge variant="default" className="capitalize font-medium">
                           {level.role}
                         </Badge>
-                        <span className="text-2xl font-bold">{level.count}</span>
+                        <Circle className={`h-4 w-4 ${level.color} animate-pulse`} />
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {percentage}% of total users
+                      
+                      <div className="text-sm text-gray-700 leading-relaxed">
+                        {level.description}
                       </div>
-                      <div className="text-sm">{level.description}</div>
-                      <div className="text-xs font-medium text-primary">
+                      
+                      <div className="text-xs font-semibold text-primary bg-white/50 px-2 py-1 rounded">
                         {getAccessLevel(level.role)}
                       </div>
                     </div>
@@ -199,22 +239,27 @@ const UserLevelIndicators = () => {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
-            <CardTitle>Access Permissions by Role</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              Access Permissions by Role
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {userLevels.map((level) => (
-              <div key={level.role} className="border rounded-lg p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Circle className={`h-3 w-3 ${level.color}`} />
-                  <span className="font-medium capitalize">{level.role}</span>
-                  <Badge variant="outline">{level.count} users</Badge>
+              <div key={level.role} className="border-2 rounded-lg p-4 space-y-3 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Circle className={`h-4 w-4 ${level.color}`} />
+                  <span className="font-semibold capitalize text-lg">{level.role}</span>
+                  <Badge variant="outline" className="font-medium">
+                    {level.count} users
+                  </Badge>
                 </div>
-                <div className="space-y-1">
+                <div className="grid grid-cols-1 gap-2">
                   {getPermissions(level.role).map((permission, index) => (
-                    <div key={index} className="text-sm text-muted-foreground flex items-center gap-2">
-                      <div className="w-1 h-1 bg-current rounded-full"></div>
+                    <div key={index} className="text-sm text-muted-foreground flex items-center gap-2 p-2 bg-white/50 rounded">
+                      <div className="w-2 h-2 bg-current rounded-full flex-shrink-0"></div>
                       {permission}
                     </div>
                   ))}
@@ -224,31 +269,44 @@ const UserLevelIndicators = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
-            <CardTitle>Security Architecture Overview</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-green-600" />
+              Security Architecture Overview
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 border rounded">
-                <span className="text-sm font-medium">Row Level Security (RLS)</span>
-                <Badge variant="default">✓ Enforced</Badge>
+              <div className="flex items-center justify-between p-4 border-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md transition-shadow">
+                <span className="text-sm font-semibold">Row Level Security (RLS)</span>
+                <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                  ✓ Enforced
+                </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded">
-                <span className="text-sm font-medium">Role-based Access Control</span>
-                <Badge variant="default">✓ Active</Badge>
+              <div className="flex items-center justify-between p-4 border-2 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 hover:shadow-md transition-shadow">
+                <span className="text-sm font-semibold">Role-based Access Control</span>
+                <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                  ✓ Active
+                </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded">
-                <span className="text-sm font-medium">Email Domain Restrictions</span>
-                <Badge variant="default">✓ @hawk.com only</Badge>
+              <div className="flex items-center justify-between p-4 border-2 rounded-lg bg-gradient-to-r from-purple-50 to-violet-50 hover:shadow-md transition-shadow">
+                <span className="text-sm font-semibold">Email Domain Restrictions</span>
+                <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
+                  ✓ @hawk.com only
+                </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded">
-                <span className="text-sm font-medium">Session Tracking</span>
-                <Badge variant="default">✓ Real-time</Badge>
+              <div className="flex items-center justify-between p-4 border-2 rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 hover:shadow-md transition-shadow">
+                <span className="text-sm font-semibold">Session Tracking</span>
+                <Badge variant="default" className="bg-orange-600 hover:bg-orange-700">
+                  ✓ Real-time
+                </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded">
-                <span className="text-sm font-medium">Activity Monitoring</span>
-                <Badge variant="default">✓ Full Coverage</Badge>
+              <div className="flex items-center justify-between p-4 border-2 rounded-lg bg-gradient-to-r from-red-50 to-rose-50 hover:shadow-md transition-shadow">
+                <span className="text-sm font-semibold">Activity Monitoring</span>
+                <Badge variant="default" className="bg-red-600 hover:bg-red-700">
+                  ✓ Full Coverage
+                </Badge>
               </div>
             </div>
           </CardContent>
