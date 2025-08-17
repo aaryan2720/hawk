@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { Json } from '@/types';
 
 interface SubscriptionPlan {
   id: string;
@@ -15,8 +16,8 @@ interface SubscriptionPlan {
   description: string;
   price_monthly: number;
   price_yearly: number;
-  features: Record<string, any>;
-  limitations: Record<string, any>;
+  features: Json;
+  limitations: Json;
   max_systems: number | null;
 }
 
@@ -76,6 +77,13 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = () => {
     }
   };
 
+  const parseJsonToObject = (jsonData: Json): Record<string, any> => {
+    if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+      return jsonData as Record<string, any>;
+    }
+    return {};
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -120,86 +128,91 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = () => {
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map((plan) => (
-          <div 
-            key={plan.id} 
-            className={`border rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg ${
-              plan.plan_name === subscriptionPlan ? 'ring-2 ring-primary shadow-lg' : ''
-            }`}
-          >
-            {plan.plan_name === 'premium' && (
-              <div className="bg-purple-600 text-white text-xs font-semibold px-3 py-1 text-center">
-                Most Popular
-              </div>
-            )}
-            
-            <div className="p-6">
-              <div className="flex items-center mb-2">
-                {getPlanIcon(plan.plan_name)}
-                <h4 className="text-xl font-semibold ml-2">{plan.display_name}</h4>
-              </div>
-              <p className="text-gray-500 text-sm mb-4">{plan.description}</p>
+        {plans.map((plan) => {
+          const features = parseJsonToObject(plan.features);
+          const limitations = parseJsonToObject(plan.limitations);
+          
+          return (
+            <div 
+              key={plan.id} 
+              className={`border rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg ${
+                plan.plan_name === subscriptionPlan ? 'ring-2 ring-primary shadow-lg' : ''
+              }`}
+            >
+              {plan.plan_name === 'premium' && (
+                <div className="bg-purple-600 text-white text-xs font-semibold px-3 py-1 text-center">
+                  Most Popular
+                </div>
+              )}
               
-              <div className="flex items-end mb-6">
-                <span className="text-3xl font-bold">
-                  ${plan.price_monthly.toFixed(0)}
-                </span>
-                {plan.price_monthly > 0 && (
-                  <span className="text-gray-500 ml-1 mb-1">/month</span>
-                )}
-              </div>
-              
-              <div className="space-y-4 mb-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 mb-2">Features:</p>
-                  <ul className="space-y-2">
-                    {Object.entries(plan.features).map(([key, value]) => (
-                      <li key={key} className="flex items-start">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">
-                          <strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> {String(value)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              <div className="p-6">
+                <div className="flex items-center mb-2">
+                  {getPlanIcon(plan.plan_name)}
+                  <h4 className="text-xl font-semibold ml-2">{plan.display_name}</h4>
+                </div>
+                <p className="text-gray-500 text-sm mb-4">{plan.description}</p>
+                
+                <div className="flex items-end mb-6">
+                  <span className="text-3xl font-bold">
+                    ${plan.price_monthly.toFixed(0)}
+                  </span>
+                  {plan.price_monthly > 0 && (
+                    <span className="text-gray-500 ml-1 mb-1">/month</span>
+                  )}
                 </div>
                 
-                {Object.keys(plan.limitations).length > 0 && (
+                <div className="space-y-4 mb-6">
                   <div>
-                    <p className="text-sm font-medium text-gray-500 mb-2">Limitations:</p>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Features:</p>
                     <ul className="space-y-2">
-                      {Object.entries(plan.limitations).map(([key, value]) => (
+                      {Object.entries(features).map(([key, value]) => (
                         <li key={key} className="flex items-start">
-                          <AlertCircle className="h-4 w-4 text-orange-500 mr-2 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-gray-500">
+                          <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm">
                             <strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> {String(value)}
                           </span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                )}
+                  
+                  {Object.keys(limitations).length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-2">Limitations:</p>
+                      <ul className="space-y-2">
+                        {Object.entries(limitations).map(([key, value]) => (
+                          <li key={key} className="flex items-start">
+                            <AlertCircle className="h-4 w-4 text-orange-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <span className="text-sm text-gray-500">
+                              <strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> {String(value)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                
+                <Button 
+                  className="w-full"
+                  variant={plan.plan_name === subscriptionPlan ? "secondary" : "default"}
+                  disabled={plan.plan_name === subscriptionPlan}
+                  onClick={() => handleSubscription(plan.plan_name)}
+                >
+                  {plan.plan_name === subscriptionPlan ? (
+                    'Current Plan'
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      {plan.plan_name === 'basic' ? 'Downgrade' : 
+                       plan.plan_name === 'company' ? 'Contact Sales' : 'Upgrade'}
+                    </>
+                  )}
+                </Button>
               </div>
-              
-              <Button 
-                className="w-full"
-                variant={plan.plan_name === subscriptionPlan ? "secondary" : "default"}
-                disabled={plan.plan_name === subscriptionPlan}
-                onClick={() => handleSubscription(plan.plan_name)}
-              >
-                {plan.plan_name === subscriptionPlan ? (
-                  'Current Plan'
-                ) : (
-                  <>
-                    <Zap className="h-4 w-4 mr-2" />
-                    {plan.plan_name === 'basic' ? 'Downgrade' : 
-                     plan.plan_name === 'company' ? 'Contact Sales' : 'Upgrade'}
-                  </>
-                )}
-              </Button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       
       <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">

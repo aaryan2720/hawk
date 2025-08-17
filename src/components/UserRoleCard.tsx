@@ -5,9 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, X, Crown, Shield, User, Building2, AlertCircle } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
+import { Json } from '@/types';
 
 const UserRoleCard = () => {
   const { profile, userRole, subscriptionPlan, isHawkDomain, loading } = useUserRole();
+
+  const parseJsonToObject = (jsonData: Json): Record<string, any> => {
+    if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+      return jsonData as Record<string, any>;
+    }
+    return {};
+  };
 
   if (loading) {
     return (
@@ -58,7 +66,7 @@ const UserRoleCard = () => {
   const getFeaturesList = () => {
     if (!profile?.features_enabled) return [];
     
-    const features = profile.features_enabled;
+    const features = parseJsonToObject(profile.features_enabled);
     const featureList = [];
 
     // System monitoring
