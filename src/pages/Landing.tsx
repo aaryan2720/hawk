@@ -1,55 +1,65 @@
 
-import { ArrowRight, Shield, Users, Zap, CheckCircle, Star } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Shield, AlertTriangle, Users, Zap, Eye, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import SubscriptionPlansSection from '@/components/SubscriptionPlansSection';
 
 const Landing = () => {
   return (
-    <>
+    <div className="min-h-screen bg-white">
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/placeholder.svg')] opacity-10 bg-cover bg-center"></div>
+      <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%239C92AC" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
         
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Secure Your Digital
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                Infrastructure
-              </span>
+        <div className="relative container mx-auto px-4 py-20 lg:py-32">
+          <div className="max-w-4xl mx-auto text-center">
+            <Badge className="bg-blue-500/20 text-blue-100 border-blue-400/30 mb-6 text-sm px-4 py-2">
+              <Shield className="h-4 w-4 mr-2" />
+              Enterprise Security Platform
+            </Badge>
+            
+            <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight">
+              HAWK Security
+              <span className="block text-blue-200">Monitoring</span>
             </h1>
             
-            <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto leading-relaxed">
-              Advanced vulnerability scanning and real-time monitoring for modern security teams
+            <p className="text-xl lg:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
+              Advanced vulnerability detection and real-time security monitoring 
+              to protect your infrastructure from emerging threats
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 text-lg font-semibold">
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900 px-8 py-4 text-lg">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="border-blue-200 text-blue-100 hover:bg-blue-700/50 px-8 py-3 text-lg"
+              >
                 Watch Demo
               </Button>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-8 text-sm text-blue-200">
+            <div className="mt-12 flex flex-wrap justify-center items-center gap-8 text-blue-200">
               <div className="flex items-center">
-                <CheckCircle className="h-4 w-4 mr-2 text-green-400" />
-                No credit card required
+                <Shield className="h-5 w-5 mr-2" />
+                SOC 2 Compliant
               </div>
               <div className="flex items-center">
-                <CheckCircle className="h-4 w-4 mr-2 text-green-400" />
-                14-day free trial
+                <Users className="h-5 w-5 mr-2" />
+                10,000+ Organizations
               </div>
               <div className="flex items-center">
-                <CheckCircle className="h-4 w-4 mr-2 text-green-400" />
-                24/7 support
+                <Zap className="h-5 w-5 mr-2" />
+                Real-time Monitoring
               </div>
             </div>
           </div>
@@ -61,53 +71,74 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Complete Security Monitoring Platform
+              Comprehensive Security Solutions
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From vulnerability detection to real-time alerts, we've got your security covered
+              Advanced threat detection and monitoring capabilities designed for modern enterprises
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="text-center pb-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield className="h-8 w-8 text-blue-600" />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="text-center pb-4">
+                <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
                 </div>
-                <CardTitle className="text-xl font-semibold">Real-Time Scanning</CardTitle>
+                <CardTitle className="text-xl font-bold text-gray-900">
+                  Vulnerability Detection
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-center text-gray-600">
-                  Continuous monitoring of your systems with instant vulnerability detection and automated alerts.
-                </CardDescription>
+              <CardContent className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Real-time scanning and detection of security vulnerabilities across your entire infrastructure.
+                </p>
+                <ul className="text-sm text-gray-500 space-y-2">
+                  <li>• CVE Database Integration</li>
+                  <li>• Zero-day Threat Detection</li>
+                  <li>• Automated Risk Assessment</li>
+                </ul>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="text-center pb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-green-600" />
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="text-center pb-4">
+                <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Eye className="h-8 w-8 text-blue-600" />
                 </div>
-                <CardTitle className="text-xl font-semibold">Team Collaboration</CardTitle>
+                <CardTitle className="text-xl font-bold text-gray-900">
+                  System Monitoring
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-center text-gray-600">
-                  Collaborate with your security team, assign tasks, and track remediation progress in real-time.
-                </CardDescription>
+              <CardContent className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Continuous monitoring of critical systems with intelligent alerting and incident response.
+                </p>
+                <ul className="text-sm text-gray-500 space-y-2">
+                  <li>• 24/7 System Health Checks</li>
+                  <li>• Performance Analytics</li>
+                  <li>• Custom Alert Rules</li>
+                </ul>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="text-center pb-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-8 w-8 text-purple-600" />
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="text-center pb-4">
+                <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="h-8 w-8 text-green-600" />
                 </div>
-                <CardTitle className="text-xl font-semibold">AI-Powered Insights</CardTitle>
+                <CardTitle className="text-xl font-bold text-gray-900">
+                  Analytics & Reports
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-center text-gray-600">
-                  Leverage machine learning to prioritize threats and get actionable security recommendations.
-                </CardDescription>
+              <CardContent className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Comprehensive security analytics with detailed reporting and compliance tracking.
+                </p>
+                <ul className="text-sm text-gray-500 space-y-2">
+                  <li>• Executive Dashboards</li>
+                  <li>• Compliance Reports</li>
+                  <li>• Trend Analysis</li>
+                </ul>
               </CardContent>
             </Card>
           </div>
@@ -117,84 +148,33 @@ const Landing = () => {
       {/* Subscription Plans Section */}
       <SubscriptionPlansSection />
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Trusted by Security Teams Worldwide
-            </h2>
-            <p className="text-xl text-gray-600">
-              See what our customers say about our platform
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-4">
-                  "This platform has revolutionized our security monitoring. The real-time alerts and comprehensive reporting save us hours every week."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Sarah Johnson</p>
-                    <p className="text-sm text-gray-500">CISO, TechCorp</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-4">
-                  "The AI-powered insights help us prioritize vulnerabilities effectively. It's like having a security expert on our team 24/7."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Mike Chen</p>
-                    <p className="text-sm text-gray-500">Security Engineer, StartupXYZ</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-4">
-                  "Outstanding support and incredibly intuitive interface. The team collaboration features are exactly what we needed."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Emily Rodriguez</p>
-                    <p className="text-sm text-gray-500">IT Director, GlobalTech</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-bold mb-4">
+            Ready to Secure Your Infrastructure?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Join thousands of organizations that trust HAWK Security for their cybersecurity needs.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3">
+              Start Free Trial
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="border-blue-200 text-blue-100 hover:bg-blue-700/50 px-8 py-3"
+            >
+              Contact Sales
+            </Button>
           </div>
         </div>
       </section>
 
       <Footer />
-    </>
+    </div>
   );
 };
 

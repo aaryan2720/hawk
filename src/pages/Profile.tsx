@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
-import UserRoleCard from '@/components/UserRoleCard';
 import { User, Shield, Settings, Bell, CreditCard, ArrowLeft, Crown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -101,9 +100,6 @@ const Profile = () => {
             </div>
           </div>
         </div>
-
-        {/* User Role and Capabilities Card */}
-        <UserRoleCard />
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1">

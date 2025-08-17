@@ -12,6 +12,7 @@ import SystemArchitectureMap from '@/components/Architecture/SystemArchitectureM
 import RealTimeActivityDashboard from '@/components/Architecture/RealTimeActivityDashboard';
 import UserLevelIndicators from '@/components/Architecture/UserLevelIndicators';
 import ArchitectureMetrics from '@/components/Architecture/ArchitectureMetrics';
+import SystemDiagram from '@/components/Architecture/SystemDiagram';
 import NetworkTrafficVisualization from '@/components/Architecture/NetworkTrafficVisualization';
 import LiveSystemArchitecture from '@/components/Architecture/LiveSystemArchitecture';
 import RealTimeUserTracker from '@/components/Architecture/RealTimeUserTracker';
@@ -186,6 +187,7 @@ const ArchitectureDashboard = () => {
 
           <TabsContent value="metrics" className="space-y-6">
             <ArchitectureMetrics />
+            <SystemDiagram />
           </TabsContent>
 
           <TabsContent value="flow" className="space-y-6">

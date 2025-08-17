@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/types';
 
 export type UserRole = 'architecture' | 'admin' | 'premium' | 'basic';
 export type SubscriptionPlan = 'basic' | 'premium' | 'company';
@@ -12,7 +11,7 @@ interface UserProfile {
   user_role: UserRole;
   subscription_plan: SubscriptionPlan;
   subscription_status: string;
-  features_enabled: Json;
+  features_enabled: Record<string, any>;
   full_name: string | null;
   organization: string | null;
 }
@@ -41,7 +40,7 @@ export const useUserRole = () => {
           console.error('Error fetching user profile:', error);
           setProfile(null);
         } else {
-          setProfile(data as UserProfile);
+          setProfile(data);
         }
       } catch (error) {
         console.error('Error in fetchUserProfile:', error);
@@ -70,9 +69,7 @@ export const useUserRole = () => {
 
   const hasFeature = (feature: string): boolean => {
     if (!profile?.features_enabled) return false;
-    
-    const features = profile.features_enabled as Record<string, any>;
-    return features[feature] === true;
+    return profile.features_enabled[feature] === true;
   };
 
   const canAccessArchitecture = (): boolean => {

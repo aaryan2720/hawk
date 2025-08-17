@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, X, Zap, Crown, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Json } from '@/types';
 
 interface SubscriptionPlan {
   id: string;
@@ -15,8 +14,8 @@ interface SubscriptionPlan {
   description: string;
   price_monthly: number;
   price_yearly: number;
-  features: Json;
-  limitations: Json;
+  features: Record<string, any>;
+  limitations: Record<string, any>;
   max_systems: number | null;
 }
 
@@ -77,13 +76,6 @@ const SubscriptionPlansSection = () => {
     }
   };
 
-  const parseJsonToObject = (jsonData: Json): Record<string, any> => {
-    if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
-      return jsonData as Record<string, any>;
-    }
-    return {};
-  };
-
   if (loading) {
     return (
       <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
@@ -112,104 +104,99 @@ const SubscriptionPlansSection = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan) => {
-            const features = parseJsonToObject(plan.features);
-            const limitations = parseJsonToObject(plan.limitations);
-            
-            return (
-              <Card 
-                key={plan.id}
-                className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
-                  plan.plan_name === 'premium' 
-                    ? 'ring-2 ring-purple-500 transform scale-105' 
-                    : 'hover:shadow-lg'
-                }`}
-              >
-                {getPlanBadge(plan.plan_name) && (
-                  <div className="absolute top-4 right-4">
-                    {getPlanBadge(plan.plan_name)}
-                  </div>
-                )}
+          {plans.map((plan) => (
+            <Card 
+              key={plan.id}
+              className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                plan.plan_name === 'premium' 
+                  ? 'ring-2 ring-purple-500 transform scale-105' 
+                  : 'hover:shadow-lg'
+              }`}
+            >
+              {getPlanBadge(plan.plan_name) && (
+                <div className="absolute top-4 right-4">
+                  {getPlanBadge(plan.plan_name)}
+                </div>
+              )}
+              
+              <CardHeader className="text-center pb-6">
+                <div className="flex justify-center mb-4">
+                  {getPlanIcon(plan.plan_name)}
+                </div>
+                <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
+                  {plan.display_name}
+                </CardTitle>
+                <p className="text-gray-600 mb-4">{plan.description}</p>
                 
-                <CardHeader className="text-center pb-6">
-                  <div className="flex justify-center mb-4">
-                    {getPlanIcon(plan.plan_name)}
-                  </div>
-                  <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
-                    {plan.display_name}
-                  </CardTitle>
-                  <p className="text-gray-600 mb-4">{plan.description}</p>
-                  
-                  <div className="flex items-end justify-center mb-4">
-                    <span className="text-4xl font-bold text-gray-900">
-                      ${plan.price_monthly}
-                    </span>
-                    <span className="text-gray-500 ml-1">/month</span>
-                  </div>
-                  
-                  {plan.price_yearly > 0 && (
-                    <p className="text-sm text-green-600">
-                      Save ${((plan.price_monthly * 12) - plan.price_yearly).toFixed(2)} yearly
-                    </p>
-                  )}
-                </CardHeader>
+                <div className="flex items-end justify-center mb-4">
+                  <span className="text-4xl font-bold text-gray-900">
+                    ${plan.price_monthly}
+                  </span>
+                  <span className="text-gray-500 ml-1">/month</span>
+                </div>
+                
+                {plan.price_yearly > 0 && (
+                  <p className="text-sm text-green-600">
+                    Save ${((plan.price_monthly * 12) - plan.price_yearly).toFixed(2)} yearly
+                  </p>
+                )}
+              </CardHeader>
 
-                <CardContent className="pt-0">
-                  <div className="space-y-4 mb-8">
+              <CardContent className="pt-0">
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Features</h4>
+                    <ul className="space-y-2">
+                      {Object.entries(plan.features).map(([key, value]) => (
+                        <li key={key} className="flex items-start">
+                          <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-gray-600">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {String(value)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {Object.keys(plan.limitations).length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Features</h4>
+                      <h4 className="font-semibold text-gray-900 mb-2">Limitations</h4>
                       <ul className="space-y-2">
-                        {Object.entries(features).map(([key, value]) => (
+                        {Object.entries(plan.limitations).map(([key, value]) => (
                           <li key={key} className="flex items-start">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">
+                            <X className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-gray-500">
                               {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {String(value)}
                             </span>
                           </li>
                         ))}
                       </ul>
                     </div>
+                  )}
+                </div>
 
-                    {Object.keys(limitations).length > 0 && (
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">Limitations</h4>
-                        <ul className="space-y-2">
-                          {Object.entries(limitations).map(([key, value]) => (
-                            <li key={key} className="flex items-start">
-                              <X className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span className="text-sm text-gray-500">
-                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {String(value)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-
-                  <Button 
-                    className={`w-full ${
-                      plan.plan_name === 'premium' 
-                        ? 'bg-purple-600 hover:bg-purple-700' 
-                        : plan.plan_name === 'company'
-                        ? 'bg-blue-600 hover:bg-blue-700'
-                        : ''
-                    }`}
-                    onClick={() => handlePlanSelection(plan.plan_name)}
-                  >
-                    {plan.plan_name === 'basic' ? (
-                      'Get Started Free'
-                    ) : (
-                      <>
-                        <Zap className="h-4 w-4 mr-2" />
-                        {plan.plan_name === 'company' ? 'Contact Sales' : 'Upgrade Now'}
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+                <Button 
+                  className={`w-full ${
+                    plan.plan_name === 'premium' 
+                      ? 'bg-purple-600 hover:bg-purple-700' 
+                      : plan.plan_name === 'company'
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : ''
+                  }`}
+                  onClick={() => handlePlanSelection(plan.plan_name)}
+                >
+                  {plan.plan_name === 'basic' ? (
+                    'Get Started Free'
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      {plan.plan_name === 'company' ? 'Contact Sales' : 'Upgrade Now'}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <div className="text-center mt-12">
