@@ -30,10 +30,10 @@ const UserLevelIndicators = () => {
     try {
       console.log('Fetching real-time user level data...');
 
-      // Get unique users from profiles table (this is the source of truth for roles)
+      // Get all unique profiles with their roles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, user_role, subscription_plan');
+        .select('id, user_role');
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
@@ -53,7 +53,15 @@ const UserLevelIndicators = () => {
       }
 
       const activeUserIds = new Set(activeFlowData?.map(item => item.user_id) || []);
-      const roleCount: Record<string, number> = {};
+      
+      // Count users by role
+      const roleCount = {
+        user: 0,
+        premium: 0,
+        admin: 0,
+        architecture: 0
+      };
+
       const uniqueUsers = new Set<string>();
       
       // Process profiles data for accurate role counts
@@ -62,7 +70,11 @@ const UserLevelIndicators = () => {
           if (profile.id) {
             uniqueUsers.add(profile.id);
             const role = profile.user_role || 'user';
-            roleCount[role] = (roleCount[role] || 0) + 1;
+            if (roleCount.hasOwnProperty(role)) {
+              roleCount[role as keyof typeof roleCount]++;
+            } else {
+              roleCount.user++; // Default to user if unknown role
+            }
           }
         });
       }
@@ -74,7 +86,7 @@ const UserLevelIndicators = () => {
       const levels: UserLevel[] = [
         {
           role: 'user',
-          count: roleCount.user || 0,
+          count: roleCount.user,
           description: 'Regular users with basic access',
           icon: Users,
           color: 'text-emerald-600',
@@ -83,7 +95,7 @@ const UserLevelIndicators = () => {
         },
         {
           role: 'premium',
-          count: roleCount.premium || 0,
+          count: roleCount.premium,
           description: 'Premium users with enhanced features',
           icon: Crown,
           color: 'text-blue-600',
@@ -92,7 +104,7 @@ const UserLevelIndicators = () => {
         },
         {
           role: 'admin',
-          count: roleCount.admin || 0,
+          count: roleCount.admin,
           description: 'Administrators with full system access',
           icon: Shield,
           color: 'text-red-600',
@@ -101,7 +113,7 @@ const UserLevelIndicators = () => {
         },
         {
           role: 'architecture',
-          count: roleCount.architecture || 0,
+          count: roleCount.architecture,
           description: 'Architecture team with system oversight',
           icon: Settings,
           color: 'text-purple-600',
@@ -165,22 +177,29 @@ const UserLevelIndicators = () => {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-slate-50 to-gray-100 border-2">
+      <Card className="bg-gradient-to-r from-slate-50 to-gray-100 border-2 shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Activity className="h-6 w-6 text-primary animate-pulse" />
-              <span className="text-xl">Real-Time User Distribution</span>
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                <Activity className="h-6 w-6 text-white animate-pulse" />
+              </div>
+              <div>
+                <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-700 bg-clip-text text-transparent">
+                  Real-Time User Distribution
+                </span>
+                <p className="text-sm text-muted-foreground mt-1">Live system monitoring and user analytics</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                <Circle className="h-3 w-3 mr-1 animate-pulse" />
-                Live Data
+              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 shadow-sm">
+                <Circle className="h-3 w-3 mr-1 animate-pulse fill-current" />
+                Live Data Active
               </Badge>
-              <Badge variant="outline" className="text-sm">
+              <Badge variant="outline" className="text-sm bg-white shadow-sm">
                 Total: {totalUsers} users
               </Badge>
-              <Badge variant="outline" className="text-sm bg-blue-50 text-blue-700">
+              <Badge variant="outline" className="text-sm bg-blue-50 text-blue-700 border-blue-300 shadow-sm">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 Active: {activeUsers}
               </Badge>
@@ -191,24 +210,31 @@ const UserLevelIndicators = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {userLevels.map((level) => {
               const IconComponent = level.icon;
-              const percentage = totalUsers > 0 ? ((level.count / totalUsers) * 100).toFixed(1) : '0';
+              const percentage = totalUsers > 0 ? ((level.count / totalUsers) * 100).toFixed(1) : '0.0';
               
               return (
                 <Card 
                   key={level.role} 
-                  className={`${level.bgColor} ${level.borderColor} border-2 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden`}
+                  className={`${level.bgColor} ${level.borderColor} border-2 hover:shadow-2xl hover:scale-105 transition-all duration-300 transform relative overflow-hidden group`}
                 >
-                  <div className="absolute top-0 right-0 w-20 h-20 opacity-10">
+                  {/* Animated background effect */}
+                  <div className="absolute top-0 right-0 w-24 h-24 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconComponent className="w-full h-full" />
                   </div>
+                  
+                  {/* Gradient overlay for depth */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none"></div>
+                  
                   <CardContent className="p-6 relative z-10">
                     <div className="flex items-center justify-between mb-4">
-                      <div className={`p-3 rounded-full bg-white/70 ${level.color}`}>
+                      <div className={`p-3 rounded-full bg-white/80 shadow-lg ${level.color} group-hover:scale-110 transition-transform`}>
                         <IconComponent className="h-6 w-6" />
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold">{level.count}</div>
-                        <div className="text-xs text-muted-foreground font-medium">
+                        <div className="text-4xl font-bold bg-gradient-to-br from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                          {level.count}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-semibold bg-white/60 px-2 py-1 rounded-full">
                           {percentage}% of total
                         </div>
                       </div>
@@ -216,17 +242,20 @@ const UserLevelIndicators = () => {
                     
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Badge variant="default" className="capitalize font-medium">
+                        <Badge variant="default" className="capitalize font-medium shadow-sm bg-white/70 text-gray-800 border border-gray-300">
                           {level.role}
                         </Badge>
-                        <Circle className={`h-4 w-4 ${level.color} animate-pulse`} />
+                        <div className="flex items-center gap-1">
+                          <Circle className={`h-3 w-3 ${level.color} animate-pulse fill-current`} />
+                          <span className="text-xs font-medium text-gray-600">Real-time</span>
+                        </div>
                       </div>
                       
-                      <div className="text-sm text-gray-700 leading-relaxed">
+                      <div className="text-sm text-gray-700 leading-relaxed font-medium">
                         {level.description}
                       </div>
                       
-                      <div className="text-xs font-semibold text-primary bg-white/50 px-2 py-1 rounded">
+                      <div className="text-xs font-semibold text-primary bg-white/70 px-3 py-2 rounded-lg shadow-sm border border-gray-200">
                         {getAccessLevel(level.role)}
                       </div>
                     </div>
