@@ -275,90 +275,27 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
-          features_enabled: Json | null
           full_name: string | null
           id: string
           organization: string | null
           role: string | null
-          subscription_end_date: string | null
-          subscription_plan:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status: string | null
           updated_at: string | null
-          user_role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
           created_at?: string | null
-          features_enabled?: Json | null
           full_name?: string | null
           id: string
           organization?: string | null
           role?: string | null
-          subscription_end_date?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status?: string | null
           updated_at?: string | null
-          user_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
           created_at?: string | null
-          features_enabled?: Json | null
           full_name?: string | null
           id?: string
           organization?: string | null
           role?: string | null
-          subscription_end_date?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status?: string | null
           updated_at?: string | null
-          user_role?: Database["public"]["Enums"]["user_role"] | null
-        }
-        Relationships: []
-      }
-      subscription_plans: {
-        Row: {
-          created_at: string
-          description: string
-          display_name: string
-          features: Json
-          id: string
-          limitations: Json
-          max_systems: number | null
-          plan_name: Database["public"]["Enums"]["subscription_plan"]
-          price_monthly: number
-          price_yearly: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          display_name: string
-          features?: Json
-          id?: string
-          limitations?: Json
-          max_systems?: number | null
-          plan_name: Database["public"]["Enums"]["subscription_plan"]
-          price_monthly?: number
-          price_yearly?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          display_name?: string
-          features?: Json
-          id?: string
-          limitations?: Json
-          max_systems?: number | null
-          plan_name?: Database["public"]["Enums"]["subscription_plan"]
-          price_monthly?: number
-          price_yearly?: number
-          updated_at?: string
         }
         Relationships: []
       }
@@ -493,8 +430,7 @@ export type Database = {
       }
     }
     Enums: {
-      subscription_plan: "basic" | "premium" | "company"
-      user_role: "architecture" | "admin" | "premium" | "basic"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -621,9 +557,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      subscription_plan: ["basic", "premium", "company"],
-      user_role: ["architecture", "admin", "premium", "basic"],
-    },
+    Enums: {},
   },
 } as const
