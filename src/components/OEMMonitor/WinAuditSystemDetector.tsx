@@ -444,7 +444,7 @@ pause`;
       }
       
       setInventory(data);
-      toast.success(`Processed system inventory: Found ${data.detectedOEMs.length} OEMs`);
+      toast.success(`Processed system inventory: Found ${data.detectedOEMs?.length || 0} OEMs`);
       
     } catch (error) {
       console.error('Error processing inventory:', error);
@@ -619,7 +619,7 @@ pause`;
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-lg">System Inventory Results</h4>
               <Badge variant="outline" className="text-xs">
-                {inventory.platform} • {inventory.detectedOEMs.length} OEMs
+                {inventory.platform} • {inventory.detectedOEMs?.length || 0} OEMs
               </Badge>
             </div>
 
@@ -666,7 +666,7 @@ pause`;
             <div>
               <h5 className="font-medium mb-3">Detected OEMs for Monitoring</h5>
               <div className="grid gap-2 md:grid-cols-3">
-                {inventory.detectedOEMs.map((oem, index) => (
+                {inventory.detectedOEMs?.map((oem, index) => (
                   <div key={index} className="flex items-center justify-between p-2 bg-muted rounded border">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -676,7 +676,9 @@ pause`;
                       {determineSystemType(oem, inventory)}
                     </Badge>
                   </div>
-                ))}
+                )) || (
+                  <p className="text-sm text-muted-foreground">No OEMs detected</p>
+                )}
               </div>
             </div>
 
