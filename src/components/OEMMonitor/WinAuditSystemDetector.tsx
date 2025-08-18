@@ -246,10 +246,10 @@ jq --arg ts "$timestamp" '.timestamp = $ts' $temp_file > hawk_system_inventory.j
 
 # System Information
 if [ -f /sys/class/dmi/id/sys_vendor ]; then
-    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\0\n\r')
-    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\0\n\r')
-    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\0\n\r')
-    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\0\n\r')
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\\000\\n\\r')
+    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\\000\\n\\r')
+    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\\000\\n\\r')
+    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\\000\\n\\r')
     
     jq --arg v "$vendor" --arg m "$model" --arg s "$serial" --arg b "$bios" '
         .systemInfo.basicInfo = {
@@ -266,7 +266,7 @@ echo "Detecting hardware components..."
 
 # CPU Information
 if [ -f /proc/cpuinfo ]; then
-    cpu_model=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | sed 's/^[ \t]*//')
+    cpu_model=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | sed 's/^[ \\t]*//')
     cpu_cores=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
     
     if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
@@ -298,7 +298,7 @@ if [ -d /sys/block ]; then
         if [ -d "$device" ]; then
             device_name=$(basename "$device")
             if [ -f "$device/device/model" ]; then
-                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\0\n\r')
+                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\\000\\n\\r')
                 size=$(cat "$device/size" 2>/dev/null)
                 storage_devices+=("{\"model\":\"$model\",\"device\":\"$device_name\",\"size\":\"$size\"}")
             fi
