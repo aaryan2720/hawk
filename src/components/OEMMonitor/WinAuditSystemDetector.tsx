@@ -246,10 +246,10 @@ jq --arg ts "$timestamp" '.timestamp = $ts' $temp_file > hawk_system_inventory.j
 
 # System Information
 if [ -f /sys/class/dmi/id/sys_vendor ]; then
-    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\\000\\n\\r')
-    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\\000\\n\\r')
-    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\\000\\n\\r')
-    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\\000\\n\\r')
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\\\\000\\\\n\\\\r')
+    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\\\\000\\\\n\\\\r')
+    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\\\\000\\\\n\\\\r')
+    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\\\\000\\\\n\\\\r')
     
     jq --arg v "$vendor" --arg m "$model" --arg s "$serial" --arg b "$bios" '
         .systemInfo.basicInfo = {
@@ -266,7 +266,7 @@ echo "Detecting hardware components..."
 
 # CPU Information
 if [ -f /proc/cpuinfo ]; then
-    cpu_model=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | sed 's/^[ \\t]*//')
+    cpu_model=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | sed 's/^[ \\\\t]*//')
     cpu_cores=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
     
     if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
@@ -298,9 +298,9 @@ if [ -d /sys/block ]; then
         if [ -d "$device" ]; then
             device_name=$(basename "$device")
             if [ -f "$device/device/model" ]; then
-                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\\000\\n\\r')
+                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\\\\000\\\\n\\\\r')
                 size=$(cat "$device/size" 2>/dev/null)
-                storage_devices+=("{\"model\":\"$model\",\"device\":\"$device_name\",\"size\":\"$size\"}")
+                storage_devices+=("{\\\"model\\\":\\\"$model\\\",\\\"device\\\":\\\"$device_name\\\",\\\"size\\\":\\\"$size\\\"}")
             fi
         fi
     done
@@ -338,13 +338,13 @@ if command -v dpkg >/dev/null 2>&1; then
     while IFS= read -r line; do
         package_name=$(echo "$line" | awk '{print $2}')
         package_version=$(echo "$line" | awk '{print $3}')
-        installed_packages+=("{\"name\":\"$package_name\",\"version\":\"$package_version\",\"publisher\":\"Debian\"}")
+        installed_packages+=("{\\\"name\\\":\\\"$package_name\\\",\\\"version\\\":\\\"$package_version\\\",\\\"publisher\\\":\\\"Debian\\\"}")
     done <<< "$(dpkg -l 2>/dev/null | grep "^ii" | head -20)"
 elif command -v rpm >/dev/null 2>&1; then
     # Red Hat/CentOS systems  
     while IFS= read -r line; do
         package_name=$(echo "$line" | cut -d'-' -f1)
-        installed_packages+=("{\"name\":\"$package_name\",\"version\":\"Unknown\",\"publisher\":\"RPM\"}")
+        installed_packages+=("{\\\"name\\\":\\\"$package_name\\\",\\\"version\\\":\\\"Unknown\\\",\\\"publisher\\\":\\\"RPM\\\"}")
     done <<< "$(rpm -qa 2>/dev/null | head -20)"
 fi
 
@@ -354,32 +354,32 @@ if command -v systemctl >/dev/null 2>&1; then
     while IFS= read -r line; do
         service_name=$(echo "$line" | awk '{print $1}')
         service_status=$(echo "$line" | awk '{print $2}')
-        services_info+=("{\"name\":\"$service_name\",\"status\":\"$service_status\",\"startType\":\"systemd\"}")
+        services_info+=("{\\\"name\\\":\\\"$service_name\\\",\\\"status\\\":\\\"$service_status\\\",\\\"startType\\\":\\\"systemd\\\"}")
     done <<< "$(systemctl list-units --type=service --no-pager --no-legend | head -10)"
 fi
 
 # Detected OEMs Analysis
 detected_oems=()
-detected_oems+=("\"Linux\"")
+detected_oems+=('"Linux"')
 
 # Add Intel if detected
 if echo "$cpu_manufacturer" | grep -qi "intel"; then
-    detected_oems+=("\"Intel\"")
+    detected_oems+=('"Intel"')
 fi
 
 # Add AMD if detected  
 if echo "$cpu_manufacturer" | grep -qi "amd"; then
-    detected_oems+=("\"AMD\"")
+    detected_oems+=('"AMD"')
 fi
 
 # Add NVIDIA if detected
 if lspci 2>/dev/null | grep -qi nvidia; then
-    detected_oems+=("\"NVIDIA\"")
+    detected_oems+=('"NVIDIA"')
 fi
 
 # Add system manufacturer
 if [ ! -z "$vendor" ] && [ "$vendor" != "To Be Filled By O.E.M." ]; then
-    detected_oems+=("\"$vendor\"")
+    detected_oems+=('"'$vendor'"')
 fi
 
 # Finalize JSON
