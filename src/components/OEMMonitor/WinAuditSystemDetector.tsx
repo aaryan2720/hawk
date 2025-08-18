@@ -153,7 +153,7 @@ echo       }, >> hawk_system_inventory.json
 
 :: Installed Programs
 echo       "installedPrograms": [ >> hawk_system_inventory.json
-for /f "tokens=1,2,3,4 delims=," %%i in ('wmic product get name^,version^,vendor^,installdate /format:csv 2^>nul ^| findstr /v "^Node"') do (
+for /f "tokens=1,2,3,4 delims=," %%i in ('wmic product get name,version,vendor,installdate /format:csv 2^>nul ^| findstr /v "Node"') do (
     if not "%%j"=="" (
         echo         {"name": "%%j", "version": "%%k", "publisher": "%%l", "installDate": "%%m"}, >> hawk_system_inventory.json
     )
