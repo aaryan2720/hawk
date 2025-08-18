@@ -6,12 +6,33 @@ import EnhancedOEMList from './EnhancedOEMList';
 import AddSourceDialog from './AddSourceDialog';
 import AutoDetectOEMs from './AutoDetectOEMs';
 import RealTimeOEMScanner from './RealTimeOEMScanner';
+import { useAuth } from '@/hooks/useAuth';
+import { addOEMSource } from '@/services/oemService';
+import { toast } from 'sonner';
 
 const OEMMonitorList: React.FC = () => {
+  const { user } = useAuth();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isAddingSource, setIsAddingSource] = useState(false);
 
   const handleSourceAdded = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleAddSource = async (name: string, url: string, systemType: string) => {
+    if (!user) return;
+    
+    setIsAddingSource(true);
+    try {
+      await addOEMSource(user.id, name, url, systemType);
+      toast.success(`Added OEM source: ${name}`);
+      handleSourceAdded();
+    } catch (error) {
+      console.error('Error adding OEM source:', error);
+      toast.error('Failed to add OEM source');
+    } finally {
+      setIsAddingSource(false);
+    }
   };
 
   return (
@@ -34,8 +55,11 @@ const OEMMonitorList: React.FC = () => {
 
         <TabsContent value="add" className="mt-6">
           <div className="space-y-6">
-            <AddSourceDialog onSourceAdded={handleSourceAdded} />
-            <AutoDetectOEMs onOEMsDetected={handleSourceAdded} />
+            <AddSourceDialog 
+              isAddingSource={isAddingSource} 
+              onAddSource={handleAddSource}
+            />
+            <AutoDetectOEMs onDetectionComplete={handleSourceAdded} />
           </div>
         </TabsContent>
 
