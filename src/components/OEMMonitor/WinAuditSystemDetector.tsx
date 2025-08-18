@@ -286,7 +286,7 @@ fi
 # Memory Information
 if command -v dmidecode >/dev/null 2>&1; then
     echo "Detecting memory modules..."
-    # This requires root privileges
+    // This requires root privileges
     memory_info=$(sudo dmidecode -t memory 2>/dev/null | grep -E "(Manufacturer|Size|Speed)" | head -6)
 fi
 
@@ -334,14 +334,14 @@ cp $temp_file hawk_system_inventory.json
 # Installed Packages
 installed_packages=()
 if command -v dpkg >/dev/null 2>&1; then
-    # Debian/Ubuntu systems
+    // Debian/Ubuntu systems
     while IFS= read -r line; do
         package_name=$(echo "$line" | awk '{print $2}')
         package_version=$(echo "$line" | awk '{print $3}')
         installed_packages+=("{\"name\":\"$package_name\",\"version\":\"$package_version\",\"publisher\":\"Debian\"}")
     done <<< "$(dpkg -l 2>/dev/null | grep "^ii" | head -20)"
 elif command -v rpm >/dev/null 2>&1; then
-    # Red Hat/CentOS systems  
+    // Red Hat/CentOS systems  
     while IFS= read -r line; do
         package_name=$(echo "$line" | cut -d'-' -f1)
         installed_packages+=("{\"name\":\"$package_name\",\"version\":\"Unknown\",\"publisher\":\"RPM\"}")
