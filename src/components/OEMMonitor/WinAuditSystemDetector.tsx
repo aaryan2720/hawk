@@ -451,8 +451,8 @@ if [ -d /sys/block ]; then
                 size_sectors=$(cat "$device/size" 2>/dev/null)
                 if [ -n "$size_sectors" ] && [ "$size_sectors" -gt 0 ]; then
                     size_bytes=$((size_sectors * 512))
-                    size_gb_val=$((size_bytes / 1000000000))
-                    size="${size_gb_val} GB"
+                    size_gb_calculated=$((size_bytes / 1000000000))
+                    size="${size_gb_calculated} GB"
                 fi
             fi
             
