@@ -626,7 +626,7 @@ packages_array="[]"
 
 if command -v dpkg >/dev/null 2>&1; then
     # Debian/Ubuntu - get more comprehensive package info
-    dpkg-query -W -f='${Package}|${Version}|${Maintainer}|${Status}\n' 2>/dev/null | \
+    dpkg-query -W -f='\${Package}|\${Version}|\${Maintainer}|\${Status}\n' 2>/dev/null | \
     grep "|install ok installed" | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_maintainer pkg_status; do
         echo "{\"name\": \"$pkg_name\", \"version\": \"$pkg_version\", \"publisher\": \"Debian/Ubuntu\", \"maintainer\": \"$pkg_maintainer\"},"
     done > $TEMP_DIR/packages.json 2>/dev/null
