@@ -405,7 +405,7 @@ if command -v dmidecode >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
             if ($1 == "Locator:") locator = substr($0, index($0, $2))
             if ($1 == "Part" && $2 == "Number:") partnumber = substr($0, index($0, $3))
             if (/^$/ && size && size != "No Module Installed") {
-                printf "{\\"manufacturer\\": \\"%s\\", \\"capacity\\": \\"%s\\", \\"speed\\": \\"%s\\", \\"slot\\": \\"%s\\", \\"partnumber\\": \\"%s\\"},\\n", 
+                printf "{\"manufacturer\": \"%s\", \"capacity\": \"%s\", \"speed\": \"%s\", \"slot\": \"%s\", \"partnumber\": \"%s\"},\\n", 
                        manufacturer, size, speed, locator, partnumber
                 manufacturer = ""; size = ""; speed = ""; locator = ""; partnumber = ""
             }
@@ -418,7 +418,7 @@ if command -v dmidecode >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
 else
     # Fallback method
     total_mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}' || echo "Unknown")
-    memory_array="[{\\"manufacturer\\": \\"Unknown\\", \\"capacity\\": \\"$total_mem\\", \\"speed\\": \\"Unknown\\", \\"slot\\": \\"Total\\", \\"partnumber\\": \\"N/A\\"}]"
+    memory_array="[{\"manufacturer\": \"Unknown\", \"capacity\": \"$total_mem\", \"speed\": \"Unknown\", \"slot\": \"Total\", \"partnumber\": \"N/A\"}]"
 fi
 
 jq --argjson mem "$memory_array" '.hardware.memory = $mem' hawk_system_inventory.json > $TEMP_DIR/tmp.json
@@ -451,8 +451,8 @@ if [ -d /sys/block ]; then
                 size_sectors=$(cat "$device/size" 2>/dev/null)
                 if [ -n "$size_sectors" ] && [ "$size_sectors" -gt 0 ]; then
                     size_bytes=$((size_sectors * 512))
-                    size_gb_calculated=$((size_bytes / 1000000000))
-                    size="${size_gb_calculated} GB"
+                    size_gb=$((size_bytes / 1000000000))
+                    size="$size_gb GB"
                 fi
             fi
             
@@ -504,7 +504,7 @@ if [ -d /sys/block ]; then
                 ;;
             esac
             
-            storage_list="$storage_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"size\\": \\"$size\\", \\"type\\": \\"$type\\", \\"interface\\": \\"$interface\\", \\"device\\": \\"$device_name\\"},"
+            storage_list="$storage_list{\"manufacturer\": \"$manufacturer\", \"model\": \"$model\", \"size\": \"$size\", \"type\": \"$type\", \"interface\": \"$interface\", \"device\": \"$device_name\"},"
         fi
     done
     
@@ -530,7 +530,7 @@ if command -v lspci >/dev/null 2>&1; then
         if [ -n "$line" ]; then
             # Extract manufacturer and model with better parsing
             manufacturer="Unknown"
-            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\\[.*\\]//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\[.*\]//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             
             case "$(echo "$line" | tr '[:upper:]' '[:lower:]')" in
                 *nvidia*) manufacturer="NVIDIA" ;;
@@ -543,7 +543,7 @@ if command -v lspci >/dev/null 2>&1; then
             # Try to get VRAM info if available
             vram="Unknown"
             
-            graphics_list="$graphics_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"vram\\": \\"$vram\\"},"
+            graphics_list="$graphics_list{\"manufacturer\": \"$manufacturer\", \"model\": \"$model\", \"vram\": \"$vram\"},"
         fi
     done < $TEMP_DIR/graphics.txt
     
@@ -568,7 +568,7 @@ if command -v lspci >/dev/null 2>&1; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             manufacturer="Unknown"
-            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\\[.*\\]//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\[.*\]//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
             # Determine type
             net_type="Ethernet"
@@ -586,7 +586,7 @@ if command -v lspci >/dev/null 2>&1; then
                 *atheros*) manufacturer="Atheros" ;;
             esac
             
-            network_list="$network_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"type\\": \\"$net_type\\"},"
+            network_list="$network_list{\"manufacturer\": \"$manufacturer\", \"model\": \"$model\", \"type\": \"$net_type\"},"
         fi
     done < $TEMP_DIR/network.txt
     
@@ -626,19 +626,19 @@ packages_array="[]"
 
 if command -v dpkg >/dev/null 2>&1; then
     # Debian/Ubuntu - get more comprehensive package info
-    dpkg-query -W -f='\${Package}|\${Version}|\${Maintainer}|\${Status}\n' 2>/dev/null | \\
+    dpkg-query -W -f='${Package}|${Version}|${Maintainer}|${Status}\n' 2>/dev/null | \
     grep "|install ok installed" | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_maintainer pkg_status; do
-        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"Debian/Ubuntu\\", \\"maintainer\\": \\"$pkg_maintainer\\"},"
+        echo "{\"name\": \"$pkg_name\", \"version\": \"$pkg_version\", \"publisher\": \"Debian/Ubuntu\", \"maintainer\": \"$pkg_maintainer\"},"
     done > $TEMP_DIR/packages.json 2>/dev/null
 elif command -v rpm >/dev/null 2>&1; then
     # Red Hat/CentOS/Fedora
     rpm -qa --queryformat '%{NAME}|%{VERSION}|%{VENDOR}\n' 2>/dev/null | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_vendor; do
-        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"RPM\\", \\"vendor\\": \\"$pkg_vendor\\"},"
+        echo "{\"name\": \"$pkg_name\", \"version\": \"$pkg_version\", \"publisher\": \"RPM\", \"vendor\": \"$pkg_vendor\"},"
     done > $TEMP_DIR/packages.json 2>/dev/null
 elif command -v pacman >/dev/null 2>&1; then
     # Arch Linux
     pacman -Q 2>/dev/null | head -100 | while read -r pkg_name pkg_version; do
-        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"Arch\\", \\"vendor\\": \\"Arch Linux\\"},"
+        echo "{\"name\": \"$pkg_name\", \"version\": \"$pkg_version\", \"publisher\": \"Arch\", \"vendor\": \"Arch Linux\"},"
     done > $TEMP_DIR/packages.json 2>/dev/null
 fi
 
@@ -656,10 +656,10 @@ services_array="[]"
 if command -v systemctl >/dev/null 2>&1; then
     systemctl list-units --type=service --state=active --no-pager --no-legend 2>/dev/null | head -50 | while read -r line; do
         if [ -n "$line" ]; then
-            service_name=$(echo "$line" | awk '{print $1}' | sed 's/\\.service$//')
+            service_name=$(echo "$line" | awk '{print $1}' | sed 's/\.service$//')
             service_status=$(echo "$line" | awk '{print $2}')
             service_active=$(echo "$line" | awk '{print $3}')
-            echo "{\\"name\\": \\"$service_name\\", \\"status\\": \\"$service_status\\", \\"active\\": \\"$service_active\\", \\"startType\\": \\"systemd\\"},"
+            echo "{\"name\": \"$service_name\", \"status\": \"$service_status\", \"active\": \"$service_active\", \"startType\": \"systemd\"},"
         fi
     done > $TEMP_DIR/services.json 2>/dev/null
     
@@ -680,7 +680,7 @@ lsmod 2>/dev/null | tail -n +2 | head -50 | while read -r line; do
         driver_name=$(echo "$line" | awk '{print $1}')
         driver_size=$(echo "$line" | awk '{print $2}')
         driver_used=$(echo "$line" | awk '{print $3}')
-        echo "{\\"name\\": \\"$driver_name\\", \\"size\\": \\"$driver_size\\", \\"used_count\\": \\"$driver_used\\", \\"type\\": \\"kernel_module\\"},"
+        echo "{\"name\": \"$driver_name\", \"size\": \"$driver_size\", \"used_count\": \"$driver_used\", \"type\": \"kernel_module\"},"
     fi
 done > $TEMP_DIR/drivers.json 2>/dev/null
 
@@ -700,55 +700,55 @@ detected_oems=""
 
 # Add system manufacturer
 if [ -n "$vendor" ] && [ "$vendor" != "To Be Filled By O.E.M." ] && [ "$vendor" != "Unknown" ] && [ "$vendor" != "System manufacturer" ]; then
-    detected_oems="$detected_oems\\"$vendor\\","
+    detected_oems="$detected_oems\"$vendor\","
 fi
 
 # Add CPU manufacturer
 if [ -n "$cpu_manufacturer" ] && [ "$cpu_manufacturer" != "Unknown" ]; then
-    detected_oems="$detected_oems\\"$cpu_manufacturer\\","
+    detected_oems="$detected_oems\"$cpu_manufacturer\","
 fi
 
 # Check for GPU manufacturers
 if lspci 2>/dev/null | grep -qi nvidia; then
-    detected_oems="$detected_oems\\"NVIDIA\\","
+    detected_oems="$detected_oems\"NVIDIA\","
 fi
 if lspci 2>/dev/null | grep -qi "amd\|ati\|radeon"; then
-    detected_oems="$detected_oems\\"AMD\\","
+    detected_oems="$detected_oems\"AMD\","
 fi
 
 # Check memory manufacturers from detailed scan
 if [ -f $TEMP_DIR/memory.json ]; then
-    grep -qi "samsung" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Samsung\\","
-    grep -qi "micron" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Micron\\","
-    grep -qi "corsair" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Corsair\\","
-    grep -qi "kingston" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Kingston\\","
+    grep -qi "samsung" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\"Samsung\","
+    grep -qi "micron" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\"Micron\","
+    grep -qi "corsair" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\"Corsair\","
+    grep -qi "kingston" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\"Kingston\","
 fi
 
 # Check storage manufacturers
 for hw_file in $TEMP_DIR/*.txt; do
     if [ -f "$hw_file" ]; then
-        grep -qi "samsung" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Samsung\\","
-        grep -qi "seagate" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Seagate\\","
-        grep -qi "western" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Western Digital\\","
-        grep -qi "toshiba" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Toshiba\\","
-        grep -qi "crucial" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Crucial\\","
-        grep -qi "realtek" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Realtek\\","
-        grep -qi "broadcom" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Broadcom\\","
-        grep -qi "intel" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Intel\\","
+        grep -qi "samsung" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Samsung\","
+        grep -qi "seagate" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Seagate\","
+        grep -qi "western" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Western Digital\","
+        grep -qi "toshiba" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Toshiba\","
+        grep -qi "crucial" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Crucial\","
+        grep -qi "realtek" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Realtek\","
+        grep -qi "broadcom" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Broadcom\","
+        grep -qi "intel" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\"Intel\","
     fi
 done
 
 # Always include the Linux distribution
 if [ -n "$os_name" ]; then
     case "$os_name" in
-        *Ubuntu*) detected_oems="$detected_oems\\"Canonical\\",";;
-        *Red\ Hat*|*RHEL*) detected_oems="$detected_oems\\"Red Hat\\",";;
-        *CentOS*) detected_oems="$detected_oems\\"CentOS\\",";;
-        *Fedora*) detected_oems="$detected_oems\\"Fedora\\",";;
-        *SUSE*) detected_oems="$detected_oems\\"SUSE\\",";;
-        *Debian*) detected_oems="$detected_oems\\"Debian\\",";;
-        *Arch*) detected_oems="$detected_oems\\"Arch Linux\\",";;
-        *) detected_oems="$detected_oems\\"Linux\\",";;
+        *Ubuntu*) detected_oems="$detected_oems\"Canonical\",";;
+        *Red\ Hat*|*RHEL*) detected_oems="$detected_oems\"Red Hat\",";;
+        *CentOS*) detected_oems="$detected_oems\"CentOS\",";;
+        *Fedora*) detected_oems="$detected_oems\"Fedora\",";;
+        *SUSE*) detected_oems="$detected_oems\"SUSE\",";;
+        *Debian*) detected_oems="$detected_oems\"Debian\",";;
+        *Arch*) detected_oems="$detected_oems\"Arch Linux\",";;
+        *) detected_oems="$detected_oems\"Linux\",";;
     esac
 fi
 
@@ -766,7 +766,7 @@ if [ -n "$detected_oems" ]; then
     done < $TEMP_DIR/unique_oems.txt
     oem_array=$(echo "$oem_array" | sed 's/,$//')"]"
 else
-    oem_array="[\\"Linux\\"]"
+    oem_array="[\"Linux\"]"
 fi
 
 jq --argjson oems "$oem_array" '.detectedOEMs = $oems' hawk_system_inventory.json > $TEMP_DIR/tmp.json
