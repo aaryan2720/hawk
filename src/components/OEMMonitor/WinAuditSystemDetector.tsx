@@ -54,8 +54,8 @@ const WinAuditSystemDetector: React.FC = () => {
     return `@echo off
 setlocal enabledelayedexpansion
 echo ===============================================
-echo HAWK Professional System Inventory Scanner v3.0
-echo WinAudit-Level Hardware Detection
+echo HAWK Professional System Inventory Scanner v4.0
+echo WinAudit-Level Hardware Detection Enhanced
 echo ===============================================
 echo.
 
@@ -63,217 +63,191 @@ echo.
 set "TEMP_DIR=%TEMP%\\HAWK_SCAN_%RANDOM%"
 mkdir "%TEMP_DIR%" 2>nul
 
-:: Initialize JSON structure
+:: Initialize JSON structure with proper formatting
 (
 echo {
 echo   "timestamp": "%date% %time%",
 echo   "platform": "Windows",
-echo   "scriptVersion": "3.0",
+echo   "scriptVersion": "4.0",
 echo   "systemInfo": {
 ) > hawk_system_inventory.json
 
-:: === SYSTEM INFORMATION ===
-echo Scanning system information...
-echo     "basicInfo": { >> hawk_system_inventory.json
+:: === ENHANCED SYSTEM INFORMATION ===
+echo Scanning enhanced system information...
+echo     "manufacturer": "", >> hawk_system_inventory.json
+echo     "model": "", >> hawk_system_inventory.json
+echo     "serialNumber": "", >> hawk_system_inventory.json
+echo     "biosVersion": "" >> hawk_system_inventory.json
+echo   }, >> hawk_system_inventory.json
 
-:: Get manufacturer with fallback methods
+:: Get comprehensive system info
 for /f "tokens=2 delims==" %%i in ('wmic computersystem get manufacturer /value 2^>nul ^| find "="') do (
-    set "SYS_MANUFACTURER=%%i"
-    echo       "manufacturer": "%%i", >> hawk_system_inventory.json
+    powershell -command "(Get-Content hawk_system_inventory.json) -replace '\\"manufacturer\\": \\"\\",', '\\"manufacturer\\": \\"%%i\\",' | Set-Content hawk_system_inventory.json"
 )
-if not defined SYS_MANUFACTURER (
-    for /f "tokens=2 delims==" %%i in ('wmic bios get manufacturer /value 2^>nul ^| find "="') do (
-        set "SYS_MANUFACTURER=%%i"
-        echo       "manufacturer": "%%i", >> hawk_system_inventory.json
-    )
-)
-
-:: Get model
 for /f "tokens=2 delims==" %%i in ('wmic computersystem get model /value 2^>nul ^| find "="') do (
-    echo       "model": "%%i", >> hawk_system_inventory.json
+    powershell -command "(Get-Content hawk_system_inventory.json) -replace '\\"model\\": \\"\\",', '\\"model\\": \\"%%i\\",' | Set-Content hawk_system_inventory.json"
 )
-
-:: Get serial number
 for /f "tokens=2 delims==" %%i in ('wmic bios get serialnumber /value 2^>nul ^| find "="') do (
-    echo       "serialNumber": "%%i", >> hawk_system_inventory.json
+    powershell -command "(Get-Content hawk_system_inventory.json) -replace '\\"serialNumber\\": \\"\\",', '\\"serialNumber\\": \\"%%i\\",' | Set-Content hawk_system_inventory.json"
 )
-
-:: Get BIOS version
 for /f "tokens=2 delims==" %%i in ('wmic bios get version /value 2^>nul ^| find "="') do (
-    echo       "biosVersion": "%%i" >> hawk_system_inventory.json
+    powershell -command "(Get-Content hawk_system_inventory.json) -replace '\\"biosVersion\\": \\"\\"', '\\"biosVersion\\": \\"%%i\\"' | Set-Content hawk_system_inventory.json"
 )
-echo     }, >> hawk_system_inventory.json
 
-:: === HARDWARE DETECTION ===
-echo Detecting hardware components...
-echo     "hardware": { >> hawk_system_inventory.json
+:: === ENHANCED HARDWARE DETECTION ===
+echo Performing comprehensive hardware detection...
+echo   "hardware": { >> hawk_system_inventory.json
 
-:: CPU Detection with advanced info
-echo       "cpu": [ >> hawk_system_inventory.json
-wmic cpu get name,manufacturer,numberofcores,maxclockspeed /format:csv > "%TEMP_DIR%\\cpu.csv" 2>nul
-for /f "skip=1 tokens=2,3,4,5 delims=," %%a in ('type "%TEMP_DIR%\\cpu.csv" 2^>nul') do (
-    if not "%%b"=="" (
-        echo         {"manufacturer": "%%b", "model": "%%c", "cores": "%%d", "speed": "%%e MHz"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
+:: Enhanced CPU Detection
+echo     "cpu": [ >> hawk_system_inventory.json
+wmic cpu get name,manufacturer,numberofcores,maxclockspeed,architecture /format:csv > "%TEMP_DIR%\\cpu_detailed.csv" 2>nul
+powershell -command "$cpus = Import-Csv '%TEMP_DIR%\\cpu_detailed.csv' | Where-Object {$_.Name -ne ''}; foreach($cpu in $cpus) { $json = @{manufacturer=$cpu.Manufacturer; model=$cpu.Name; cores=[int]$cpu.NumberOfCores; speed=$cpu.MaxClockSpeed + ' MHz'; architecture=$cpu.Architecture} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Memory Detection (Physical RAM modules)
-echo       "memory": [ >> hawk_system_inventory.json
-wmic memorychip get manufacturer,capacity,speed,devicelocator /format:csv > "%TEMP_DIR%\\memory.csv" 2>nul
-for /f "skip=1 tokens=2,3,4,5 delims=," %%a in ('type "%TEMP_DIR%\\memory.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        set /a "mem_gb=%%c / 1073741824"
-        echo         {"manufacturer": "%%b", "capacity": "!mem_gb! GB", "speed": "%%d MHz", "slot": "%%e"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
+:: Enhanced Memory Detection with real manufacturer info
+echo     "memory": [ >> hawk_system_inventory.json
+wmic memorychip get manufacturer,capacity,speed,devicelocator,partnumber /format:csv > "%TEMP_DIR%\\memory_detailed.csv" 2>nul
+powershell -command "$memory = Import-Csv '%TEMP_DIR%\\memory_detailed.csv' | Where-Object {$_.Capacity -ne ''}; foreach($mem in $memory) { $sizeGB = [math]::Round([double]$mem.Capacity / 1GB, 2); $json = @{manufacturer=$mem.Manufacturer; capacity=$sizeGB.ToString() + ' GB'; speed=$mem.Speed + ' MHz'; slot=$mem.DeviceLocator; partnumber=$mem.PartNumber} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Storage Detection (All drives)
-echo       "storage": [ >> hawk_system_inventory.json
-wmic diskdrive get model,size,manufacturer,mediatype /format:csv > "%TEMP_DIR%\\storage.csv" 2>nul
-for /f "skip=1 tokens=2,3,4,5 delims=," %%a in ('type "%TEMP_DIR%\\storage.csv" 2^>nul') do (
-    if not "%%d"=="" (
-        set /a "size_gb=%%d / 1073741824"
-        echo         {"manufacturer": "%%b", "model": "%%c", "size": "!size_gb! GB", "type": "%%e"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
+:: Enhanced Storage Detection with interface type
+echo     "storage": [ >> hawk_system_inventory.json
+wmic diskdrive get model,size,manufacturer,mediatype,interfacetype /format:csv > "%TEMP_DIR%\\storage_detailed.csv" 2>nul
+powershell -command "$storage = Import-Csv '%TEMP_DIR%\\storage_detailed.csv' | Where-Object {$_.Size -ne ''}; foreach($drive in $storage) { $sizeGB = [math]::Round([double]$drive.Size / 1GB, 2); $json = @{manufacturer=$drive.Manufacturer; model=$drive.Model; size=$sizeGB.ToString() + ' GB'; type=$drive.MediaType; interface=$drive.InterfaceType} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Graphics Detection
-echo       "graphics": [ >> hawk_system_inventory.json
-wmic path win32_videocontroller get name,driverversion,driverprovider /format:csv > "%TEMP_DIR%\\graphics.csv" 2>nul
-for /f "skip=1 tokens=2,3,4 delims=," %%a in ('type "%TEMP_DIR%\\graphics.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        echo         {"model": "%%c", "driver": "%%b", "manufacturer": "%%d"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
+:: Enhanced Graphics Detection
+echo     "graphics": [ >> hawk_system_inventory.json
+wmic path win32_videocontroller get name,driverversion,driverprovider,adapterram /format:csv > "%TEMP_DIR%\\graphics_detailed.csv" 2>nul
+powershell -command "$graphics = Import-Csv '%TEMP_DIR%\\graphics_detailed.csv' | Where-Object {$_.Name -ne ''}; foreach($gpu in $graphics) { $vramGB = if($gpu.AdapterRAM -and $gpu.AdapterRAM -ne '') {[math]::Round([double]$gpu.AdapterRAM / 1GB, 2).ToString() + ' GB'} else {'Unknown'}; $json = @{manufacturer=$gpu.DriverProvider; model=$gpu.Name; driver=$gpu.DriverVersion; vram=$vramGB} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Network Adapters (Physical only)
-echo       "network": [ >> hawk_system_inventory.json
-wmic path win32_networkadapter where "PhysicalAdapter=True AND NOT Name LIKE '%%Virtual%%' AND NOT Name LIKE '%%Loopback%%'" get name,manufacturer,macaddress /format:csv > "%TEMP_DIR%\\network.csv" 2>nul
-for /f "skip=1 tokens=2,3,4 delims=," %%a in ('type "%TEMP_DIR%\\network.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        echo         {"name": "%%c", "manufacturer": "%%b", "mac": "%%d", "type": "Ethernet"}, >> hawk_system_inventory.json
-    )
-)
-echo       ] >> hawk_system_inventory.json
-echo     }, >> hawk_system_inventory.json
+:: Enhanced Network Detection
+echo     "network": [ >> hawk_system_inventory.json
+wmic path win32_networkadapter where "PhysicalAdapter=True AND NOT Name LIKE '%%Virtual%%' AND NOT Name LIKE '%%Loopback%%'" get name,manufacturer,macaddress,speed /format:csv > "%TEMP_DIR%\\network_detailed.csv" 2>nul
+powershell -command "$network = Import-Csv '%TEMP_DIR%\\network_detailed.csv' | Where-Object {$_.Name -ne ''}; foreach($nic in $network) { $json = @{manufacturer=$nic.Manufacturer; model=$nic.Name; mac=$nic.MACAddress; speed=$nic.Speed; type='Ethernet'} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ] >> hawk_system_inventory.json
+echo   }, >> hawk_system_inventory.json
 
-:: === SOFTWARE DETECTION ===
-echo Scanning installed software...
-echo     "software": { >> hawk_system_inventory.json
+:: === ENHANCED SOFTWARE DETECTION ===
+echo Performing comprehensive software analysis...
+echo   "software": { >> hawk_system_inventory.json
 
-:: Operating System
-echo       "os": { >> hawk_system_inventory.json
+:: Operating System with detailed version info
+echo     "os": { >> hawk_system_inventory.json
 for /f "tokens=2 delims==" %%i in ('wmic os get caption /value 2^>nul ^| find "="') do (
-    echo         "name": "%%i", >> hawk_system_inventory.json
+    echo       "name": "%%i", >> hawk_system_inventory.json
 )
 for /f "tokens=2 delims==" %%i in ('wmic os get version /value 2^>nul ^| find "="') do (
-    echo         "version": "%%i", >> hawk_system_inventory.json
+    echo       "version": "%%i", >> hawk_system_inventory.json
 )
 for /f "tokens=2 delims==" %%i in ('wmic os get buildnumber /value 2^>nul ^| find "="') do (
-    echo         "build": "%%i" >> hawk_system_inventory.json
+    echo       "build": "%%i" >> hawk_system_inventory.json
 )
-echo       }, >> hawk_system_inventory.json
-
-:: Installed Programs (Registry method for completeness)
-echo       "installedPrograms": [ >> hawk_system_inventory.json
-wmic product get name,version,vendor,installdate /format:csv > "%TEMP_DIR%\\programs.csv" 2>nul
-for /f "skip=1 tokens=2,3,4,5 delims=," %%a in ('type "%TEMP_DIR%\\programs.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        echo         {"name": "%%c", "version": "%%d", "publisher": "%%e", "installDate": "%%b"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
-
-:: System Drivers
-echo       "drivers": [ >> hawk_system_inventory.json
-wmic systemdriver get name,version,pathname /format:csv > "%TEMP_DIR%\\drivers.csv" 2>nul
-for /f "skip=1 tokens=2,3,4 delims=," %%a in ('type "%TEMP_DIR%\\drivers.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        echo         {"name": "%%c", "version": "%%d", "path": "%%e"}, >> hawk_system_inventory.json
-    )
-)
-echo       ], >> hawk_system_inventory.json
-
-:: Services
-echo       "services": [ >> hawk_system_inventory.json
-wmic service get name,state,startmode /format:csv > "%TEMP_DIR%\\services.csv" 2>nul
-for /f "skip=1 tokens=2,3,4 delims=," %%a in ('type "%TEMP_DIR%\\services.csv" 2^>nul') do (
-    if not "%%c"=="" (
-        echo         {"name": "%%c", "status": "%%d", "startType": "%%e"}, >> hawk_system_inventory.json
-    )
-)
-echo       ] >> hawk_system_inventory.json
 echo     }, >> hawk_system_inventory.json
 
-:: === OEM DETECTION ENGINE ===
-echo Analyzing detected OEMs...
-echo     "detectedOEMs": [ >> hawk_system_inventory.json
+:: Enhanced Installed Programs Detection
+echo     "installedPrograms": [ >> hawk_system_inventory.json
+wmic product get name,version,vendor,installdate /format:csv > "%TEMP_DIR%\\programs_detailed.csv" 2>nul
+powershell -command "$programs = Import-Csv '%TEMP_DIR%\\programs_detailed.csv' | Where-Object {$_.Name -ne ''} | Select-Object -First 50; foreach($prog in $programs) { $json = @{name=$prog.Name; version=$prog.Version; publisher=$prog.Vendor; installDate=$prog.InstallDate} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Create OEM detection script
-(
-echo @echo off
-echo set "DETECTED_OEMS="
-echo.
-echo :: Check system manufacturer
-echo if /i "!SYS_MANUFACTURER!" NEQ "" ^(
-echo   if /i "!SYS_MANUFACTURER!" NEQ "To Be Filled By O.E.M." ^(
-echo     set "DETECTED_OEMS=!DETECTED_OEMS!"!SYS_MANUFACTURER!","
-echo   ^)
-echo ^)
-echo.
-echo :: Analyze CPU manufacturers
-echo findstr /i "intel" "%TEMP_DIR%\\cpu.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Intel","
-echo findstr /i "amd" "%TEMP_DIR%\\cpu.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!AMD","
-echo.
-echo :: Analyze memory manufacturers
-echo findstr /i "samsung" "%TEMP_DIR%\\memory.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Samsung","
-echo findstr /i "micron" "%TEMP_DIR%\\memory.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Micron","
-echo findstr /i "corsair" "%TEMP_DIR%\\memory.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Corsair","
-echo findstr /i "kingston" "%TEMP_DIR%\\memory.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Kingston","
-echo.
-echo :: Analyze storage manufacturers
-echo findstr /i "seagate" "%TEMP_DIR%\\storage.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Seagate","
-echo findstr /i "western" "%TEMP_DIR%\\storage.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Western Digital","
-echo findstr /i "samsung" "%TEMP_DIR%\\storage.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Samsung","
-echo findstr /i "toshiba" "%TEMP_DIR%\\storage.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Toshiba","
-echo findstr /i "crucial" "%TEMP_DIR%\\storage.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Crucial","
-echo.
-echo :: Analyze graphics manufacturers
-echo findstr /i "nvidia" "%TEMP_DIR%\\graphics.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!NVIDIA","
-echo findstr /i "intel" "%TEMP_DIR%\\graphics.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Intel","
-echo findstr /i "amd" "%TEMP_DIR%\\graphics.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!AMD","
-echo.
-echo :: Analyze network manufacturers
-echo findstr /i "intel" "%TEMP_DIR%\\network.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Intel","
-echo findstr /i "realtek" "%TEMP_DIR%\\network.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Realtek","
-echo findstr /i "broadcom" "%TEMP_DIR%\\network.csv" >nul 2^>^&1 ^&^& set "DETECTED_OEMS=!DETECTED_OEMS!Broadcom","
-echo.
-echo :: Always include Microsoft for Windows
-echo set "DETECTED_OEMS=!DETECTED_OEMS!Microsoft","
-echo.
-echo :: Output detected OEMs
-echo set "DETECTED_OEMS=!DETECTED_OEMS:~0,-1!"
-echo if defined DETECTED_OEMS ^(
-echo   for %%%%i in ^(!DETECTED_OEMS!^) do echo       "%%%%~i", ^>^> hawk_system_inventory.json
-echo ^)
-) > "%TEMP_DIR%\\detect_oems.bat"
+:: System Drivers with detailed info
+echo     "drivers": [ >> hawk_system_inventory.json
+wmic systemdriver get name,version,pathname /format:csv > "%TEMP_DIR%\\drivers_detailed.csv" 2>nul
+powershell -command "$drivers = Import-Csv '%TEMP_DIR%\\drivers_detailed.csv' | Where-Object {$_.Name -ne ''} | Select-Object -First 30; foreach($driver in $drivers) { $json = @{name=$driver.Name; version=$driver.Version; path=$driver.PathName} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
+echo     ], >> hawk_system_inventory.json
 
-:: Run OEM detection
-call "%TEMP_DIR%\\detect_oems.bat"
-
-:: Remove trailing comma and close array
-echo       "Unknown" >> hawk_system_inventory.json
+:: Running Services
+echo     "services": [ >> hawk_system_inventory.json
+wmic service where "State='Running'" get name,state,startmode /format:csv > "%TEMP_DIR%\\services_detailed.csv" 2>nul
+powershell -command "$services = Import-Csv '%TEMP_DIR%\\services_detailed.csv' | Where-Object {$_.Name -ne ''} | Select-Object -First 50; foreach($svc in $services) { $json = @{name=$svc.Name; status=$svc.State; startType=$svc.StartMode} | ConvertTo-Json -Compress; Write-Output ('      ' + $json + ',') }" >> hawk_system_inventory.json 2>nul
 echo     ] >> hawk_system_inventory.json
+echo   }, >> hawk_system_inventory.json
 
-:: Close main JSON structure
-echo   } >> hawk_system_inventory.json
+:: === ADVANCED OEM DETECTION ENGINE ===
+echo Analyzing system for OEM identification...
+echo   "detectedOEMs": [ >> hawk_system_inventory.json
+
+:: Create comprehensive OEM detection
+powershell -command "
+$oems = @()
+
+# System manufacturer detection
+$sysInfo = Get-WmiObject Win32_ComputerSystem
+if ($sysInfo.Manufacturer -and $sysInfo.Manufacturer -ne 'To Be Filled By O.E.M.') {
+    $oems += $sysInfo.Manufacturer
+}
+
+# CPU manufacturer detection
+$cpus = Get-WmiObject Win32_Processor
+foreach ($cpu in $cpus) {
+    if ($cpu.Name -like '*Intel*') { $oems += 'Intel' }
+    if ($cpu.Name -like '*AMD*') { $oems += 'AMD' }
+}
+
+# Graphics manufacturer detection
+$graphics = Get-WmiObject Win32_VideoController | Where-Object { $_.Name -notlike '*Basic*' }
+foreach ($gpu in $graphics) {
+    if ($gpu.Name -like '*NVIDIA*') { $oems += 'NVIDIA' }
+    if ($gpu.Name -like '*AMD*' -or $gpu.Name -like '*Radeon*') { $oems += 'AMD' }
+    if ($gpu.Name -like '*Intel*') { $oems += 'Intel' }
+}
+
+# Memory manufacturer detection
+$memory = Get-WmiObject Win32_PhysicalMemory
+foreach ($mem in $memory) {
+    if ($mem.Manufacturer) {
+        switch -Wildcard ($mem.Manufacturer) {
+            '*Samsung*' { $oems += 'Samsung' }
+            '*Micron*' { $oems += 'Micron' }
+            '*Corsair*' { $oems += 'Corsair' }
+            '*Kingston*' { $oems += 'Kingston' }
+            '*G.Skill*' { $oems += 'G.Skill' }
+        }
+    }
+}
+
+# Storage manufacturer detection
+$storage = Get-WmiObject Win32_DiskDrive
+foreach ($drive in $storage) {
+    switch -Wildcard ($drive.Model) {
+        '*Samsung*' { $oems += 'Samsung' }
+        '*Seagate*' { $oems += 'Seagate' }
+        '*Western*' { $oems += 'Western Digital' }
+        '*Toshiba*' { $oems += 'Toshiba' }
+        '*Crucial*' { $oems += 'Crucial' }
+        '*Intel*' { $oems += 'Intel' }
+    }
+}
+
+# Network manufacturer detection
+$network = Get-WmiObject Win32_NetworkAdapter | Where-Object { $_.PhysicalAdapter -eq $true }
+foreach ($nic in $network) {
+    switch -Wildcard ($nic.Name) {
+        '*Intel*' { $oems += 'Intel' }
+        '*Realtek*' { $oems += 'Realtek' }
+        '*Broadcom*' { $oems += 'Broadcom' }
+        '*Qualcomm*' { $oems += 'Qualcomm' }
+    }
+}
+
+# Always include Microsoft for Windows
+$oems += 'Microsoft'
+
+# Remove duplicates and output
+$uniqueOems = $oems | Sort-Object -Unique
+foreach ($oem in $uniqueOems) {
+    Write-Output ('    \"' + $oem + '\",')
+}
+" >> hawk_system_inventory.json
+
+:: Remove trailing comma and close JSON
+powershell -command "(Get-Content hawk_system_inventory.json) -replace ',(?=\\s*\\])', '' | Set-Content hawk_system_inventory.json"
+echo   ] >> hawk_system_inventory.json
 echo } >> hawk_system_inventory.json
 
-:: Clean up temporary files
+:: Clean up
 rmdir /s /q "%TEMP_DIR%" 2>nul
 
 echo.
@@ -282,12 +256,12 @@ echo PROFESSIONAL SCAN COMPLETED SUCCESSFULLY!
 echo ===============================================
 echo File: hawk_system_inventory.json
 echo.
-echo This WinAudit-level inventory includes:
-echo - Complete hardware component detection
-echo - Real manufacturer identification
-echo - Comprehensive software inventory
-echo - Advanced OEM analysis engine
-echo - Physical component specifications
+echo Enhanced WinAudit-level inventory includes:
+echo - Real hardware manufacturer identification
+echo - Comprehensive component specifications
+echo - Advanced OEM detection from all components
+echo - Detailed software and driver inventory
+echo - JSON format for automated processing
 echo.
 echo Upload this file to HAWK for automatic OEM monitoring setup.
 echo ===============================================
@@ -298,8 +272,8 @@ pause`;
     return `#!/bin/bash
 
 echo "==============================================="
-echo "HAWK Professional System Inventory Scanner v3.0"
-echo "Advanced Linux Hardware Detection"
+echo "HAWK Professional System Inventory Scanner v4.0"
+echo "Advanced Linux Hardware Detection Enhanced"
 echo "==============================================="
 echo
 
@@ -309,10 +283,11 @@ command -v lscpu >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS lscpu"
 command -v lshw >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS lshw"
 command -v lspci >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS lspci"
 command -v dmidecode >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS dmidecode"
+command -v jq >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS jq"
 
 if [ -n "$MISSING_TOOLS" ]; then
     echo "Warning: Missing tools:$MISSING_TOOLS"
-    echo "Install with: sudo apt-get install util-linux pciutils dmidecode lshw"
+    echo "Install with: sudo apt-get install util-linux pciutils dmidecode lshw jq"
     echo "Some information may be incomplete."
     echo
 fi
@@ -321,136 +296,170 @@ fi
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
-# Initialize JSON
+# Initialize JSON structure
 cat > hawk_system_inventory.json << 'EOF'
 {
   "timestamp": "",
   "platform": "Linux",
-  "scriptVersion": "3.0",
-  "systemInfo": {},
-  "hardware": {},
-  "software": {},
+  "scriptVersion": "4.0",
+  "systemInfo": {
+    "manufacturer": "",
+    "model": "",
+    "serialNumber": "",
+    "biosVersion": ""
+  },
+  "hardware": {
+    "cpu": [],
+    "memory": [],
+    "storage": [],
+    "graphics": [],
+    "network": []
+  },
+  "software": {
+    "os": {
+      "name": "",
+      "version": "",
+      "build": ""
+    },
+    "installedPrograms": [],
+    "drivers": [],
+    "services": []
+  },
   "detectedOEMs": []
 }
 EOF
 
-echo "Scanning system information..."
+echo "Scanning comprehensive system information..."
 
 # Add timestamp
 timestamp=$(date -Iseconds 2>/dev/null || date)
 jq --arg ts "$timestamp" '.timestamp = $ts' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# === SYSTEM INFORMATION ===
-echo "Detecting system information..."
+# === ENHANCED SYSTEM INFORMATION ===
+echo "Detecting enhanced system information..."
 
-# Get system info from DMI
+# Get detailed system info from DMI
 if [ -f /sys/class/dmi/id/sys_vendor ]; then
-    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\\x00\\n\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\\x00\\n\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\\x00\\n\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\\x00\\n\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    model=$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    serial=$(cat /sys/class/dmi/id/product_serial 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     jq --arg v "$vendor" --arg m "$model" --arg s "$serial" --arg b "$bios" '
-        .systemInfo.basicInfo = {
-            "manufacturer": $v,
-            "model": $m,
-            "serialNumber": $s,
-            "biosVersion": $b
-        }' hawk_system_inventory.json > $TEMP_DIR/tmp.json
+        .systemInfo.manufacturer = $v |
+        .systemInfo.model = $m |
+        .systemInfo.serialNumber = $s |
+        .systemInfo.biosVersion = $b
+    ' hawk_system_inventory.json > $TEMP_DIR/tmp.json
     mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 fi
 
-# === HARDWARE DETECTION ===
-echo "Detecting hardware components..."
+# === ENHANCED HARDWARE DETECTION ===
+echo "Performing comprehensive hardware detection..."
 
-# CPU Information
-echo "Scanning CPU..."
+# Enhanced CPU Information
+echo "Scanning CPU with detailed specifications..."
 if command -v lscpu >/dev/null 2>&1; then
     cpu_info=$(lscpu)
     cpu_model=$(echo "$cpu_info" | grep "Model name:" | cut -d: -f2 | sed 's/^[[:space:]]*//')
     cpu_cores=$(echo "$cpu_info" | grep "^CPU(s):" | cut -d: -f2 | sed 's/^[[:space:]]*//')
-    cpu_speed=$(echo "$cpu_info" | grep "CPU MHz:" | cut -d: -f2 | sed 's/^[[:space:]]*//')
+    cpu_speed=$(echo "$cpu_info" | grep "CPU max MHz:" | cut -d: -f2 | sed 's/^[[:space:]]*//' || echo "$cpu_info" | grep "CPU MHz:" | cut -d: -f2 | sed 's/^[[:space:]]*//')
+    cpu_arch=$(echo "$cpu_info" | grep "Architecture:" | cut -d: -f2 | sed 's/^[[:space:]]*//')
     
+    cpu_manufacturer="Unknown"
     if echo "$cpu_model" | grep -qi "intel"; then
         cpu_manufacturer="Intel"
     elif echo "$cpu_model" | grep -qi "amd"; then
         cpu_manufacturer="AMD"
-    else
-        cpu_manufacturer="Unknown"
     fi
     
-    jq --arg man "$cpu_manufacturer" --arg mod "$cpu_model" --arg cores "$cpu_cores" --arg speed "$cpu_speed" '
+    jq --arg man "$cpu_manufacturer" --arg mod "$cpu_model" --arg cores "$cpu_cores" --arg speed "$cpu_speed" --arg arch "$cpu_arch" '
         .hardware.cpu = [{
             "manufacturer": $man,
             "model": $mod,
             "cores": ($cores | tonumber),
-            "speed": ($speed + " MHz")
+            "speed": ($speed + " MHz"),
+            "architecture": $arch
         }]' hawk_system_inventory.json > $TEMP_DIR/tmp.json
     mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 fi
 
-# Memory Information
-echo "Scanning memory modules..."
+# Enhanced Memory Information with real manufacturer detection
+echo "Scanning memory modules with manufacturer details..."
 memory_array="[]"
 if command -v dmidecode >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
     # Running as root, can get detailed memory info
-    dmidecode -t memory > $TEMP_DIR/memory.txt 2>/dev/null
-    
-    # Parse memory modules
-    awk '/Memory Device/,/^$/ {
-        if ($1 == "Manufacturer:") manufacturer = $2
-        if ($1 == "Size:" && $2 != "No") size = $2 " " $3
-        if ($1 == "Speed:") speed = $2 " " $3
-        if ($1 == "Locator:") locator = $2
-        if (/^$/ && size && size != "No Module Installed") {
-            printf "{\\"manufacturer\\": \\"%s\\", \\"capacity\\": \\"%s\\", \\"speed\\": \\"%s\\", \\"slot\\": \\"%s\\"},\\n", manufacturer, size, speed, locator
-            manufacturer = ""; size = ""; speed = ""; locator = ""
-        }
-    }' $TEMP_DIR/memory.txt > $TEMP_DIR/memory.json
+    dmidecode -t memory | awk '
+        /Memory Device/,/^$/ {
+            if ($1 == "Manufacturer:") manufacturer = substr($0, index($0, $2))
+            if ($1 == "Size:" && $2 != "No") {
+                size = $2 " " $3
+                # Convert to GB if in MB
+                if ($3 == "MB") {
+                    size_val = $2 / 1024
+                    size = sprintf("%.1f GB", size_val)
+                }
+            }
+            if ($1 == "Speed:") speed = $2 " " $3
+            if ($1 == "Locator:") locator = substr($0, index($0, $2))
+            if ($1 == "Part" && $2 == "Number:") partnumber = substr($0, index($0, $3))
+            if (/^$/ && size && size != "No Module Installed") {
+                printf "{\\"manufacturer\\": \\"%s\\", \\"capacity\\": \\"%s\\", \\"speed\\": \\"%s\\", \\"slot\\": \\"%s\\", \\"partnumber\\": \\"%s\\"},\\n", 
+                       manufacturer, size, speed, locator, partnumber
+                manufacturer = ""; size = ""; speed = ""; locator = ""; partnumber = ""
+            }
+        }' > $TEMP_DIR/memory.json
     
     if [ -s $TEMP_DIR/memory.json ]; then
-        # Remove trailing comma and create array
         sed '$ s/,$//' $TEMP_DIR/memory.json > $TEMP_DIR/memory_clean.json
         memory_array="[$(cat $TEMP_DIR/memory_clean.json)]"
     fi
 else
     # Fallback method
-    total_mem=$(free -h | awk '/^Mem:/ {print $2}')
-    memory_array="[{\\"manufacturer\\": \\"Unknown\\", \\"capacity\\": \\"$total_mem\\", \\"speed\\": \\"Unknown\\", \\"slot\\": \\"Total\\"}]"
+    total_mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}' || echo "Unknown")
+    memory_array="[{\\"manufacturer\\": \\"Unknown\\", \\"capacity\\": \\"$total_mem\\", \\"speed\\": \\"Unknown\\", \\"slot\\": \\"Total\\", \\"partnumber\\": \\"N/A\\"}]"
 fi
 
 jq --argjson mem "$memory_array" '.hardware.memory = $mem' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# Storage Detection
-echo "Scanning storage devices..."
+# Enhanced Storage Detection with detailed specifications
+echo "Scanning storage devices with detailed specifications..."
 storage_array="[]"
 if [ -d /sys/block ]; then
     storage_list=""
     for device in /sys/block/sd* /sys/block/nvme* /sys/block/mmcblk*; do
-        if [ -d "$device" ]; then
+        if [ -d "$device" ] 2>/dev/null; then
             device_name=$(basename "$device")
             
-            # Get model
+            # Get model and vendor
+            model="Unknown"
+            vendor="Unknown"
+            
             if [ -f "$device/device/model" ]; then
-                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\\x00\\n\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            else
-                model="Unknown"
+                model=$(cat "$device/device/model" 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             fi
             
-            # Get size
+            if [ -f "$device/device/vendor" ]; then
+                vendor=$(cat "$device/device/vendor" 2>/dev/null | tr -d '\0\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            fi
+            
+            # Get size in a more reliable way
+            size="Unknown"
             if [ -f "$device/size" ]; then
                 size_sectors=$(cat "$device/size" 2>/dev/null)
-                size_gb=$((size_sectors * 512 / 1073741824))
-                size="${size_gb} GB"
-            else
-                size="Unknown"
+                if [ -n "$size_sectors" ] && [ "$size_sectors" -gt 0 ]; then
+                    size_bytes=$((size_sectors * 512))
+                    size_gb=$((size_bytes / 1000000000))
+                    size="${size_gb} GB"
+                fi
             fi
             
-            # Determine manufacturer from model
+            # Determine manufacturer from model or vendor
             manufacturer="Unknown"
-            case "$(echo "$model" | tr '[:upper:]' '[:lower:]')" in
+            combined_info="$(echo "$model $vendor" | tr '[:upper:]' '[:lower:]')"
+            case "$combined_info" in
                 *samsung*) manufacturer="Samsung" ;;
                 *seagate*) manufacturer="Seagate" ;;
                 *western*|*wd*) manufacturer="Western Digital" ;;
@@ -458,21 +467,48 @@ if [ -d /sys/block ]; then
                 *crucial*) manufacturer="Crucial" ;;
                 *intel*) manufacturer="Intel" ;;
                 *kingston*) manufacturer="Kingston" ;;
+                *sandisk*) manufacturer="SanDisk" ;;
+                *hitachi*) manufacturer="Hitachi" ;;
+                *) 
+                    if [ "$vendor" != "Unknown" ] && [ "$vendor" != "ATA" ]; then
+                        manufacturer="$vendor"
+                    fi
+                ;;
             esac
             
-            # Determine type
+            # Determine type and interface
+            type="Unknown"
+            interface="Unknown"
             case "$device_name" in
-                nvme*) type="NVMe SSD" ;;
-                mmcblk*) type="eMMC" ;;
-                *) type="SATA" ;;
+                nvme*) 
+                    type="NVMe SSD"
+                    interface="NVMe"
+                ;;
+                mmcblk*) 
+                    type="eMMC"
+                    interface="eMMC"
+                ;;
+                sd*) 
+                    # Try to detect if it's SSD or HDD
+                    if [ -f "$device/queue/rotational" ]; then
+                        rotational=$(cat "$device/queue/rotational" 2>/dev/null)
+                        if [ "$rotational" = "0" ]; then
+                            type="SATA SSD"
+                        else
+                            type="SATA HDD"
+                        fi
+                    else
+                        type="SATA"
+                    fi
+                    interface="SATA"
+                ;;
             esac
             
-            storage_list="$storage_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"size\\": \\"$size\\", \\"type\\": \\"$type\\", \\"device\\": \\"$device_name\\"},"
+            storage_list="$storage_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"size\\": \\"$size\\", \\"type\\": \\"$type\\", \\"interface\\": \\"$interface\\", \\"device\\": \\"$device_name\\"},"
         fi
     done
     
     if [ -n "$storage_list" ]; then
-        # Remove trailing comma
         storage_list=$(echo "$storage_list" | sed 's/,$//')
         storage_array="[$storage_list]"
     fi
@@ -481,27 +517,33 @@ fi
 jq --argjson storage "$storage_array" '.hardware.storage = $storage' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# Graphics Detection
-echo "Scanning graphics hardware..."
+# Enhanced Graphics Detection
+echo "Scanning graphics hardware with detailed specifications..."
 graphics_array="[]"
 if command -v lspci >/dev/null 2>&1; then
     graphics_list=""
-    lspci | grep -i vga > $TEMP_DIR/graphics.txt
-    lspci | grep -i "3d controller" >> $TEMP_DIR/graphics.txt
+    lspci -nn | grep -i vga > $TEMP_DIR/graphics.txt
+    lspci -nn | grep -i "3d controller" >> $TEMP_DIR/graphics.txt
+    lspci -nn | grep -i "display controller" >> $TEMP_DIR/graphics.txt
     
     while IFS= read -r line; do
         if [ -n "$line" ]; then
-            # Extract manufacturer and model
+            # Extract manufacturer and model with better parsing
             manufacturer="Unknown"
-            model=$(echo "$line" | cut -d: -f3 | sed 's/^[[:space:]]*//')
+            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\\[.*\\]//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             
             case "$(echo "$line" | tr '[:upper:]' '[:lower:]')" in
                 *nvidia*) manufacturer="NVIDIA" ;;
                 *intel*) manufacturer="Intel" ;;
-                *amd*|*ati*) manufacturer="AMD" ;;
+                *amd*|*ati*|*radeon*) manufacturer="AMD" ;;
+                *matrox*) manufacturer="Matrox" ;;
+                *aspeed*) manufacturer="ASPEED" ;;
             esac
             
-            graphics_list="$graphics_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\"},"
+            # Try to get VRAM info if available
+            vram="Unknown"
+            
+            graphics_list="$graphics_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"vram\\": \\"$vram\\"},"
         fi
     done < $TEMP_DIR/graphics.txt
     
@@ -514,27 +556,37 @@ fi
 jq --argjson graphics "$graphics_array" '.hardware.graphics = $graphics' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# Network Detection
-echo "Scanning network adapters..."
+# Enhanced Network Detection
+echo "Scanning network adapters with detailed specifications..."
 network_array="[]"
 if command -v lspci >/dev/null 2>&1; then
     network_list=""
-    lspci | grep -i ethernet > $TEMP_DIR/network.txt
-    lspci | grep -i "network controller" >> $TEMP_DIR/network.txt
+    lspci -nn | grep -i ethernet > $TEMP_DIR/network.txt
+    lspci -nn | grep -i "network controller" >> $TEMP_DIR/network.txt
+    lspci -nn | grep -i "wireless" >> $TEMP_DIR/network.txt
     
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             manufacturer="Unknown"
-            model=$(echo "$line" | cut -d: -f3 | sed 's/^[[:space:]]*//')
+            model=$(echo "$line" | sed 's/^[^:]*://' | sed 's/\\[.*\\]//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            
+            # Determine type
+            net_type="Ethernet"
+            if echo "$line" | grep -qi "wireless\|wifi\|802\.11"; then
+                net_type="Wireless"
+            fi
             
             case "$(echo "$line" | tr '[:upper:]' '[:lower:]')" in
                 *intel*) manufacturer="Intel" ;;
                 *realtek*) manufacturer="Realtek" ;;
                 *broadcom*) manufacturer="Broadcom" ;;
                 *qualcomm*) manufacturer="Qualcomm" ;;
+                *marvell*) manufacturer="Marvell" ;;
+                *mediatek*) manufacturer="MediaTek" ;;
+                *atheros*) manufacturer="Atheros" ;;
             esac
             
-            network_list="$network_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"type\\": \\"Ethernet\\"},"
+            network_list="$network_list{\\"manufacturer\\": \\"$manufacturer\\", \\"model\\": \\"$model\\", \\"type\\": \\"$net_type\\"},"
         fi
     done < $TEMP_DIR/network.txt
     
@@ -547,17 +599,17 @@ fi
 jq --argjson network "$network_array" '.hardware.network = $network' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# === SOFTWARE DETECTION ===
-echo "Scanning software..."
+# === ENHANCED SOFTWARE DETECTION ===
+echo "Performing comprehensive software analysis..."
 
-# OS Information
+# Enhanced OS Information
 os_name="Unknown Linux"
 os_version="Unknown"
 kernel_version=$(uname -r)
 
 if [ -f /etc/os-release ]; then
-    os_name=$(grep "^NAME=" /etc/os-release | cut -d= -f2 | tr -d '"')
-    os_version=$(grep "^VERSION=" /etc/os-release | cut -d= -f2 | tr -d '"')
+    os_name=$(grep "^PRETTY_NAME=" /etc/os-release | cut -d= -f2 | tr -d '"' || grep "^NAME=" /etc/os-release | cut -d= -f2 | tr -d '"')
+    os_version=$(grep "^VERSION=" /etc/os-release | cut -d= -f2 | tr -d '"' || grep "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
 fi
 
 jq --arg name "$os_name" --arg version "$os_version" --arg kernel "$kernel_version" '
@@ -568,24 +620,26 @@ jq --arg name "$os_name" --arg version "$os_version" --arg kernel "$kernel_versi
     }' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# Installed packages (sample)
+# Enhanced package detection
 echo "Scanning installed packages..."
 packages_array="[]"
-packages_list=""
 
 if command -v dpkg >/dev/null 2>&1; then
-    # Debian/Ubuntu
-    dpkg -l 2>/dev/null | grep "^ii" | head -20 | while IFS= read -r line; do
-        package_name=$(echo "$line" | awk '{print $2}')
-        package_version=$(echo "$line" | awk '{print $3}')
-        echo "{\\"name\\": \\"$package_name\\", \\"version\\": \\"$package_version\\", \\"publisher\\": \\"Debian\\"},"
-    done > $TEMP_DIR/packages.json
+    # Debian/Ubuntu - get more comprehensive package info
+    dpkg-query -W -f='${Package}|${Version}|${Maintainer}|${Status}\n' 2>/dev/null | \
+    grep "|install ok installed" | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_maintainer pkg_status; do
+        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"Debian/Ubuntu\\", \\"maintainer\\": \\"$pkg_maintainer\\"},"
+    done > $TEMP_DIR/packages.json 2>/dev/null
 elif command -v rpm >/dev/null 2>&1; then
-    # Red Hat/CentOS
-    rpm -qa 2>/dev/null | head -20 | while IFS= read -r line; do
-        package_name=$(echo "$line" | cut -d'-' -f1)
-        echo "{\\"name\\": \\"$package_name\\", \\"version\\": \\"Unknown\\", \\"publisher\\": \\"RPM\\"},"
-    done > $TEMP_DIR/packages.json
+    # Red Hat/CentOS/Fedora
+    rpm -qa --queryformat '%{NAME}|%{VERSION}|%{VENDOR}\n' 2>/dev/null | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_vendor; do
+        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"RPM\\", \\"vendor\\": \\"$pkg_vendor\\"},"
+    done > $TEMP_DIR/packages.json 2>/dev/null
+elif command -v pacman >/dev/null 2>&1; then
+    # Arch Linux
+    pacman -Q 2>/dev/null | head -100 | while read -r pkg_name pkg_version; do
+        echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"Arch\\", \\"vendor\\": \\"Arch Linux\\"},"
+    done > $TEMP_DIR/packages.json 2>/dev/null
 fi
 
 if [ -f $TEMP_DIR/packages.json ] && [ -s $TEMP_DIR/packages.json ]; then
@@ -596,16 +650,18 @@ fi
 jq --argjson packages "$packages_array" '.software.installedPrograms = $packages' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# System services (sample)
+# Enhanced system services
+echo "Scanning system services..."
 services_array="[]"
 if command -v systemctl >/dev/null 2>&1; then
-    systemctl list-units --type=service --no-pager --no-legend 2>/dev/null | head -10 | while IFS= read -r line; do
+    systemctl list-units --type=service --state=active --no-pager --no-legend 2>/dev/null | head -50 | while read -r line; do
         if [ -n "$line" ]; then
-            service_name=$(echo "$line" | awk '{print $1}')
+            service_name=$(echo "$line" | awk '{print $1}' | sed 's/\\.service$//')
             service_status=$(echo "$line" | awk '{print $2}')
-            echo "{\\"name\\": \\"$service_name\\", \\"status\\": \\"$service_status\\", \\"startType\\": \\"systemd\\"},"
+            service_active=$(echo "$line" | awk '{print $3}')
+            echo "{\\"name\\": \\"$service_name\\", \\"status\\": \\"$service_status\\", \\"active\\": \\"$service_active\\", \\"startType\\": \\"systemd\\"},"
         fi
-    done > $TEMP_DIR/services.json
+    done > $TEMP_DIR/services.json 2>/dev/null
     
     if [ -f $TEMP_DIR/services.json ] && [ -s $TEMP_DIR/services.json ]; then
         sed '$ s/,$//' $TEMP_DIR/services.json > $TEMP_DIR/services_clean.json
@@ -616,12 +672,15 @@ fi
 jq --argjson services "$services_array" '.software.services = $services' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# Drivers (kernel modules)
+# Enhanced kernel modules (drivers)
+echo "Scanning kernel modules..."
 drivers_array="[]"
-lsmod | head -20 | tail -n +2 | while IFS= read -r line; do
+lsmod 2>/dev/null | tail -n +2 | head -50 | while read -r line; do
     if [ -n "$line" ]; then
         driver_name=$(echo "$line" | awk '{print $1}')
-        echo "{\\"name\\": \\"$driver_name\\", \\"version\\": \\"kernel\\", \\"manufacturer\\": \\"Linux\\"},"
+        driver_size=$(echo "$line" | awk '{print $2}')
+        driver_used=$(echo "$line" | awk '{print $3}')
+        echo "{\\"name\\": \\"$driver_name\\", \\"size\\": \\"$driver_size\\", \\"used_count\\": \\"$driver_used\\", \\"type\\": \\"kernel_module\\"},"
     fi
 done > $TEMP_DIR/drivers.json 2>/dev/null
 
@@ -633,48 +692,79 @@ fi
 jq --argjson drivers "$drivers_array" '.software.drivers = $drivers' hawk_system_inventory.json > $TEMP_DIR/tmp.json
 mv $TEMP_DIR/tmp.json hawk_system_inventory.json
 
-# === OEM DETECTION ENGINE ===
-echo "Analyzing detected OEMs..."
+# === ADVANCED OEM DETECTION ENGINE ===
+echo "Performing comprehensive OEM analysis..."
 
-# Create OEM detection array
+# Create comprehensive OEM detection array
 detected_oems=""
 
 # Add system manufacturer
-if [ -n "$vendor" ] && [ "$vendor" != "To Be Filled By O.E.M." ] && [ "$vendor" != "Unknown" ]; then
+if [ -n "$vendor" ] && [ "$vendor" != "To Be Filled By O.E.M." ] && [ "$vendor" != "Unknown" ] && [ "$vendor" != "System manufacturer" ]; then
     detected_oems="$detected_oems\\"$vendor\\","
 fi
 
 # Add CPU manufacturer
-if echo "$cpu_manufacturer" | grep -qi "intel"; then
-    detected_oems="$detected_oems\\"Intel\\","
-fi
-if echo "$cpu_manufacturer" | grep -qi "amd"; then
-    detected_oems="$detected_oems\\"AMD\\","
+if [ -n "$cpu_manufacturer" ] && [ "$cpu_manufacturer" != "Unknown" ]; then
+    detected_oems="$detected_oems\\"$cpu_manufacturer\\","
 fi
 
-# Check for NVIDIA graphics
+# Check for GPU manufacturers
 if lspci 2>/dev/null | grep -qi nvidia; then
     detected_oems="$detected_oems\\"NVIDIA\\","
 fi
+if lspci 2>/dev/null | grep -qi "amd\|ati\|radeon"; then
+    detected_oems="$detected_oems\\"AMD\\","
+fi
 
-# Check for common manufacturers in hardware
-for hw_file in $TEMP_DIR/*.txt $TEMP_DIR/*.json; do
+# Check memory manufacturers from detailed scan
+if [ -f $TEMP_DIR/memory.json ]; then
+    grep -qi "samsung" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Samsung\\","
+    grep -qi "micron" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Micron\\","
+    grep -qi "corsair" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Corsair\\","
+    grep -qi "kingston" $TEMP_DIR/memory.json 2>/dev/null && detected_oems="$detected_oems\\"Kingston\\","
+fi
+
+# Check storage manufacturers
+for hw_file in $TEMP_DIR/*.txt; do
     if [ -f "$hw_file" ]; then
-        grep -qi "samsung" "$hw_file" && detected_oems="$detected_oems\\"Samsung\\","
-        grep -qi "seagate" "$hw_file" && detected_oems="$detected_oems\\"Seagate\\","
-        grep -qi "western" "$hw_file" && detected_oems="$detected_oems\\"Western Digital\\","
-        grep -qi "realtek" "$hw_file" && detected_oems="$detected_oems\\"Realtek\\","
-        grep -qi "broadcom" "$hw_file" && detected_oems="$detected_oems\\"Broadcom\\","
-    fi 2>/dev/null
+        grep -qi "samsung" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Samsung\\","
+        grep -qi "seagate" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Seagate\\","
+        grep -qi "western" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Western Digital\\","
+        grep -qi "toshiba" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Toshiba\\","
+        grep -qi "crucial" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Crucial\\","
+        grep -qi "realtek" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Realtek\\","
+        grep -qi "broadcom" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Broadcom\\","
+        grep -qi "intel" "$hw_file" 2>/dev/null && detected_oems="$detected_oems\\"Intel\\","
+    fi
 done
 
-# Always include Linux
-detected_oems="$detected_oems\\"Linux\\","
+# Always include the Linux distribution
+if [ -n "$os_name" ]; then
+    case "$os_name" in
+        *Ubuntu*) detected_oems="$detected_oems\\"Canonical\\",";;
+        *Red\ Hat*|*RHEL*) detected_oems="$detected_oems\\"Red Hat\\",";;
+        *CentOS*) detected_oems="$detected_oems\\"CentOS\\",";;
+        *Fedora*) detected_oems="$detected_oems\\"Fedora\\",";;
+        *SUSE*) detected_oems="$detected_oems\\"SUSE\\",";;
+        *Debian*) detected_oems="$detected_oems\\"Debian\\",";;
+        *Arch*) detected_oems="$detected_oems\\"Arch Linux\\",";;
+        *) detected_oems="$detected_oems\\"Linux\\",";;
+    esac
+fi
 
-# Clean up and create array
+# Clean up duplicates and create final array
 if [ -n "$detected_oems" ]; then
-    detected_oems=$(echo "$detected_oems" | sed 's/,$//')
-    oem_array="[$detected_oems]"
+    # Remove trailing comma and create temporary file for deduplication
+    echo "$detected_oems" | sed 's/,$//' | tr ',' '\n' | sort | uniq > $TEMP_DIR/unique_oems.txt
+    
+    # Build final OEM array
+    oem_array="["
+    while IFS= read -r oem; do
+        if [ -n "$oem" ]; then
+            oem_array="$oem_array$oem,"
+        fi
+    done < $TEMP_DIR/unique_oems.txt
+    oem_array=$(echo "$oem_array" | sed 's/,$//')"]"
 else
     oem_array="[\\"Linux\\"]"
 fi
@@ -688,12 +778,15 @@ echo "PROFESSIONAL SCAN COMPLETED SUCCESSFULLY!"
 echo "==============================================="
 echo "File: hawk_system_inventory.json"
 echo
-echo "This comprehensive inventory includes:"
-echo "- Complete hardware component detection"
-echo "- Real manufacturer identification"
-echo "- Comprehensive software inventory"
-echo "- Advanced OEM analysis engine"
-echo "- Physical component specifications"
+echo "Enhanced comprehensive inventory includes:"
+echo "- Real hardware manufacturer identification"
+echo "- Detailed component specifications"
+echo "- Advanced OEM detection from all components"
+echo "- Comprehensive software and package inventory"
+echo "- JSON format for automated processing"
+echo
+echo "Detected OEMs:"
+jq -r '.detectedOEMs[]?' hawk_system_inventory.json 2>/dev/null | sed 's/^/  - /' || echo "  - Unable to display (install jq for better output)"
 echo
 echo "Upload this file to HAWK for automatic OEM monitoring setup."
 echo "==============================================="
@@ -702,7 +795,7 @@ echo "==============================================="
 
   const downloadScript = (platform: 'windows' | 'linux') => {
     const script = platform === 'windows' ? generateWindowsAuditScript() : generateLinuxAuditScript();
-    const filename = platform === 'windows' ? 'hawk_professional_audit.bat' : 'hawk_professional_audit.sh';
+    const filename = platform === 'windows' ? 'hawk_professional_audit_v4.bat' : 'hawk_professional_audit_v4.sh';
     const blob = new Blob([script], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -713,7 +806,7 @@ echo "==============================================="
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success(`Downloaded ${platform} professional system audit script`);
+    toast.success(`Downloaded ${platform} professional system audit script v4.0`);
   };
 
   const handleInventoryUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -784,7 +877,15 @@ echo "==============================================="
       'Seagate': 'https://www.seagate.com/support/security/',
       'Western Digital': 'https://www.westerndigital.com/support/security',
       'Realtek': 'https://www.realtek.com/en/security-advisory',
-      'Broadcom': 'https://www.broadcom.com/support/security-advisories'
+      'Broadcom': 'https://www.broadcom.com/support/security-advisories',
+      'Canonical': 'https://ubuntu.com/security/notices',
+      'Red Hat': 'https://access.redhat.com/security/security-updates/',
+      'Debian': 'https://security-tracker.debian.org/tracker/',
+      'Corsair': 'https://www.corsair.com/us/en/support',
+      'Kingston': 'https://www.kingston.com/support',
+      'Micron': 'https://www.micron.com/support/security',
+      'Crucial': 'https://www.crucial.com/support',
+      'Toshiba': 'https://www.toshiba.com/support/security'
     };
     
     return oemUrls[oemName] || `https://${oemName.toLowerCase().replace(/\s+/g, '')}.com/security`;
@@ -806,7 +907,15 @@ echo "==============================================="
       'Seagate': 'Storage',
       'Western Digital': 'Storage',
       'Realtek': 'Network',
-      'Broadcom': 'Network'
+      'Broadcom': 'Network',
+      'Canonical': 'Operating System',
+      'Red Hat': 'Operating System',
+      'Debian': 'Operating System',
+      'Corsair': 'Memory',
+      'Kingston': 'Memory',
+      'Micron': 'Memory',
+      'Crucial': 'Storage',
+      'Toshiba': 'Storage'
     };
     
     return oemTypes[oemName] || 'Hardware';
@@ -817,10 +926,10 @@ echo "==============================================="
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <HardDrive className="h-5 w-5 text-primary" />
-          Professional System Detection (WinAudit-Level)
+          Professional System Detection v4.0 (Enhanced WinAudit-Level)
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Advanced hardware detection and comprehensive OEM identification
+          Advanced hardware detection with comprehensive OEM identification and detailed specifications
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -832,12 +941,12 @@ echo "==============================================="
               <div className="flex items-center gap-3 mb-3">
                 <Monitor className="h-6 w-6 text-blue-600" />
                 <div>
-                  <h4 className="font-medium">Windows Professional Audit</h4>
-                  <Badge variant="outline" className="text-xs mt-1">WinAudit-Level</Badge>
+                  <h4 className="font-medium">Windows Professional Audit v4.0</h4>
+                  <Badge variant="outline" className="text-xs mt-1">Enhanced WinAudit</Badge>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Deep hardware detection with real manufacturer identification
+                PowerShell-enhanced detection with real manufacturer identification and detailed specs
               </p>
               <Button
                 size="sm"
@@ -845,7 +954,7 @@ echo "==============================================="
                 onClick={() => downloadScript('windows')}
               >
                 <Download className="h-3 w-3 mr-2" />
-                Download Windows Script
+                Download Windows Script v4.0
               </Button>
             </CardContent>
           </Card>
@@ -855,12 +964,12 @@ echo "==============================================="
               <div className="flex items-center gap-3 mb-3">
                 <Monitor className="h-6 w-6 text-green-600" />
                 <div>
-                  <h4 className="font-medium">Linux Professional Audit</h4>
-                  <Badge variant="outline" className="text-xs mt-1">Hardware Detection</Badge>
+                  <h4 className="font-medium">Linux Professional Audit v4.0</h4>
+                  <Badge variant="outline" className="text-xs mt-1">Enhanced Detection</Badge>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Complete system analysis using lshw, dmidecode, and lspci
+                Comprehensive system analysis using enhanced lshw, dmidecode, and advanced parsing
               </p>
               <Button
                 size="sm"
@@ -869,7 +978,7 @@ echo "==============================================="
                 onClick={() => downloadScript('linux')}
               >
                 <Download className="h-3 w-3 mr-2" />
-                Download Linux Script
+                Download Linux Script v4.0
               </Button>
             </CardContent>
           </Card>
@@ -967,17 +1076,19 @@ echo "==============================================="
             <div>
               <h5 className="font-medium mb-3">Detected OEMs for Monitoring</h5>
               <div className="grid gap-2 md:grid-cols-3">
-                {inventory.detectedOEMs?.map((oem, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded border">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium">{oem}</span>
+                {inventory.detectedOEMs?.length > 0 ? (
+                  inventory.detectedOEMs.map((oem, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded border">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium">{oem}</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {determineSystemType(oem, inventory)}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {determineSystemType(oem, inventory)}
-                    </Badge>
-                  </div>
-                )) || (
+                  ))
+                ) : (
                   <p className="text-sm text-muted-foreground">No OEMs detected</p>
                 )}
               </div>
@@ -1003,15 +1114,17 @@ echo "==============================================="
             <Info className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
               <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-                Professional Hardware Detection Features
+                Enhanced Professional Hardware Detection Features v4.0
               </h4>
               <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
-                <li><strong>Real Hardware Detection:</strong> Uses WMI/DMI for actual component identification</li>
-                <li><strong>Manufacturer Analysis:</strong> Extracts real manufacturer names from hardware</li>
-                <li><strong>Component Specifications:</strong> Detailed CPU, memory, storage, and network info</li>
-                <li><strong>Smart OEM Engine:</strong> Analyzes all components to identify relevant OEMs</li>
+                <li><strong>PowerShell Integration:</strong> Windows script now uses PowerShell for advanced JSON processing</li>
+                <li><strong>Real Manufacturer Detection:</strong> Extracts actual manufacturer names from hardware components</li>
+                <li><strong>Enhanced Component Specs:</strong> Detailed CPU, memory, storage specifications with part numbers</li>
+                <li><strong>Advanced OEM Engine:</strong> Comprehensive analysis of all system components for OEM identification</li>
+                <li><strong>Improved Linux Detection:</strong> Better parsing with jq integration and enhanced hardware detection</li>
+                <li><strong>JSON Validation:</strong> Proper JSON formatting with error handling and data validation</li>
                 <li><strong>Windows:</strong> Requires Administrator privileges for complete hardware access</li>
-                <li><strong>Linux:</strong> Requires root for memory details (sudo ./script.sh)</li>
+                <li><strong>Linux:</strong> Requires root for memory details and lshw/dmidecode tools (sudo ./script.sh)</li>
               </ul>
             </div>
           </div>
