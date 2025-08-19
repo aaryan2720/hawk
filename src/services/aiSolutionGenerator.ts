@@ -2,18 +2,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Alert } from '@/types';
 
-export interface GeneratedSolution {
-  id: string;
-  alertId: string;
-  title: string;
-  description: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  estimatedTime: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  category: 'immediate' | 'patch' | 'configuration' | 'monitoring';
-  steps: SolutionStep[];
-  prerequisites: string[];
-  createdAt: string;
+export interface VulnerabilityDetails {
+  attackVector: string;
+  impact: string;
+  affectedSystems: string;
 }
 
 export interface SolutionStep {
@@ -24,167 +16,127 @@ export interface SolutionStep {
   commands?: string[];
   expectedResult: string;
   troubleshooting?: string;
-  isCompleted?: boolean;
+}
+
+export interface GeneratedSolution {
+  title: string;
+  description: string;
+  category: 'immediate' | 'patch' | 'configuration' | 'monitoring';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: string;
+  vulnerabilityDetails: VulnerabilityDetails;
+  prerequisites: string[];
+  steps: SolutionStep[];
 }
 
 export class AISolutionGenerator {
-  private static async callAIService(prompt: string): Promise<string> {
+  static async generateSolution(alert: Alert): Promise<GeneratedSolution> {
     try {
+      // Create a comprehensive prompt with specific vulnerability details
+      const prompt = this.createVulnerabilityPrompt(alert);
+      
+      console.log('Calling AI solution generator with prompt:', prompt);
+      
       const { data, error } = await supabase.functions.invoke('ai-solution-generator', {
         body: { prompt }
       });
 
-      if (error) throw error;
-      return data.solution;
-    } catch (error) {
-      console.error('AI Service Error:', error);
-      throw new Error('Failed to generate AI solution');
-    }
-  }
-
-  private static parseAISolution(aiResponse: string, alert: Alert): GeneratedSolution {
-    try {
-      // Parse the AI response (assuming it returns structured JSON)
-      const parsed = JSON.parse(aiResponse);
-      
-      return {
-        id: `solution-${alert.id}-${Date.now()}`,
-        alertId: alert.id,
-        title: parsed.title || `Solution for ${alert.title}`,
-        description: parsed.description || 'AI-generated solution steps',
-        severity: alert.severity,
-        estimatedTime: parsed.estimatedTime || this.estimateTime(alert.severity),
-        difficulty: parsed.difficulty || this.estimateDifficulty(alert.severity),
-        category: parsed.category || this.categorizeByAlert(alert),
-        steps: parsed.steps || [],
-        prerequisites: parsed.prerequisites || [],
-        createdAt: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('Error parsing AI solution:', error);
-      return this.generateFallbackSolution(alert);
-    }
-  }
-
-  private static estimateTime(severity: string): string {
-    switch (severity) {
-      case 'critical': return '30-60 minutes';
-      case 'high': return '1-2 hours';
-      case 'medium': return '2-4 hours';
-      default: return '1-3 hours';
-    }
-  }
-
-  private static estimateDifficulty(severity: string): 'beginner' | 'intermediate' | 'advanced' {
-    switch (severity) {
-      case 'critical': return 'intermediate';
-      case 'high': return 'intermediate';
-      case 'medium': return 'beginner';
-      default: return 'beginner';
-    }
-  }
-
-  private static categorizeByAlert(alert: Alert): 'immediate' | 'patch' | 'configuration' | 'monitoring' {
-    if (alert.severity === 'critical') return 'immediate';
-    if (alert.cve) return 'patch';
-    if (alert.system.toLowerCase().includes('config')) return 'configuration';
-    return 'monitoring';
-  }
-
-  private static generateFallbackSolution(alert: Alert): GeneratedSolution {
-    const steps: SolutionStep[] = [
-      {
-        id: 1,
-        title: 'Assess the Risk',
-        description: 'Evaluate the impact of this vulnerability on your system',
-        action: 'Check if your system is affected by this vulnerability',
-        expectedResult: 'Understanding of vulnerability impact',
-        troubleshooting: 'If unsure, contact your system administrator'
-      },
-      {
-        id: 2,
-        title: 'Apply Security Patch',
-        description: 'Install the latest security updates',
-        action: 'Download and install the recommended patch',
-        commands: alert.patchLink ? [`Visit: ${alert.patchLink}`] : undefined,
-        expectedResult: 'System updated with security patch',
-        troubleshooting: 'If patch fails, check system requirements'
-      },
-      {
-        id: 3,
-        title: 'Verify Fix',
-        description: 'Confirm the vulnerability has been resolved',
-        action: 'Test your system to ensure the fix is working',
-        expectedResult: 'Vulnerability no longer present',
-        troubleshooting: 'If issue persists, repeat previous steps'
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(`Failed to generate solution: ${error.message}`);
       }
-    ];
 
-    return {
-      id: `solution-${alert.id}-${Date.now()}`,
-      alertId: alert.id,
-      title: `Security Solution for ${alert.title}`,
-      description: 'Step-by-step guide to resolve this security issue',
-      severity: alert.severity,
-      estimatedTime: this.estimateTime(alert.severity),
-      difficulty: this.estimateDifficulty(alert.severity),
-      category: this.categorizeByAlert(alert),
-      steps,
-      prerequisites: ['Administrative access', 'System backup recommended'],
-      createdAt: new Date().toISOString()
-    };
-  }
+      if (!data?.solution) {
+        throw new Error('No solution received from AI generator');
+      }
 
-  public static async generateSolution(alert: Alert): Promise<GeneratedSolution> {
-    const prompt = this.buildPrompt(alert);
-    
-    try {
-      const aiResponse = await this.callAIService(prompt);
-      return this.parseAISolution(aiResponse, alert);
+      // Validate the solution structure
+      const solution = this.validateSolution(data.solution);
+      
+      return solution;
     } catch (error) {
-      console.warn('AI generation failed, using fallback:', error);
-      return this.generateFallbackSolution(alert);
+      console.error('Error generating AI solution:', error);
+      throw new Error(`Solution generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private static buildPrompt(alert: Alert): string {
+  private static createVulnerabilityPrompt(alert: Alert): string {
     return `
-Generate a step-by-step solution for this security vulnerability:
+VULNERABILITY ANALYSIS REQUEST:
 
 Title: ${alert.title}
 Description: ${alert.description}
 Severity: ${alert.severity}
-System: ${alert.system}
-CVE: ${alert.cve || 'N/A'}
+Affected System: ${alert.system}
+CVE: ${alert.cve || 'Not specified'}
 
-Requirements:
-1. Create 3-6 clear, actionable steps
-2. Use simple language for non-technical users
-3. Include expected results for each step
-4. Add troubleshooting tips
-5. Specify prerequisites
-6. Estimate difficulty and time
+DETAILED REQUIREMENTS:
+1. Analyze this SPECIFIC vulnerability, not generic security practices
+2. If this is a known CVE, provide details from the CVE database
+3. Explain the exact attack vector and exploitation method
+4. Provide the real security impact and business risk
+5. Give step-by-step technical remediation that actually works
+6. Include specific commands, patches, or configuration changes
+7. Provide verification steps to confirm the fix
+8. If you cannot provide specific details due to insufficient information, clearly state what additional information is needed
 
-Return as JSON with this structure:
-{
-  "title": "Solution title",
-  "description": "Brief description",
-  "estimatedTime": "time estimate",
-  "difficulty": "beginner/intermediate/advanced",
-  "category": "immediate/patch/configuration/monitoring",
-  "prerequisites": ["requirement1", "requirement2"],
-  "steps": [
-    {
-      "id": 1,
-      "title": "Step title",
-      "description": "What this step does",
-      "action": "Specific action to take",
-      "commands": ["command1", "command2"],
-      "expectedResult": "What should happen",
-      "troubleshooting": "If something goes wrong"
+CONTEXT:
+- This appears to be affecting: ${alert.system}
+- Current status: ${alert.status}
+${alert.mitigation ? `- Existing mitigation info: ${alert.mitigation}` : ''}
+${alert.patchLink ? `- Patch available at: ${alert.patchLink}` : ''}
+
+Provide a comprehensive, technically accurate solution that security professionals can immediately implement.
+    `.trim();
+  }
+
+  private static validateSolution(solution: any): GeneratedSolution {
+    // Provide fallback structure if AI response is incomplete
+    const defaultSolution: GeneratedSolution = {
+      title: solution.title || 'Vulnerability Analysis',
+      description: solution.description || 'Security vulnerability requiring attention',
+      category: solution.category || 'configuration',
+      difficulty: solution.difficulty || 'intermediate',
+      estimatedTime: solution.estimatedTime || '1-2 hours',
+      vulnerabilityDetails: {
+        attackVector: solution.vulnerabilityDetails?.attackVector || 'Attack vector analysis pending - additional technical details needed',
+        impact: solution.vulnerabilityDetails?.impact || 'Security impact assessment required',
+        affectedSystems: solution.vulnerabilityDetails?.affectedSystems || 'System impact analysis needed'
+      },
+      prerequisites: solution.prerequisites || ['System administrator access', 'Backup of current configuration'],
+      steps: solution.steps || [
+        {
+          id: 1,
+          title: 'Initial Assessment',
+          description: 'Evaluate the current vulnerability status',
+          action: 'Review system logs and current security posture to understand the vulnerability scope',
+          expectedResult: 'Clear understanding of vulnerability impact on your specific environment',
+          troubleshooting: 'If logs are unclear, check with your security team for additional context'
+        },
+        {
+          id: 2,
+          title: 'Apply Security Measures',
+          description: 'Implement immediate protective measures',
+          action: 'Follow vendor-specific security guidelines and apply available patches or workarounds',
+          expectedResult: 'Vulnerability is mitigated according to security best practices',
+          troubleshooting: 'Contact vendor support if patches fail to apply or cause system issues'
+        }
+      ]
+    };
+
+    // Ensure all steps have required fields
+    if (defaultSolution.steps) {
+      defaultSolution.steps = defaultSolution.steps.map((step, index) => ({
+        id: step.id || index + 1,
+        title: step.title || `Security Step ${index + 1}`,
+        description: step.description || 'Security remediation step',
+        action: step.action || 'Follow security best practices for this vulnerability type',
+        commands: step.commands || undefined,
+        expectedResult: step.expectedResult || 'Security improvement implemented',
+        troubleshooting: step.troubleshooting || 'Contact your security team if issues arise'
+      }));
     }
-  ]
-}
-    `;
+
+    return defaultSolution;
   }
 }

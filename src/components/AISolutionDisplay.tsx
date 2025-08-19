@@ -14,7 +14,9 @@ import {
   Lightbulb,
   Play,
   RefreshCw,
-  Shield
+  Shield,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { Alert as AlertType } from '@/types';
 import { AISolutionGenerator, GeneratedSolution } from '@/services/aiSolutionGenerator';
@@ -83,7 +85,7 @@ const AISolutionDisplay: React.FC<AISolutionDisplayProps> = ({ alert }) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 animate-spin text-blue-500" />
-            Generating AI Solution...
+            Analyzing Vulnerability...
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -95,7 +97,7 @@ const AISolutionDisplay: React.FC<AISolutionDisplayProps> = ({ alert }) => {
                 <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
               </div>
               <p className="text-sm text-gray-500 mt-4">
-                AI is analyzing the vulnerability and creating step-by-step solutions...
+                AI is analyzing the specific vulnerability and generating accurate technical solutions...
               </p>
             </div>
           </div>
@@ -133,6 +135,55 @@ const AISolutionDisplay: React.FC<AISolutionDisplayProps> = ({ alert }) => {
 
   return (
     <div className="space-y-6">
+      {/* Vulnerability Analysis Header */}
+      <Card className="border-l-4 border-l-red-500 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-700">
+            <AlertTriangle className="h-5 w-5" />
+            Vulnerability Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <h4 className="font-medium text-sm text-red-600 mb-1">Attack Vector</h4>
+              <p className="text-sm text-red-800">{solution.vulnerabilityDetails.attackVector}</p>
+            </div>
+            <div>
+              <h4 className="font-medium text-sm text-red-600 mb-1">Security Impact</h4>
+              <p className="text-sm text-red-800">{solution.vulnerabilityDetails.impact}</p>
+            </div>
+            <div>
+              <h4 className="font-medium text-sm text-red-600 mb-1">Affected Systems</h4>
+              <p className="text-sm text-red-800">{solution.vulnerabilityDetails.affectedSystems}</p>
+            </div>
+          </div>
+          
+          {alert.cve && (
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                {alert.cve}
+              </Badge>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                asChild
+                className="h-6 px-2 text-xs"
+              >
+                <a 
+                  href={`https://nvd.nist.gov/vuln/detail/${alert.cve}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  CVE Details
+                </a>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Solution Header */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader>
@@ -247,13 +298,16 @@ const AISolutionDisplay: React.FC<AISolutionDisplayProps> = ({ alert }) => {
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium mb-2">Action to Take:</h4>
-                  <p className="text-gray-700 bg-blue-50 p-3 rounded-md">{step.action}</p>
+                  <h4 className="font-medium mb-2 flex items-center gap-1">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    Action Required:
+                  </h4>
+                  <p className="text-gray-700 bg-blue-50 p-3 rounded-md border-l-2 border-blue-200">{step.action}</p>
                 </div>
 
                 {step.commands && step.commands.length > 0 && (
                   <div>
-                    <h4 className="font-medium mb-2">Commands/Steps:</h4>
+                    <h4 className="font-medium mb-2">Commands/Configuration:</h4>
                     <div className="bg-gray-900 text-green-400 p-3 rounded-md text-sm font-mono">
                       {step.commands.map((command, cmdIndex) => (
                         <div key={cmdIndex} className="mb-1">
@@ -266,14 +320,20 @@ const AISolutionDisplay: React.FC<AISolutionDisplayProps> = ({ alert }) => {
                 )}
 
                 <div>
-                  <h4 className="font-medium mb-2">Expected Result:</h4>
-                  <p className="text-gray-700 bg-green-50 p-3 rounded-md">{step.expectedResult}</p>
+                  <h4 className="font-medium mb-2 flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Expected Result:
+                  </h4>
+                  <p className="text-gray-700 bg-green-50 p-3 rounded-md border-l-2 border-green-200">{step.expectedResult}</p>
                 </div>
 
                 {step.troubleshooting && (
                   <div>
-                    <h4 className="font-medium mb-2">Troubleshooting:</h4>
-                    <p className="text-gray-700 bg-yellow-50 p-3 rounded-md">{step.troubleshooting}</p>
+                    <h4 className="font-medium mb-2 flex items-center gap-1">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      Troubleshooting:
+                    </h4>
+                    <p className="text-gray-700 bg-yellow-50 p-3 rounded-md border-l-2 border-yellow-200">{step.troubleshooting}</p>
                   </div>
                 )}
               </div>
