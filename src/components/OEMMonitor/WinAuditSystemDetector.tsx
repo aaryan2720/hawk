@@ -451,8 +451,8 @@ if [ -d /sys/block ]; then
                 size_sectors=$(cat "$device/size" 2>/dev/null)
                 if [ -n "$size_sectors" ] && [ "$size_sectors" -gt 0 ]; then
                     size_bytes=$((size_sectors * 512))
-                    size_gb=$((size_bytes / 1000000000))
-                    size="${size_gb} GB"
+                    size_gb_val=$((size_bytes / 1000000000))
+                    size="${size_gb_val} GB"
                 fi
             fi
             
@@ -626,7 +626,7 @@ packages_array="[]"
 
 if command -v dpkg >/dev/null 2>&1; then
     # Debian/Ubuntu - get more comprehensive package info
-    dpkg-query -W -f='${Package}|${Version}|${Maintainer}|${Status}\n' 2>/dev/null | \
+    dpkg-query -W -f='\${Package}|\${Version}|\${Maintainer}|\${Status}\n' 2>/dev/null | \\
     grep "|install ok installed" | head -100 | while IFS='|' read -r pkg_name pkg_version pkg_maintainer pkg_status; do
         echo "{\\"name\\": \\"$pkg_name\\", \\"version\\": \\"$pkg_version\\", \\"publisher\\": \\"Debian/Ubuntu\\", \\"maintainer\\": \\"$pkg_maintainer\\"},"
     done > $TEMP_DIR/packages.json 2>/dev/null
