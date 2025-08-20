@@ -8,6 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,25 +25,23 @@ serve(async (req) => {
       );
     }
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
-    console.log('Generating AI solution for vulnerability...');
+    console.log('Generating AI solution for vulnerability using Gemini...');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a cybersecurity expert who analyzes specific vulnerabilities and provides accurate, actionable solutions.
+        contents: [{
+          role: "user",
+          parts: [{
+            text: `You are a cybersecurity expert who analyzes specific vulnerabilities and provides accurate, actionable solutions.
 
             For each vulnerability analysis, you must:
             1. Identify the SPECIFIC vulnerability type and attack vector
@@ -82,42 +82,68 @@ serve(async (req) => {
                   "troubleshooting": "Common issues and solutions"
                 }
               ]
-            }`
+            }
+
+            VULNERABILITY TO ANALYZE:
+            ${prompt}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          topK: 40,
+          maxOutputTokens: 3000,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
           },
           {
-            role: 'user',
-            content: prompt
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
           }
-        ],
-        temperature: 0.1,
-        max_tokens: 3000,
+        ]
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      console.error('Gemini API error:', error);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const solution = data.choices[0]?.message?.content;
-
-    if (!solution) {
-      throw new Error('No solution generated');
+    console.log('Received response from Gemini API');
+    
+    // Extract the response text
+    let responseText = "I'm having trouble understanding that. Could you try rephrasing?";
+    if (data.candidates && data.candidates.length > 0 && 
+        data.candidates[0].content && 
+        data.candidates[0].content.parts && 
+        data.candidates[0].content.parts.length > 0) {
+      responseText = data.candidates[0].content.parts[0].text;
     }
 
     // Try to parse the JSON response
     let parsedSolution;
     try {
-      parsedSolution = JSON.parse(solution);
+      parsedSolution = JSON.parse(responseText);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
       // Return a structured response even if JSON parsing fails
       parsedSolution = {
         title: "Analysis Failed",
         description: "Unable to generate structured solution",
-        rawResponse: solution
+        rawResponse: responseText
       };
     }
 
