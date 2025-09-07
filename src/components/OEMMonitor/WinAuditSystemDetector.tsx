@@ -830,6 +830,14 @@ echo "==============================================="
       setInventory(data);
       toast.success(`Processed system inventory: Found ${data.detectedOEMs?.length || 0} OEMs`);
       
+      // Auto-configure OEM monitoring if OEMs were detected
+      if (data.detectedOEMs && data.detectedOEMs.length > 0) {
+        toast.info('Auto-configuring OEM monitoring...', { duration: 2000 });
+        setTimeout(() => {
+          configureOEMMonitoring();
+        }, 1000);
+      }
+      
     } catch (error) {
       console.error('Error processing inventory:', error);
       toast.error('Failed to process system inventory file');
