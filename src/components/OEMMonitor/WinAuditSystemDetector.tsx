@@ -831,11 +831,26 @@ echo "==============================================="
       toast.success(`Processed system inventory: Found ${data.detectedOEMs?.length || 0} OEMs`);
       
       // Auto-configure OEM monitoring if OEMs were detected
-      if (data.detectedOEMs && data.detectedOEMs.length > 0) {
+      if (data.detectedOEMs && data.detectedOEMs.length > 0 && user) {
         toast.info('Auto-configuring OEM monitoring...', { duration: 2000 });
-        setTimeout(() => {
-          configureOEMMonitoring();
-        }, 1000);
+        
+        // Configure OEM monitoring directly with the data
+        try {
+          let configured = 0;
+          
+          for (const oem of data.detectedOEMs) {
+            const oemUrl = generateOEMSecurityUrl(oem);
+            const systemType = determineSystemType(oem, data);
+            
+            await addOEMSource(user.id, oem, oemUrl, systemType);
+            configured++;
+          }
+          
+          toast.success(`✓ Configured monitoring for ${configured} detected OEMs`);
+        } catch (error) {
+          console.error('Error configuring OEM monitoring:', error);
+          toast.error('Failed to configure some OEM sources');
+        }
       }
       
     } catch (error) {
