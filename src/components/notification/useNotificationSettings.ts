@@ -1,23 +1,26 @@
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { NotificationSettings } from './types';
 import { useAuth } from '@/hooks/useAuth';
+import { Json } from '@/integrations/supabase/types';
 
 const notificationSchema = z.object({
-  emailEnabled: z.boolean().default(true),
-  smsEnabled: z.boolean().default(false),
-  emailAddress: z.string().email("Please enter a valid email address").or(z.string().length(0)),
-  phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Please enter a valid phone number").or(z.string().length(0)),
-  alertLevel: z.string().default("critical"),
-  frequency: z.string().default("immediate"),
-  timeframe: z.string().default("any"),
+  emailEnabled: z.boolean(),
+  smsEnabled: z.boolean(),
+  emailAddress: z.string(),
+  phoneNumber: z.string(),
+  alertLevel: z.string(),
+  frequency: z.string(),
+  timeframe: z.string(),
   emailVerified: z.boolean().optional()
 });
+
+type NotificationFormValues = z.infer<typeof notificationSchema>;
 
 export const useNotificationSettings = () => {
   const { user } = useAuth();
@@ -26,7 +29,7 @@ export const useNotificationSettings = () => {
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   const [debug, setDebug] = useState<string | null>(null);
   
-  const form = useForm<NotificationSettings>({
+  const form = useForm<NotificationFormValues>({
     resolver: zodResolver(notificationSchema),
     defaultValues: {
       emailEnabled: true,
@@ -160,7 +163,7 @@ export const useNotificationSettings = () => {
     }
   };
 
-  const handleSaveSettings = async (values: NotificationSettings) => {
+  const handleSaveSettings = async (values: NotificationFormValues) => {
     if (!user) {
       toast.error("You must be logged in to save settings");
       return;
@@ -171,7 +174,7 @@ export const useNotificationSettings = () => {
       console.log("Saving notification settings:", values);
       
       // Always set email as verified
-      values.emailVerified = true;
+      const updatedValues = { ...values, emailVerified: true };
       
       const { data: existingSystem, error: fetchError } = await supabase
         .from('user_systems')
@@ -185,18 +188,18 @@ export const useNotificationSettings = () => {
       }
       
       const notificationPreferences = {
-        emailEnabled: values.emailEnabled,
-        smsEnabled: values.smsEnabled,
-        emailAddress: values.emailAddress, // Use the exact email from the form
-        phoneNumber: values.phoneNumber,
-        alertLevel: values.alertLevel,
-        frequency: values.frequency,
-        timeframe: values.timeframe,
+        emailEnabled: updatedValues.emailEnabled,
+        smsEnabled: updatedValues.smsEnabled,
+        emailAddress: updatedValues.emailAddress, // Use the exact email from the form
+        phoneNumber: updatedValues.phoneNumber,
+        alertLevel: updatedValues.alertLevel,
+        frequency: updatedValues.frequency,
+        timeframe: updatedValues.timeframe,
         emailVerified: true
       };
       
       // Fix: Make sure monitoringSettings is always an object
-      let monitoringSettings: Record<string, any> = {};
+      let monitoringSettings: Record<string, unknown> = {};
       
       if (existingSystem?.monitoring_settings) {
         // Get the existing monitoring_settings and parse it if necessary
@@ -204,7 +207,7 @@ export const useNotificationSettings = () => {
           monitoringSettings = JSON.parse(existingSystem.monitoring_settings);
         } else if (existingSystem.monitoring_settings !== null && typeof existingSystem.monitoring_settings === 'object') {
           // Safe spread of object
-          monitoringSettings = { ...existingSystem.monitoring_settings };
+          monitoringSettings = { ...existingSystem.monitoring_settings as Record<string, unknown> };
         }
       }
       
@@ -221,11 +224,11 @@ export const useNotificationSettings = () => {
         console.log("Creating new user_system record");
         const { error: insertError } = await supabase
           .from('user_systems')
-          .insert({
+          .insert([{
             user_id: user.id,
             system_name: 'Default System',
-            monitoring_settings: monitoringSettings
-          });
+            monitoring_settings: monitoringSettings as Json
+          }]);
           
         if (insertError) throw insertError;
       } else {
@@ -233,7 +236,7 @@ export const useNotificationSettings = () => {
         const { error: updateError } = await supabase
           .from('user_systems')
           .update({ 
-            monitoring_settings: monitoringSettings
+            monitoring_settings: monitoringSettings as Json
           })
           .eq('id', existingSystem.id);
           
@@ -255,7 +258,7 @@ export const useNotificationSettings = () => {
   };
 
   return {
-    form,
+    form: form as unknown as UseFormReturn<NotificationSettings>,
     isLoading,
     saveSuccess,
     emailVerificationSent,
@@ -263,7 +266,7 @@ export const useNotificationSettings = () => {
     setDebug,
     emailEnabled,
     smsEnabled,
-    handleSaveSettings,
+    handleSaveSettings: handleSaveSettings as (values: NotificationSettings) => Promise<void>,
     fetchSettings
   };
 };
