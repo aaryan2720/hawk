@@ -10,6 +10,7 @@ import AlertPreferences from './notification/AlertPreferences';
 import NotificationActions from './notification/NotificationActions';
 import DebugPanel from './notification/DebugPanel';
 import { useNotificationSettings } from './notification/useNotificationSettings';
+import { NotificationSettings } from './notification/types';
 
 const NotificationSystem: React.FC = () => {
   const { user, session } = useAuth();
@@ -32,7 +33,8 @@ const NotificationSystem: React.FC = () => {
     
     try {
       // Save current settings first to ensure test uses latest configuration
-      await form.handleSubmit(handleSaveSettings)();
+      const values = form.getValues() as NotificationSettings;
+      await handleSaveSettings(values);
       
       toast.info('Sending test notification...', {
         description: 'This may take a few moments'
