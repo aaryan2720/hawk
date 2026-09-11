@@ -1,5 +1,7 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
+import { useGsapReveal } from '@/hooks/useGsapReveal';
+import ScrollProgressBar from '@/components/ScrollProgressBar';
 import { Link } from 'react-router-dom';
 import { Shield, CheckCircle, Lock, BarChart2, AlertTriangle, ArrowRight, Globe, Server, Users, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,66 +85,62 @@ const VisualizationPlaceholder = () => {
 };
 
 const Landing = () => {
-  const particlesInit = async (engine) => {
-    await loadSlim(engine);
-  };
-  
+  const scope = useRef<HTMLDivElement>(null);
+  useGsapReveal(scope);
+
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div ref={scope} className="min-h-screen overflow-x-hidden bg-background">
+      <ScrollProgressBar />
+
       {/* Hero Section */}
-      <header className="relative bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900 text-white overflow-hidden">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
-          {/* Removed particles for simplicity and to avoid errors */}
+      <header className="relative overflow-hidden border-b border-border bg-[var(--gradient-surface)]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-accent/60 blur-3xl" />
         </div>
 
-        <div className="container mx-auto px-4 py-6 relative z-10">
-          <nav className="flex justify-between items-center">
-            <motion.div 
+        <div className="container relative z-10 mx-auto px-4 py-6">
+          <nav className="flex items-center justify-between">
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="flex items-center space-x-2"
             >
               <Shield className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-300">
-                HAWK
-              </span>
+              <span className="text-xl font-bold tracking-tight text-foreground">HAWK</span>
             </motion.div>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               className="flex items-center space-x-4"
             >
-              <Link 
-                to="/auth/login" 
-                className="text-gray-200 hover:text-white transition-colors font-medium hover:underline underline-offset-4 decoration-primary"
+              <Link
+                to="/auth/login"
+                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Log in
               </Link>
               <Link to="/auth/signup">
-                <Button 
-                  variant="outline" 
-                  className="border-white/30 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/50 text-white hover:text-white transition-all shadow-lg hover:shadow-primary/20"
-                >
+                <Button variant="outline" className="shadow-sm">
                   Sign up
                 </Button>
               </Link>
             </motion.div>
           </nav>
-          
-          <div className="py-24 max-w-4xl mx-auto text-center relative">
+
+          <div className="relative mx-auto max-w-4xl py-24 text-center">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200">
-                  Enterprise-Grade{' '}
-                </span>
+              <span className="mb-6 inline-block rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-sm">
+                Real-time OEM advisory monitoring
+              </span>
+              <h1 className="mb-6 text-5xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
+                Enterprise-Grade{' '}
                 <TypeAnimation
                   sequence={[
                     'Security Monitoring',
@@ -155,41 +153,41 @@ const Landing = () => {
                   wrapper="span"
                   speed={50}
                   repeat={Infinity}
-                  className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-300"
+                  className="text-primary"
                 />
               </h1>
-              <motion.p 
+              <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="mt-6 text-xl text-gray-300 max-w-3xl mx-auto"
+                className="mx-auto mt-6 max-w-3xl text-xl text-muted-foreground"
               >
-                HAWK provides real-time security monitoring and vulnerability management for 
+                HAWK provides real-time security monitoring and vulnerability management for
                 organizations of all sizes. Detect threats before they impact your business.
               </motion.p>
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="mt-10 flex flex-col sm:flex-row gap-4 justify-center"
+                className="mt-10 flex flex-col justify-center gap-4 sm:flex-row"
               >
                 <Link to="/auth/signup">
-                  <Button 
-                    size="lg" 
-                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all hover:translate-y-[-2px] group"
+                  <Button
+                    size="lg"
+                    className="group w-full shadow-lg transition-all hover:translate-y-[-2px] hover:shadow-xl sm:w-auto"
                   >
-                    <span className="group-hover:scale-105 transition-transform">Get Started</span>
-                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    Get Started
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
                 <a href="mailto:sales@hawksecurity.example.com">
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    className="border-white/30 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/50 text-white hover:text-white w-full sm:w-auto shadow-lg hover:shadow-xl transition-all hover:translate-y-[-2px] group"
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="group w-full shadow-sm transition-all hover:translate-y-[-2px] hover:shadow-md sm:w-auto"
                   >
-                    <span className="group-hover:scale-105 transition-transform">Request Demo</span>
-                    <FiArrowUpRight className="ml-2 h-4 w-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    Request Demo
+                    <FiArrowUpRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
                   </Button>
                 </a>
               </motion.div>
@@ -197,6 +195,7 @@ const Landing = () => {
           </div>
         </div>
       </header>
+
 
       {/* Trusted By Section */}
       <section className="py-12 bg-gray-50 border-b border-gray-200">
