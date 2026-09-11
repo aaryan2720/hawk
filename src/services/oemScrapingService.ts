@@ -229,7 +229,7 @@ export class OEMScrapingService {
             mitigationUrl: vulnerability.mitigationUrl,
             scrapedAt: new Date().toISOString()
           }
-        });
+        } as any);
       
       if (error) {
         console.error('Error storing vulnerability:', error);
