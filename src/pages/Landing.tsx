@@ -9,7 +9,6 @@ import { motion } from 'framer-motion';
 import { FiArrowUpRight } from 'react-icons/fi';
 import { useInView } from 'react-intersection-observer';
 import { TypeAnimation } from 'react-type-animation';
-import { loadSlim } from 'tsparticles-slim';
 
 // Animated Components
 const AnimatedFeatureCard = ({ icon, title, description, delay }) => {
@@ -198,7 +197,7 @@ const Landing = () => {
 
 
       {/* Trusted By Section */}
-      <section className="py-12 bg-gray-50 border-b border-gray-200">
+      <section data-reveal className="py-12 bg-gray-50 border-b border-gray-200">
         <div className="container mx-auto px-4">
           <p className="text-center text-gray-500 mb-8">Trusted by security teams at</p>
           <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70">
@@ -219,7 +218,7 @@ const Landing = () => {
       </section>
 
       {/* Features */}
-      <section className="py-20 bg-white">
+      <section data-reveal className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -284,7 +283,7 @@ const Landing = () => {
       </section>
 
       {/* 3D Visualization Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
+      <section data-reveal className="py-20 bg-gradient-to-br from-gray-50 to-white">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="lg:w-1/2">
@@ -319,7 +318,7 @@ const Landing = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-r from-gray-900 to-blue-900 text-white">
+      <section data-reveal className="py-20 bg-gradient-to-r from-gray-900 to-blue-900 text-white">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             {[
@@ -345,7 +344,7 @@ const Landing = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 bg-white">
+      <section data-reveal className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -389,7 +388,7 @@ const Landing = () => {
       </section>
 
       {/* Integration Section */}
-      <section className="py-20 bg-gray-50">
+      <section data-reveal className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <motion.div 
@@ -462,7 +461,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-white">
+      <section data-reveal className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
