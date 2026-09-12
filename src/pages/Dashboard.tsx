@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import useGsapReveal from '@/hooks/useGsapReveal';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import DashboardNav from '@/components/DashboardNav';
@@ -125,7 +126,7 @@ const Dashboard = () => {
   const totalAlerts = severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={scope} className="min-h-screen bg-background">
       <DashboardNav />
       <main className="container mx-auto py-6 px-4 lg:px-6 space-y-5">
         
