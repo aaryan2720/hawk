@@ -71,11 +71,17 @@
 
 @layer utilities {
   .glass-effect {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-2xl;
+    @apply bg-card/90 backdrop-blur-xl border border-border;
+    box-shadow: var(--shadow-soft);
   }
-  
+
   .glass-card {
-    @apply bg-white/90 backdrop-blur-lg shadow-xl border border-white/40 transition-all duration-300 hover:shadow-2xl hover:bg-white/95;
+    @apply bg-card border border-border rounded-xl transition-all duration-300;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .glass-card:hover {
+    box-shadow: var(--shadow-elevated);
   }
   
   .text-shadow {

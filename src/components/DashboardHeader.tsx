@@ -64,15 +64,15 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
       <div className="animate-fade-in mb-8">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold tracking-tight mb-1">{title}</h1>
-          <p className="text-gray-500">{subtitle}</p>
+          <p className="text-muted-foreground">{subtitle}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass-card p-5 rounded-lg animate-pulse">
-              <div className="h-10 bg-gray-200 rounded-md mb-4"></div>
+              <div className="h-10 bg-muted rounded-md mb-4"></div>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="h-12 bg-gray-200 rounded-md"></div>
+                  <div key={j} className="h-12 bg-muted rounded-md"></div>
                 ))}
               </div>
             </div>
@@ -88,14 +88,14 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
     <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight mb-1">{title}</h1>
-        <p className="text-gray-500">{subtitle}</p>
+        <p className="text-muted-foreground">{subtitle}</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="glass-card p-5 rounded-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 mb-1">Total Alerts</p>
+              <p className="text-sm text-muted-foreground mb-1">Total Alerts</p>
               <p className="text-3xl font-semibold">{total}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">
@@ -104,19 +104,19 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
           </div>
           <div className="mt-4 grid grid-cols-4 gap-2">
             <div className="text-center">
-              <div className="text-xs text-gray-500 mb-1">Critical</div>
+              <div className="text-xs text-muted-foreground mb-1">Critical</div>
               <div className="text-lg font-medium text-alert-critical">{bySeverity.critical}</div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-gray-500 mb-1">High</div>
+              <div className="text-xs text-muted-foreground mb-1">High</div>
               <div className="text-lg font-medium text-alert-high">{bySeverity.high}</div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-gray-500 mb-1">Medium</div>
+              <div className="text-xs text-muted-foreground mb-1">Medium</div>
               <div className="text-lg font-medium text-alert-medium">{bySeverity.medium}</div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-gray-500 mb-1">Low</div>
+              <div className="text-xs text-muted-foreground mb-1">Low</div>
               <div className="text-lg font-medium text-alert-low">{bySeverity.low}</div>
             </div>
           </div>
@@ -125,7 +125,7 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
         <div className="glass-card p-5 rounded-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 mb-1">New Alerts</p>
+              <p className="text-sm text-muted-foreground mb-1">New Alerts</p>
               <p className="text-3xl font-semibold">{newAlerts}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-orange-50 flex items-center justify-center">
@@ -133,13 +133,13 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
             </div>
           </div>
           <div className="mt-4">
-            <div className="w-full bg-gray-100 rounded-full h-2.5">
+            <div className="w-full bg-muted rounded-full h-2.5">
               <div 
                 className="bg-alert-high h-2.5 rounded-full"
                 style={{ width: `${Math.min(100, (newAlerts / total) * 100)}%` }}
               ></div>
             </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
               <span>0</span>
               <span>{total}</span>
             </div>
@@ -149,9 +149,9 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
         <div className="glass-card p-5 rounded-lg animate-slide-up" style={{ animationDelay: '0.3s' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 mb-1">Alert Status</p>
+              <p className="text-sm text-muted-foreground mb-1">Alert Status</p>
               <p className="text-3xl font-semibold">{resolved}</p>
-              <p className="text-sm text-gray-500">Resolved</p>
+              <p className="text-sm text-muted-foreground">Resolved</p>
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">

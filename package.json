@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf node_modules dist",
+    "reinstall": "npm run clean && npm install"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

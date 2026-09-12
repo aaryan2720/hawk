@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import useGsapReveal from '@/hooks/useGsapReveal';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import DashboardNav from '@/components/DashboardNav';
@@ -21,6 +22,8 @@ import AlertStatusSummary from '@/components/AlertStatusSummary';
 import EnhancedVulnerabilityScanner from '@/components/EnhancedVulnerabilityScanner';
 
 const Dashboard = () => {
+  const scope = useRef<HTMLDivElement>(null);
+  useGsapReveal(scope);
   const { user, loading } = useAuth();
   const [severityCounts, setSeverityCounts] = useState({
     critical: 0,
@@ -107,12 +110,12 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-3">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl shadow-lg">
-            <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-r-transparent"></div>
+          <div className="p-3 rounded-xl shadow-[var(--shadow-soft)]" style={{ background: 'var(--gradient-primary)' }}>
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-foreground border-r-transparent"></div>
           </div>
-          <div className="text-primary/70 font-medium text-sm">Loading Security Dashboard...</div>
+          <div className="text-muted-foreground font-medium text-sm">Loading Security Dashboard...</div>
         </div>
       </div>
     );
@@ -125,40 +128,40 @@ const Dashboard = () => {
   const totalAlerts = severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
+    <div ref={scope} className="min-h-screen bg-background">
       <DashboardNav />
-      <main className="container mx-auto py-4 px-4 lg:px-6 space-y-4">
+      <main className="container mx-auto py-6 px-4 lg:px-6 space-y-5">
         
-        {/* Compact Header Section */}
-        <Card className="backdrop-blur-sm bg-white/95 border-0 shadow-lg rounded-xl overflow-hidden">
-          <CardContent className="p-4">
+        {/* Header Section */}
+        <Card data-reveal className="bg-card border-border shadow-[var(--shadow-soft)] rounded-xl overflow-hidden">
+          <CardContent className="p-5">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
-                  <Shield className="h-5 w-5 text-white" />
+                <div className="p-2.5 rounded-lg shadow-[var(--shadow-soft)]" style={{ background: 'var(--gradient-primary)' }}>
+                  <Shield className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 bg-clip-text text-transparent">
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground">
                     HAWK Security Dashboard
                   </h1>
-                  <p className="text-xs text-gray-600">Real-time security monitoring</p>
+                  <p className="text-xs text-muted-foreground">Real-time security monitoring</p>
                 </div>
               </div>
               
-              <div className="flex flex-wrap gap-2">
-                <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-1 text-xs font-medium shadow-md">
-                  <Activity className="h-3 w-3 mr-1 animate-pulse" />
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="px-2 py-1 text-xs font-medium">
+                  <Activity className="h-3 w-3 mr-1 animate-pulse text-primary" />
                   Live
                 </Badge>
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 text-xs font-medium shadow-md">
-                  <Zap className="h-3 w-3 mr-1" />
+                <Badge variant="secondary" className="px-2 py-1 text-xs font-medium">
+                  <Zap className="h-3 w-3 mr-1 text-primary" />
                   AI-Powered
                 </Badge>
                 <Button 
                   variant={showEnhancedScanner ? "default" : "outline"} 
                   onClick={() => setShowEnhancedScanner(!showEnhancedScanner)}
                   size="sm"
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-md border-0 text-xs px-3 py-1"
+                  className="text-xs"
                 >
                   <Target className="h-3 w-3 mr-1" />
                   Scanner
@@ -272,29 +275,29 @@ const Dashboard = () => {
           </div>
 
           {/* Quick Actions - Compact */}
-          <Card className="backdrop-blur-sm bg-white/95 border-0 shadow-lg rounded-xl">
+          <Card data-reveal className="bg-card border-border shadow-[var(--shadow-soft)] rounded-xl">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4" />
+                <Bell className="h-4 w-4 text-primary" />
                 Quick Actions
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="flex flex-wrap gap-2">
                 <Link to="/settings">
-                  <Button size="sm" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-md text-xs px-3 py-1.5">
+                  <Button size="sm" className="text-xs">
                     <Bell className="h-3 w-3 mr-1" />
                     Notifications
                   </Button>
                 </Link>
                 <Link to="/system-monitor">
-                  <Button variant="outline" size="sm" className="border-gray-300 hover:bg-gray-50 text-xs px-3 py-1.5">
+                  <Button variant="outline" size="sm" className="text-xs">
                     <Shield className="h-3 w-3 mr-1" />
                     Monitor
                   </Button>
                 </Link>
                 <Link to="/reports">
-                  <Button variant="outline" size="sm" className="border-gray-300 hover:bg-gray-50 text-xs px-3 py-1.5">
+                  <Button variant="outline" size="sm" className="text-xs">
                     <Activity className="h-3 w-3 mr-1" />
                     Reports
                   </Button>
