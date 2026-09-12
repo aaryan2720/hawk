@@ -107,12 +107,12 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-3">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl shadow-lg">
-            <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-r-transparent"></div>
+          <div className="p-3 rounded-xl shadow-[var(--shadow-soft)]" style={{ background: 'var(--gradient-primary)' }}>
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-foreground border-r-transparent"></div>
           </div>
-          <div className="text-primary/70 font-medium text-sm">Loading Security Dashboard...</div>
+          <div className="text-muted-foreground font-medium text-sm">Loading Security Dashboard...</div>
         </div>
       </div>
     );
