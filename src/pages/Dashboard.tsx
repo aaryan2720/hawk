@@ -22,6 +22,8 @@ import AlertStatusSummary from '@/components/AlertStatusSummary';
 import EnhancedVulnerabilityScanner from '@/components/EnhancedVulnerabilityScanner';
 
 const Dashboard = () => {
+  const scope = useRef<HTMLDivElement>(null);
+  useGsapReveal(scope);
   const { user, loading } = useAuth();
   const [severityCounts, setSeverityCounts] = useState({
     critical: 0,
