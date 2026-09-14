@@ -107,12 +107,15 @@ Scroll motion: add `data-reveal` to a section (or `data-reveal-stagger` to a gri
 
 ```text
 src/                 frontend application
-  components/        feature + UI components
-  pages/             routed screens
-  services/          backend access layer
-  hooks/             shared React hooks
+  pages/             routed screens (composition only)
+  features/          one folder per domain — auth, alerts, ai, oem, scanning,
+                     notifications, enterprise, architecture, billing.
+                     Each holds its own components/ services/ hooks/ utils/
+  components/ui      shadcn primitives
+  components/layout  navbar, footer, dashboard chrome
+  hooks/             cross-feature hooks
   integrations/      Supabase client & generated types
-  utils/, types/     helpers and shared types
+  utils/, types/     shared helpers and domain types
 supabase/functions/  Deno edge functions (backend logic + secrets)
 docs/                architecture, roadmap, guides
 ```
