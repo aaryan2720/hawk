@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Check, AlertTriangle, XCircle, Clock, Activity, RefreshCw, Shield, TrendingUp } from 'lucide-react';
-import { supabase } from '../integrations/supabase/client';
-import { capitalize } from '../utils/formatters';
-import { SystemStatus } from '../types';
+import { supabase } from '@/integrations/supabase/client';
+import { capitalize } from '@/utils/formatters';
+import { SystemStatus } from '@/types';
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

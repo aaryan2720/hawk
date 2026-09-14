@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChatMessage } from './types';
+import { ChatMessage } from '@/components/GeminiChat/types';
 import { Bot, User } from 'lucide-react';
 
 interface ChatMessagesProps {

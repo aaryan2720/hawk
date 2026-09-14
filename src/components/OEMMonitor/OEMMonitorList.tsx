@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import WinAuditSystemDetector from './WinAuditSystemDetector';
-import EnhancedOEMList from './EnhancedOEMList';
-import AddSourceDialog from './AddSourceDialog';
-import AutoDetectOEMs from './AutoDetectOEMs';
-import RealTimeOEMScanner from './RealTimeOEMScanner';
+import WinAuditSystemDetector from '@/components/OEMMonitor/WinAuditSystemDetector';
+import EnhancedOEMList from '@/components/OEMMonitor/EnhancedOEMList';
+import AddSourceDialog from '@/components/OEMMonitor/AddSourceDialog';
+import AutoDetectOEMs from '@/components/OEMMonitor/AutoDetectOEMs';
+import RealTimeOEMScanner from '@/components/OEMMonitor/RealTimeOEMScanner';
 import { useAuth } from '@/hooks/useAuth';
 import { addOEMSource } from '@/services/oemService';
 import { toast } from 'sonner';

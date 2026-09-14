@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Check, Clock } from 'lucide-react';
-import { supabase } from '../integrations/supabase/client';
-import { AlertsStats } from '../types';
+import { supabase } from '@/integrations/supabase/client';
+import { AlertsStats } from '@/types';
 
 interface DashboardHeaderProps {
   title: string;

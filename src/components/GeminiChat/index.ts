@@ -1,4 +1,4 @@
 
-import GeminiChatbot from '../GeminiChatbot';
+import GeminiChatbot from '@/components/GeminiChatbot';
 
 export default GeminiChatbot;

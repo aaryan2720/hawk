@@ -1,16 +1,16 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import AlertCard from './AlertCard';
-import SearchFilters from './SearchFilters';
-import { Alert } from '../types';
-import { supabase } from '../integrations/supabase/client';
+import AlertCard from '@/components/AlertCard';
+import SearchFilters from '@/components/SearchFilters';
+import { Alert } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, Loader, RefreshCw, Shield, Info, Zap, Filter } from 'lucide-react';
 import { toast } from "sonner";
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { filterAlertsByOEM } from '../utils/oemFiltering';
+import { filterAlertsByOEM } from '@/utils/oemFiltering';
 
 const AlertsList = () => {
   const { user } = useAuth();

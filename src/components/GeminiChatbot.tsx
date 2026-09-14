@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Bot, X, MessageCircle } from 'lucide-react';
-import { GeminiChatbotProps } from './GeminiChat/types';
-import { useGeminiChat } from './GeminiChat/useGeminiChat';
-import ChatMessages from './GeminiChat/ChatMessages';
-import ChatInput from './GeminiChat/ChatInput';
-import ApiKeyErrorAlert from './GeminiChat/ApiKeyErrorAlert';
+import { GeminiChatbotProps } from '@/components/GeminiChat/types';
+import { useGeminiChat } from '@/components/GeminiChat/useGeminiChat';
+import ChatMessages from '@/components/GeminiChat/ChatMessages';
+import ChatInput from '@/components/GeminiChat/ChatInput';
+import ApiKeyErrorAlert from '@/components/GeminiChat/ApiKeyErrorAlert';
 
 const GeminiChatbot: React.FC<GeminiChatbotProps> = ({ startExpanded = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(!startExpanded);

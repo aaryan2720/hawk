@@ -1,5 +1,5 @@
 
-import { AlertSeverity } from '../types';
+import { AlertSeverity } from '@/types';
 
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);

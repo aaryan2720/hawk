@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
-import { NotificationSettings } from './types';
+import { NotificationSettings } from '@/components/notification/types';
 
 interface AlertPreferencesProps {
   form: UseFormReturn<NotificationSettings>;

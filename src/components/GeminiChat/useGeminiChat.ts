@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-import { ChatMessage } from './types';
+import { ChatMessage } from '@/components/GeminiChat/types';
 
 export function useGeminiChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);

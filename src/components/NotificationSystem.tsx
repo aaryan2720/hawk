@@ -5,12 +5,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Form } from '@/components/ui/form';
-import NotificationForm from './notification/NotificationForm';
-import AlertPreferences from './notification/AlertPreferences';
-import NotificationActions from './notification/NotificationActions';
-import DebugPanel from './notification/DebugPanel';
-import { useNotificationSettings } from './notification/useNotificationSettings';
-import { NotificationSettings } from './notification/types';
+import NotificationForm from '@/components/notification/NotificationForm';
+import AlertPreferences from '@/components/notification/AlertPreferences';
+import NotificationActions from '@/components/notification/NotificationActions';
+import DebugPanel from '@/components/notification/DebugPanel';
+import { useNotificationSettings } from '@/components/notification/useNotificationSettings';
+import { NotificationSettings } from '@/components/notification/types';
 
 const NotificationSystem: React.FC = () => {
   const { user, session } = useAuth();

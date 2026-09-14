@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Mail, MessageSquare } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
-import { NotificationSettings } from './types';
+import { NotificationSettings } from '@/components/notification/types';
 
 interface NotificationFormProps {
   form: UseFormReturn<NotificationSettings>;

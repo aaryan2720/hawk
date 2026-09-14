@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert as AlertType } from '@/types';
-import SolutionProvider from './SolutionProvider';
+import SolutionProvider from '@/components/SolutionProvider';
 
 interface AlertSolutionModalProps {
   alert: AlertType | null;

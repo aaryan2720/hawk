@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, ExternalLink, Shield, Clock, CheckCircle, AlertTriangle, XCircle, ThumbsUp, Lightbulb } from 'lucide-react';
-import { Alert } from '../types';
-import { formatTimeAgo, getSeverityBgColor, getSeverityTextColor, capitalize } from '../utils/formatters';
-import AlertSolutionModal from './AlertSolutionModal';
+import { Alert } from '@/types';
+import { formatTimeAgo, getSeverityBgColor, getSeverityTextColor, capitalize } from '@/utils/formatters';
+import AlertSolutionModal from '@/components/AlertSolutionModal';
 
 interface AlertCardProps {
   alert: Alert;

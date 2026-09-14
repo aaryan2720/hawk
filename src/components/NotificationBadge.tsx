@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useNotifications } from './NotificationProvider';
+import { useNotifications } from '@/components/NotificationProvider';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {

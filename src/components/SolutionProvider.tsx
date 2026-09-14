@@ -14,8 +14,8 @@ import {
 import { Alert as AlertType } from '@/types';
 import { useSolutionProgress } from '@/hooks/useSolutionProgress';
 import { getSolutionTemplate } from '@/utils/solutionTemplates';
-import SolutionTemplateSelector from './SolutionTemplateSelector';
-import AISolutionDisplay from './AISolutionDisplay';
+import SolutionTemplateSelector from '@/components/SolutionTemplateSelector';
+import AISolutionDisplay from '@/components/AISolutionDisplay';
 
 interface SolutionProviderProps {
   alert: AlertType;

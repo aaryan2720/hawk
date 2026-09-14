@@ -1,5 +1,5 @@
 
-import { Alert } from '../types';
+import { Alert } from '@/types';
 
 // Real-time vulnerability data sources
 export const vulnerabilityAlerts: Alert[] = [
