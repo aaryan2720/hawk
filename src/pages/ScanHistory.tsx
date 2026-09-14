@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import DashboardNav from '@/components/DashboardNav';
+import DashboardNav from '@/components/layout/DashboardNav';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, Shield, AlertTriangle, CheckCircle, Filter, Download, RefreshCw, BarChart2 } from 'lucide-react';

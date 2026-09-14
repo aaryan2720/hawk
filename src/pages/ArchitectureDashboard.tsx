@@ -1,21 +1,21 @@
 
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useArchitectureTracking } from '@/hooks/useArchitectureTracking';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useArchitectureTracking } from '@/features/architecture/hooks/useArchitectureTracking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import UserFlowVisualization from '@/components/Architecture/UserFlowVisualization';
-import SystemArchitectureMap from '@/components/Architecture/SystemArchitectureMap';
-import RealTimeActivityDashboard from '@/components/Architecture/RealTimeActivityDashboard';
-import UserLevelIndicators from '@/components/Architecture/UserLevelIndicators';
-import ArchitectureMetrics from '@/components/Architecture/ArchitectureMetrics';
-import SystemDiagram from '@/components/Architecture/SystemDiagram';
-import NetworkTrafficVisualization from '@/components/Architecture/NetworkTrafficVisualization';
-import LiveSystemArchitecture from '@/components/Architecture/LiveSystemArchitecture';
-import RealTimeUserTracker from '@/components/Architecture/RealTimeUserTracker';
+import UserFlowVisualization from '@/features/architecture/components/UserFlowVisualization';
+import SystemArchitectureMap from '@/features/architecture/components/SystemArchitectureMap';
+import RealTimeActivityDashboard from '@/features/architecture/components/RealTimeActivityDashboard';
+import UserLevelIndicators from '@/features/architecture/components/UserLevelIndicators';
+import ArchitectureMetrics from '@/features/architecture/components/ArchitectureMetrics';
+import SystemDiagram from '@/features/architecture/components/SystemDiagram';
+import NetworkTrafficVisualization from '@/features/architecture/components/NetworkTrafficVisualization';
+import LiveSystemArchitecture from '@/features/architecture/components/LiveSystemArchitecture';
+import RealTimeUserTracker from '@/features/architecture/components/RealTimeUserTracker';
 import { 
   Activity, Users, Map, BarChart3, TrendingUp, Network, Zap, 
   Maximize2, Minimize2, Monitor, Shield

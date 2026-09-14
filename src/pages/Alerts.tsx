@@ -1,10 +1,10 @@
 
 import React from 'react';
-import DashboardNav from '@/components/DashboardNav';
-import { useAuth } from '@/hooks/useAuth';
+import DashboardNav from '@/components/layout/DashboardNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import AlertsList from '@/components/AlertsList';
-import MultiSourceVulnerabilityScanner from '@/components/MultiSourceVulnerabilityScanner';
+import AlertsList from '@/features/alerts/components/AlertsList';
+import MultiSourceVulnerabilityScanner from '@/features/scanning/components/MultiSourceVulnerabilityScanner';
 import { Shield, AlertTriangle, TrendingUp, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 

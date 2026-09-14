@@ -2,10 +2,10 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/ui/theme-provider';
-import { AuthProvider } from '@/hooks/useAuth';
-import NotificationProvider from '@/components/NotificationProvider';
+import { AuthProvider } from '@/features/auth/hooks/useAuth';
+import NotificationProvider from '@/features/notifications/components/NotificationProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useArchitectureTracking } from '@/hooks/useArchitectureTracking';
+import { useArchitectureTracking } from '@/features/architecture/hooks/useArchitectureTracking';
 
 // Pages
 import Dashboard from '@/pages/Dashboard';
