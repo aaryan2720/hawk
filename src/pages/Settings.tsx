@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import DashboardNav from '@/components/DashboardNav';
-import { useAuth } from '@/hooks/useAuth';
+import DashboardNav from '@/components/layout/DashboardNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bell, Shield, User, Lock, Server, Settings as SettingsIcon } from 'lucide-react';
-import NotificationSystem from '@/components/NotificationSystem';
-import NotificationCenter from '@/components/NotificationCenter';
-import NotificationRules from '@/components/NotificationRules';
+import NotificationSystem from '@/features/notifications/components/NotificationSystem';
+import NotificationCenter from '@/features/notifications/components/NotificationCenter';
+import NotificationRules from '@/features/notifications/components/NotificationRules';
 import { toast } from 'sonner';
 
 const Settings = () => {

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import SubscriptionPlans from '@/components/SubscriptionPlans';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import SubscriptionPlans from '@/features/billing/components/SubscriptionPlans';
 import { User, Shield, Settings, Bell, CreditCard, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import DashboardNav from '@/components/DashboardNav';
+import DashboardNav from '@/components/layout/DashboardNav';
 import { Link } from 'react-router-dom';
 
 const Profile = () => {

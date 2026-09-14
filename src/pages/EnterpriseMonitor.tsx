@@ -1,9 +1,9 @@
 
 import React from 'react';
-import DashboardNav from '@/components/DashboardNav';
-import { useAuth } from '@/hooks/useAuth';
+import DashboardNav from '@/components/layout/DashboardNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import EnterpriseOEMDashboard from '@/components/Enterprise/EnterpriseOEMDashboard';
+import EnterpriseOEMDashboard from '@/features/enterprise/components/EnterpriseOEMDashboard';
 
 const EnterpriseMonitor = () => {
   const { user, loading } = useAuth();

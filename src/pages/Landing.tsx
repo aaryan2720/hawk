@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { useGsapReveal } from '@/hooks/useGsapReveal';
-import ScrollProgressBar from '@/components/ScrollProgressBar';
+import ScrollProgressBar from '@/components/layout/ScrollProgressBar';
 import { Link } from 'react-router-dom';
 import { Shield, CheckCircle, Lock, BarChart2, AlertTriangle, ArrowRight, Globe, Server, Users, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';

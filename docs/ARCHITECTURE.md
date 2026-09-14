@@ -19,15 +19,28 @@ runs in an edge function.**
 
 ```text
 pages/            route entry points, layout + composition only
-components/       feature components; components/ui = shadcn primitives
-services/         backend access layer — the only place importing the supabase client
-                  for business logic (oemService, oemScrapingService,
-                  enterpriseOEMService, aiSolutionGenerator)
-hooks/            useAuth, useArchitectureTracking, useGsapReveal, useSolutionProgress
+features/         one folder per domain, each with its own
+                  components/ services/ hooks/ utils/
+    auth/         login, signup, AuthLayout, useAuth
+    alerts/       alert list, cards, filters, charts
+    ai/           Gemini chat, solution display, aiSolutionGenerator
+    oem/          WinAudit detection, OEM sources, oemService(s)
+    scanning/     vulnerability scanners, scoring, data sources
+    notifications/notification centre, rules, preferences
+    enterprise/   enterprise OEM dashboard + service
+    architecture/ internal live-system console (sysadmin only)
+    billing/      subscription plans
+components/       shared only — components/ui (shadcn), components/layout (nav, footer)
+hooks/            cross-feature hooks: use-toast, use-mobile, useGsapReveal
 integrations/     supabase client + generated database types
-utils/            pure helpers: formatting, scoring, filtering, templates
+utils/            cross-feature helpers: formatters, securityUtils, mockData
 types/            shared domain types (Alert, OEMSource, UserSystem, Notification…)
 ```
+
+Rules: a feature may import from `components/ui`, `components/layout`, `hooks`,
+`utils`, `types` and `integrations`. Cross-feature imports should be rare — if two
+features need the same thing, promote it to the shared layer. All imports use the
+`@/` alias; no `../../..` paths.
 
 Data fetching goes through TanStack Query where caching matters; one-off actions call a
 service function directly and surface results with the toast system.

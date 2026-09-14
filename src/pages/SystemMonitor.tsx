@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import DashboardNav from '@/components/DashboardNav';
-import { useAuth } from '@/hooks/useAuth';
+import DashboardNav from '@/components/layout/DashboardNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate, Link } from 'react-router-dom';
-import OEMMonitorList from '@/components/OEMMonitor/OEMMonitorList';
-import UserSystemMonitor from '@/components/AutoMonitor/UserSystemMonitor';
-import VulnerabilityScraper from '@/components/VulnerabilityScraper';
+import OEMMonitorList from '@/features/oem/components/OEMMonitorList';
+import UserSystemMonitor from '@/features/oem/components/AutoMonitor/UserSystemMonitor';
+import VulnerabilityScraper from '@/features/scanning/components/VulnerabilityScraper';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';

@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import useGsapReveal from '@/hooks/useGsapReveal';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import DashboardNav from '@/components/DashboardNav';
-import StatusOverview from '@/components/StatusOverview';
-import RiskAnalyzer from '@/components/RiskAnalyzer';
-import TrendChart from '@/components/TrendChart';
-import VulnerabilityDistribution from '@/components/VulnerabilityDistribution';
+import DashboardNav from '@/components/layout/DashboardNav';
+import StatusOverview from '@/features/alerts/components/StatusOverview';
+import RiskAnalyzer from '@/features/ai/components/RiskAnalyzer';
+import TrendChart from '@/features/alerts/components/TrendChart';
+import VulnerabilityDistribution from '@/features/alerts/components/VulnerabilityDistribution';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Shield, Clock, Bell, Target, Activity, Zap } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -17,9 +17,9 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { MonitoringSettings } from '@/types';
 import { toast } from 'sonner';
-import SecurityScannerVisual from '@/components/SecurityScannerVisual';
-import AlertStatusSummary from '@/components/AlertStatusSummary';
-import EnhancedVulnerabilityScanner from '@/components/EnhancedVulnerabilityScanner';
+import SecurityScannerVisual from '@/features/scanning/components/SecurityScannerVisual';
+import AlertStatusSummary from '@/features/alerts/components/AlertStatusSummary';
+import EnhancedVulnerabilityScanner from '@/features/scanning/components/EnhancedVulnerabilityScanner';
 
 const Dashboard = () => {
   const scope = useRef<HTMLDivElement>(null);

@@ -1,11 +1,11 @@
 
 import React from 'react';
-import DashboardNav from '@/components/DashboardNav';
-import { useAuth } from '@/hooks/useAuth';
+import DashboardNav from '@/components/layout/DashboardNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import GeminiChatbot from '@/components/GeminiChatbot';
+import GeminiChatbot from '@/features/ai/components/GeminiChatbot';
 import { Bot, Shield, Zap, MessageCircle, Brain, Lock } from 'lucide-react';
 
 const ChatBot = () => {
